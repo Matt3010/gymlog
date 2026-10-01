@@ -18,6 +18,7 @@
   import Stepper from '../Stepper.svelte';
   import TextField from '../TextField.svelte';
   import ExercisePicker from '../exercises/ExercisePicker.svelte';
+  import ExerciseNote from './ExerciseNote.svelte';
   import RestBar from './RestBar.svelte';
   import SetForm from './SetForm.svelte';
 
@@ -209,6 +210,7 @@
               <span class="eyebrow">L’ultima volta</span>
               {formatDay(block.previous.startedAt)} · {describeSets(block.previous.sets)}
             </p>
+            {#if block.previous.note}<p class="last-note">«{block.previous.note}»</p>{/if}
           {/if}
 
           {#if block.sets.length > 0}
@@ -226,6 +228,9 @@
           {/if}
         {/if}
 
+        {#if isOpen || block.sets.length > 0 || detail.exerciseNotes[block.exerciseId]}
+          <ExerciseNote workoutId={id} exerciseId={block.exerciseId} note={detail.exerciseNotes[block.exerciseId] ?? ''} />
+        {/if}
         {#if isOpen && !finished}
           <div class="add">
             <div class="pair">
@@ -284,6 +289,8 @@
 
 
 <style>
+  .last-note { margin: -4px 0 0; font-size: 12.5px; font-style: italic; color: var(--ink-2); overflow-wrap: anywhere; }
+
   .meta { margin: 0; font-size: 12.5px; color: var(--ink-3); }
 
   .head {

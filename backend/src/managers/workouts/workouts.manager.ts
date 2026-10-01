@@ -9,6 +9,8 @@ export interface WorkoutDetail extends Workout {
   readonly plan: PlanExercise[];
   readonly sets: WorkoutSet[];
   readonly previous: Record<string, PreviousSets>;
+  /** By exercise id: what was written about it in this workout. */
+  readonly exerciseNotes: Record<string, string>;
 }
 
 /** Workouts together with plans and exercises; each method one transaction. */
@@ -18,6 +20,8 @@ export interface WorkoutsManager {
   update(userId: number, id: number, change: WorkoutChange): Promise<WorkoutDetail>;
   /** Into the user's own workout, of the user's own exercise. */
   addSet(userId: number, workoutId: number, input: SetInput): Promise<WorkoutSet>;
+  /** On the user's own exercise in the user's own workout; null takes it away. */
+  setExerciseNote(userId: number, workoutId: number, exerciseId: number, note: string | null): Promise<{ exerciseId: number; note: string | null }>;
 }
 
 async function detail(tx: Executor, userId: number, workout: Workout): Promise<WorkoutDetail> {
@@ -29,6 +33,7 @@ async function detail(tx: Executor, userId: number, workout: Workout): Promise<W
     plan: day?.day.exercises ?? [],
     sets: await workouts.sets(workout.id),
     previous: await workouts.previous(userId, workout.id),
+    exerciseNotes: await workouts.exerciseNotes(workout.id),
   };
 }
 
@@ -58,6 +63,16 @@ export function createWorkoutsManager(db: Database): WorkoutsManager {
         const workout = await workouts.get(userId, workoutId);
         await createExercisesService(tx).requireOwned(userId, [input.exerciseId]);
         return workouts.addSet(workout.id, input);
+      });
+    },
+
+    setExerciseNote(userId, workoutId, exerciseId, note) {
+      return db.transaction(async (tx) => {
+        const workouts = createWorkoutsService(tx);
+        const workout = await workouts.get(userId, workoutId);
+        await createExercisesService(tx).requireOwned(userId, [exerciseId]);
+        await workouts.setExerciseNote(workout.id, exerciseId, note);
+        return { exerciseId, note };
       });
     },
   };

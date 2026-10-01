@@ -37,14 +37,4 @@ describe.skipIf(SERVER === undefined)("the stats repository", () => {
     expect((await repo().sets(user.id, squat.id)).map((set) => set.weightKg)).toEqual([92.5, 100]);
     expect(await repo().sets(other.user.id, squat.id)).toEqual([]);
   });
-
-  it("reads when each of the user's workouts started, sets or not", async () => {
-    const { user } = await setup();
-    const other = await setup();
-    const workouts = createWorkoutsRepository(handle.db);
-    await workouts.create(user.id, null, new Date("2026-09-03T17:00:00Z"));
-    await workouts.create(user.id, null, new Date("2026-09-01T17:00:00Z"));
-    await workouts.create(other.user.id, null);
-    expect((await repo().workoutStarts(user.id)).sort()).toEqual(["2026-09-01T17:00:00.000Z", "2026-09-03T17:00:00.000Z"]);
-  });
 });

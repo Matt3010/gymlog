@@ -40,11 +40,12 @@ interface Workout {
 }
 interface WorkoutSummary extends Workout { exercises: number; sets: number; volume: number }
 interface WorkoutSet { id: number; exerciseId: number; exerciseName: string; reps: number; weightKg: number; createdAt: string }
-interface PreviousSets { workoutId: number; startedAt: string; sets: { reps: number; weightKg: number }[] }
+interface PreviousSets { workoutId: number; startedAt: string; sets: { reps: number; weightKg: number }[]; note: string | null }
 interface WorkoutDetail extends Workout {
   plan: PlanExercise[];                        // gli esercizi del giorno della scheda ([] se libero)
   sets: WorkoutSet[];                          // in ordine di inserimento
-  previous: Record<string, PreviousSets>;      // per exerciseId: l'ultima sessione precedente con quell'esercizio
+  previous: Record<string, PreviousSets>;      // per exerciseId: l'ultima sessione precedente con quell'esercizio, con la sua nota
+  exerciseNotes: Record<string, string>;       // per exerciseId: la nota scritta su quell'esercizio in questo allenamento
 }
 
 // Statistiche di un gruppo di serie (una sessione, o tutte)
@@ -61,10 +62,8 @@ interface ExerciseStats {
   overall: SetStats & { sessions: number };
   sessions: ExerciseSession[];                 // dalla più recente
 }
-interface Overview {
-  workouts: number; workoutsLast30Days: number; volumeLast30Days: number;
-  exercises: { exerciseId: number; name: string; sessions: number; avgWeight: number; maxWeight: number; lastAt: string }[];
-}
+// Un esercizio a colpo d'occhio, per l'elenco degli esercizi (solo quelli con almeno una serie)
+interface ExerciseSummary { exerciseId: number; name: string; sessions: number; avgWeight: number; maxWeight: number; lastAt: string }
 ```
 
 ## Endpoint
@@ -93,9 +92,10 @@ interface Overview {
 | PATCH | /api/workouts/:id | `{ notes?: string \| null, finished?: boolean }` | `WorkoutDetail` |
 | DELETE | /api/workouts/:id | – | `{ ok: true }` |
 | POST | /api/workouts/:id/sets | `{ exerciseId, reps, weightKg }` | `WorkoutSet` |
+| PUT | /api/workouts/:id/exercises/:exerciseId/note | `{ note: string \| null }` (vuota o null la toglie, fino a 1000 caratteri) | `{ exerciseId, note }` |
 | PATCH | /api/sets/:id | `{ reps, weightKg }` | `WorkoutSet` |
 | DELETE | /api/sets/:id | – | `{ ok: true }` |
-| GET | /api/stats/overview | – | `Overview` |
+| GET | /api/stats/exercises | – | `ExerciseSummary[]` (dal più recente) |
 | GET | /api/stats/exercises/:id | – | `ExerciseStats` |
 
 Utenti: nome di 3–30 caratteri fra lettere, numeri, `.` `_` `-`, salvato e cercato in minuscolo;

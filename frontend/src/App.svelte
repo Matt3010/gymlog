@@ -12,12 +12,11 @@
   import LoginScreen from './components/auth/LoginScreen.svelte';
   import HomePage from './components/home/HomePage.svelte';
   import ExercisesPage from './components/exercises/ExercisesPage.svelte';
-  import ExerciseStatsPage from './components/stats/ExerciseStatsPage.svelte';
+  import ExerciseStatsPage from './components/exercises/ExerciseStatsPage.svelte';
   import PlansPage from './components/plans/PlansPage.svelte';
   import PlanEditorPage from './components/plans/PlanEditorPage.svelte';
   import WorkoutPage from './components/workouts/WorkoutPage.svelte';
   import HistoryPage from './components/workouts/HistoryPage.svelte';
-  import StatsPage from './components/stats/StatsPage.svelte';
   import { session } from './lib/client';
   import { nav } from './lib/nav.svelte';
   import { ui } from './lib/ui.svelte';
@@ -62,7 +61,7 @@
       <HomePage />
     {:else if route.kind === 'exercises'}
       <ExercisesPage />
-    {:else if route.kind === 'exerciseStats'}
+    {:else if route.kind === 'exercise'}
       <ExerciseStatsPage id={route.id} />
     {:else if route.kind === 'plans'}
       <PlansPage />
@@ -72,8 +71,6 @@
       <WorkoutPage id={route.id} />
     {:else if route.kind === 'history'}
       <HistoryPage />
-    {:else if route.kind === 'stats'}
-      <StatsPage />
     {/if}
   {/key}
   <TabBar />

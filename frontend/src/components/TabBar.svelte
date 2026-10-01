@@ -1,6 +1,6 @@
 <script lang="ts">
   import { nav } from '../lib/nav.svelte';
-  import { EXERCISES_PATH, HISTORY_PATH, HOME_PATH, PLANS_PATH, STATS_PATH, type Route } from '../lib/routing';
+  import { EXERCISES_PATH, HOME_PATH, PLANS_PATH, type Route } from '../lib/routing';
   import type { IconName } from '../lib/icons';
   import Icon from './Icon.svelte';
 
@@ -10,15 +10,14 @@
    * In restaurant-index le pagine si scambiano dalle linguette in cima. Qui
    * l'app si usa col telefono in una mano fra una serie e l'altra, e in cima
    * il pollice non ci arriva: le stesse porte stanno in fondo, sempre. Un
-   * allenamento aperto è di «Allenati», una scheda di «Schede», le statistiche
-   * di un esercizio di «Statistiche».
+   * allenamento aperto è di «Allenati», una scheda di «Schede», un esercizio
+   * di «Esercizi».
    */
   const SECTIONS: { href: string; label: string; icon: IconName; owns: Route['kind'][] }[] = [
-    { href: HOME_PATH, label: 'Allenati', icon: 'home', owns: ['home', 'workout'] },
+    // lo storico si apre dalla home («Tutto lo storico»): sta sotto Allenati
+    { href: HOME_PATH, label: 'Allenati', icon: 'home', owns: ['home', 'workout', 'history'] },
     { href: PLANS_PATH, label: 'Schede', icon: 'plans', owns: ['plans', 'plan'] },
-    { href: EXERCISES_PATH, label: 'Esercizi', icon: 'exercises', owns: ['exercises'] },
-    { href: HISTORY_PATH, label: 'Storico', icon: 'history', owns: ['history'] },
-    { href: STATS_PATH, label: 'Statistiche', icon: 'stats', owns: ['stats', 'exerciseStats'] },
+    { href: EXERCISES_PATH, label: 'Esercizi', icon: 'exercises', owns: ['exercises', 'exercise'] },
   ];
 </script>
 
@@ -40,7 +39,7 @@
     bottom: 0;
     z-index: var(--z-bar);
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     height: var(--tab-bar);
     padding: 0 max(6px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(6px, env(safe-area-inset-left));
     background: var(--glass);

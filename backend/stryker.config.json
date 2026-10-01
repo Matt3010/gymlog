@@ -5,8 +5,15 @@
   "reporters": ["clear-text", "progress"],
   "coverageAnalysis": "perTest",
   "concurrency": 3,
-  "thresholds": { "high": 100, "low": 100, "break": null },
+  "thresholds": { "high": 100, "low": 100, "break": 100 },
   "tempDirName": ".stryker-tmp",
   "cleanTempDir": "always",
-  "vitest": { "related": false }
+  "vitest": { "related": false },
+  "mutate": [
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
+    "!src/lib/**",
+    "!src/main.ts",
+    "!src/cli/**"
+  ]
 }

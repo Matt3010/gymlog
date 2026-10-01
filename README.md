@@ -19,12 +19,13 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
   ripetizioni ("8", "8-10", "max"), recupero e note.
 - **Allenamenti:** parti da un giorno della scheda o da un allenamento libero. Per ogni
   esercizio vedi cosa chiede la scheda e cosa hai fatto l'ultima volta; registri ogni
-  serie (ripetizioni × kg). I nomi della scheda e del giorno restano nello storico
-  anche se poi cambi o cancelli la scheda.
-- **Statistiche:** per ogni esercizio e per ogni sessione: serie, ripetizioni, volume
-  (ripetizioni × kg), peso medio delle serie, peso massimo e massimale stimato
-  (formula di Epley). In più, una panoramica: allenamenti totali e degli ultimi 30
-  giorni, volume degli ultimi 30 giorni, media e massimo di ogni esercizio.
+  serie (ripetizioni × kg), con il recupero che parte da solo. I nomi della scheda e
+  del giorno restano nello storico (dalla home, «Tutto lo storico») anche se poi
+  cambi o cancelli la scheda.
+- **Statistiche:** nell'elenco degli esercizi, accanto a ognuno, peso medio, massimo,
+  sessioni e l'ultima volta; aprendolo, sessione per sessione: serie, ripetizioni,
+  volume (ripetizioni × kg), peso medio delle serie, peso massimo e massimale stimato
+  (formula di Epley).
 - **Più utenti:** ognuno vede solo i suoi dati. Ci si registra dalla pagina di
   accesso (si chiude con `ALLOW_SIGNUP=false`), e gli utenti si creano anche da
   riga di comando.
@@ -81,8 +82,25 @@ docker run -d --name gymlog-pgtest -p 127.0.0.1:55432:5432 -e POSTGRES_PASSWORD=
 E2E_DATABASE_URL=postgres://postgres:test@127.0.0.1:55432 pnpm --filter @gymlog/backend test
 ```
 
-`pnpm --filter @gymlog/backend mutate <file>` lancia Stryker su un file: ogni mutante
-sopravvissuto è un test che manca o del codice da togliere.
+### Stryker (i test mordono?)
+
+Stryker cambia il codice di proposito e controlla che almeno un test se ne accorga.
+L'ambito è salvato nella configurazione, quindi basta lanciarlo:
+
+```bash
+E2E_DATABASE_URL=postgres://postgres:test@127.0.0.1:55432 pnpm --filter @gymlog/backend mutate
+pnpm --filter frontend mutate
+```
+
+- **backend** (`backend/stryker.config.json`): tutto `src/` tranne i test, `lib/`
+  (connessione e migrazioni), `main.ts` e `cli/`, che sono avvii provati a mano.
+  Si ferma con errore sotto il 100%.
+- **frontend**: due giri. `stryker.config.json` su `src/lib`, `stryker.ui.config.json` sulla
+  logica dei componenti (non sui testi delle schermate, che controllano i test delle
+  schermate e l'e2e).
+
+Ogni mutante sopravvissuto è un test che manca o del codice da togliere. Uno davvero
+equivalente si segna con `// Stryker disable next-line <Mutator>: motivo`.
 
 Lo schema si cambia in `backend/src/lib/database/schema/`, poi
 `pnpm --filter @gymlog/backend db:generate` scrive la migrazione SQL. L'API applica le

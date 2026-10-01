@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimatedMax, exerciseStats, overview, setStats } from "./stats.rules";
+import { estimatedMax, exerciseStats, exerciseSummaries, setStats } from "./stats.rules";
 
 describe("the estimated one-rep max", () => {
   it("is the weight itself for a single rep", () => {
@@ -76,34 +76,22 @@ describe("an exercise's history", () => {
   });
 });
 
-describe("the overview", () => {
-  const now = new Date("2026-10-01T12:00:00.000Z");
+describe("the summary of each exercise", () => {
   const sets = [
     { exerciseId: 1, exerciseName: "Squat", workoutId: 1, startedAt: "2026-08-01T18:00:00.000Z", reps: 5, weightKg: 80 },
     { exerciseId: 1, exerciseName: "Squat", workoutId: 2, startedAt: "2026-09-01T12:00:00.000Z", reps: 5, weightKg: 90 },
     { exerciseId: 1, exerciseName: "Squat", workoutId: 2, startedAt: "2026-09-01T12:00:00.000Z", reps: 5, weightKg: 100 },
     { exerciseId: 2, exerciseName: "Panca", workoutId: 3, startedAt: "2026-09-20T18:00:00.000Z", reps: 10, weightKg: 50 },
   ];
-  const starts = ["2026-08-01T18:00:00.000Z", "2026-09-01T12:00:00.000Z", "2026-09-20T18:00:00.000Z", "2026-09-25T18:00:00.000Z"];
 
-  it("counts the workouts, and those of the last thirty days", () => {
-    expect(overview(sets, starts, now)).toMatchObject({ workouts: 4, workoutsLast30Days: 3 });
-  });
-
-  it("adds up the volume of the last thirty days, counting from exactly thirty days ago", () => {
-    // 1 September 12:00 is exactly thirty days before: in.
-    expect(overview(sets, starts, now).volumeLast30Days).toBe(450 + 500 + 500);
-    expect(overview(sets, starts, new Date("2026-10-01T12:00:00.001Z")).volumeLast30Days).toBe(500);
-  });
-
-  it("sums up each exercise, the most recently done first", () => {
-    expect(overview(sets, starts, now).exercises).toEqual([
+  it("gives sessions, average and heaviest weight, and the last time, the most recently done first", () => {
+    expect(exerciseSummaries(sets)).toEqual([
       { exerciseId: 2, name: "Panca", sessions: 1, avgWeight: 50, maxWeight: 50, lastAt: "2026-09-20T18:00:00.000Z" },
       { exerciseId: 1, name: "Squat", sessions: 2, avgWeight: 90, maxWeight: 100, lastAt: "2026-09-01T12:00:00.000Z" },
     ]);
   });
 
   it("is empty with nothing done", () => {
-    expect(overview([], [], now)).toEqual({ workouts: 0, workoutsLast30Days: 0, volumeLast30Days: 0, exercises: [] });
+    expect(exerciseSummaries([])).toEqual([]);
   });
 });

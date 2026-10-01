@@ -96,6 +96,8 @@ export interface PreviousSets {
   workoutId: number;
   startedAt: string;
   sets: DoneSet[];
+  /** Quello che si era scritto su quell'esercizio quella volta. */
+  note: string | null;
 }
 
 export interface WorkoutDetail extends Workout {
@@ -104,6 +106,8 @@ export interface WorkoutDetail extends Workout {
   sets: WorkoutSet[];
   /** Per exerciseId: l'ultima sessione precedente con quell'esercizio. */
   previous: Record<string, PreviousSets>;
+  /** La nota di ogni esercizio in questo allenamento, per id. */
+  exerciseNotes: Record<string, string>;
 }
 
 export interface SetStats {
@@ -126,9 +130,12 @@ export interface ExerciseStats {
   sessions: ExerciseSession[];
 }
 
-export interface Overview {
-  workouts: number;
-  workoutsLast30Days: number;
-  volumeLast30Days: number;
-  exercises: { exerciseId: number; name: string; sessions: number; avgWeight: number; maxWeight: number; lastAt: string }[];
+/** Come va un esercizio fatto almeno una volta, per la sua riga nell'elenco. */
+export interface ExerciseOverview {
+  exerciseId: number;
+  name: string;
+  sessions: number;
+  avgWeight: number;
+  maxWeight: number;
+  lastAt: string;
 }

@@ -1,7 +1,7 @@
 import { authenticated, idParam, intParam, route, type Route } from "../../http";
 import type { WorkoutsManager } from "../../managers";
 import type { WorkoutsService } from "../../services";
-import { parseSet, parseSetChange, parseWorkoutChange, parseWorkoutStart } from "../../validators";
+import { parseExerciseNote, parseSet, parseSetChange, parseWorkoutChange, parseWorkoutStart } from "../../validators";
 
 /** Workouts and the sets logged in them. What needs plans or exercises goes through the manager. */
 export function workoutsController(workouts: WorkoutsService, manager: WorkoutsManager): Route[] {
@@ -17,6 +17,8 @@ export function workoutsController(workouts: WorkoutsService, manager: WorkoutsM
 
     route("POST", "/api/workouts/(\\d+)/sets", authenticated(async (context, user) =>
       manager.addSet(user.id, idParam(context), parseSet(await context.body())))),
+    route("PUT", "/api/workouts/(\\d+)/exercises/(\\d+)/note", authenticated(async (context, user) =>
+      manager.setExerciseNote(user.id, idParam(context), idParam(context, 1), parseExerciseNote(await context.body()).note))),
     route("PATCH", "/api/sets/(\\d+)", authenticated(async (context, user) =>
       workouts.updateSet(user.id, idParam(context), parseSetChange(await context.body())))),
     route("DELETE", "/api/sets/(\\d+)", authenticated((context, user) => workouts.deleteSet(user.id, idParam(context)))),

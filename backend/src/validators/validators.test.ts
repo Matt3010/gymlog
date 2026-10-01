@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  InputError, parseExercise, parseLogin, parseRegister, parsePlan, parseSet, parseSetChange, parseWorkoutChange, parseWorkoutStart,
+  InputError, parseExercise, parseExerciseNote, parseLogin, parseRegister, parsePlan, parseSet, parseSetChange, parseWorkoutChange, parseWorkoutStart,
 } from "./index";
 
 describe("a request body", () => {
@@ -132,6 +132,23 @@ describe("a plan", () => {
     [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], restSeconds: 3601 }] }] }, "Recupero: numero tra 0 e 3600 (intero)."],
   ])("is refused: %#", (body, message) => {
     expect(() => parsePlan(body)).toThrow(message);
+  });
+});
+
+describe("a note on an exercise in a workout", () => {
+  it("is trimmed text, and nothing when blank or null", () => {
+    expect(parseExerciseNote({ note: " scendere di peso " })).toEqual({ note: "scendere di peso" });
+    expect(parseExerciseNote({ note: "   " })).toEqual({ note: null });
+    expect(parseExerciseNote({ note: null })).toEqual({ note: null });
+    expect(parseExerciseNote({ note: "x".repeat(1000) }).note).toHaveLength(1000);
+  });
+
+  it.each([
+    [{ note: "x".repeat(1001) }, "Testo della nota: troppo lungo."],
+    [{ note: 5 }, "Testo della nota: troppo lungo."],
+    [{}, "Testo della nota: obbligatorio."],
+  ])("is refused: %j", (body, message) => {
+    expect(() => parseExerciseNote(body)).toThrow(new InputError(message));
   });
 });
 

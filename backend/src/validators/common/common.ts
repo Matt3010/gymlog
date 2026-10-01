@@ -7,7 +7,7 @@ export type Body = Record<string, unknown>;
 const FIELD_LABELS: Record<string, string> = {
   username: "Utente", name: "Nome", muscleGroup: "Gruppo muscolare", notes: "Note", archived: "Archiviata",
   days: "Giorni", exercises: "Esercizi", exerciseId: "Esercizio", sets: "Serie", reps: "Ripetizioni",
-  restSeconds: "Recupero", planDayId: "Giorno", finished: "Terminato", weightKg: "Peso",
+  restSeconds: "Recupero", planDayId: "Giorno", finished: "Terminato", weightKg: "Peso", note: "Testo della nota",
 };
 
 export const field = (key: string): string => FIELD_LABELS[key] ?? key;

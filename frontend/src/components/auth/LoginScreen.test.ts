@@ -137,7 +137,7 @@ describe('the app', () => {
     render(App);
     expect(await screen.findByRole('heading', { name: 'Allenati' })).toBeInTheDocument();
     const sections = screen.getByRole('navigation', { name: 'Sezioni' });
-    expect([...sections.querySelectorAll('a')].map((link) => link.textContent?.trim())).toEqual(['Allenati', 'Schede', 'Esercizi', 'Storico', 'Statistiche']);
+    expect([...sections.querySelectorAll('a')].map((link) => link.textContent?.trim())).toEqual(['Allenati', 'Schede', 'Esercizi']);
     expect(screen.getByRole('link', { name: 'Allenati' })).toHaveAttribute('aria-current', 'page');
   });
 

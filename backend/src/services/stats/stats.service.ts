@@ -1,9 +1,10 @@
 import type { Executor } from "../../lib";
 import { createStatsRepository, type StatSet } from "../../repositories";
-import { type ExerciseHistory, exerciseStats, type Overview, overview, type SessionSets } from "./stats.rules";
+import { type ExerciseHistory, exerciseStats, type ExerciseSummary, exerciseSummaries, type SessionSets } from "./stats.rules";
 
 export interface StatsService {
-  overview(userId: number): Promise<Overview>;
+  /** Each exercise done, at a glance. */
+  exercises(userId: number): Promise<ExerciseSummary[]>;
   /** Session by session; whether the exercise is the user's is the stats manager's to check. */
   history(userId: number, exerciseId: number): Promise<ExerciseHistory>;
 }
@@ -19,11 +20,11 @@ function bySession(sets: readonly StatSet[]): SessionSets[] {
   return [...sessions.values()];
 }
 
-export function createStatsService(db: Executor, now = () => new Date()): StatsService {
+export function createStatsService(db: Executor): StatsService {
   const stats = createStatsRepository(db);
   return {
-    async overview(userId) {
-      return overview(await stats.sets(userId), await stats.workoutStarts(userId), now());
+    async exercises(userId) {
+      return exerciseSummaries(await stats.sets(userId));
     },
     async history(userId, exerciseId) {
       return exerciseStats(bySession(await stats.sets(userId, exerciseId)));

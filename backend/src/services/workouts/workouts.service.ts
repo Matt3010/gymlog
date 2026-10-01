@@ -17,6 +17,10 @@ export interface WorkoutsService {
   previous(userId: number, workoutId: number): Promise<Record<string, PreviousSets>>;
   /** Into a workout already found as the user's, of an exercise already checked as theirs. */
   addSet(workoutId: number, input: SetInput): Promise<WorkoutSet>;
+  /** Same checks as addSet, by the caller. Null takes the note away. */
+  setExerciseNote(workoutId: number, exerciseId: number, note: string | null): Promise<void>;
+  /** By exercise id. */
+  exerciseNotes(workoutId: number): Promise<Record<string, string>>;
   updateSet(userId: number, setId: number, change: { reps: number; weightKg: number }): Promise<WorkoutSet>;
   deleteSet(userId: number, setId: number): Promise<void>;
 }
@@ -32,6 +36,8 @@ export function createWorkoutsService(db: Executor): WorkoutsService {
     sets: (workoutId) => workouts.sets(workoutId),
     previous: async (userId, workoutId) => Object.fromEntries(await workouts.previous(userId, workoutId)),
     addSet: (workoutId, input) => workouts.addSet(workoutId, input),
+    setExerciseNote: (workoutId, exerciseId, note) => workouts.setExerciseNote(workoutId, exerciseId, note),
+    exerciseNotes: async (workoutId) => Object.fromEntries(await workouts.exerciseNotes(workoutId)),
     updateSet: async (userId, setId, change) => found(await workouts.updateSet(userId, setId, change)),
     deleteSet: async (userId, setId) => foundIf(await workouts.deleteSet(userId, setId)),
   };

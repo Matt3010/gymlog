@@ -27,7 +27,7 @@ function workout(id: number, change: Partial<WorkoutSummary> = {}): WorkoutSumma
 }
 
 const started = (id: number): WorkoutDetail => ({
-  id, planDayId: null, planName: null, dayName: null, startedAt: new Date().toISOString(), finishedAt: null, notes: null, plan: [], sets: [], previous: {},
+  id, planDayId: null, planName: null, dayName: null, startedAt: new Date().toISOString(), finishedAt: null, notes: null, plan: [], sets: [], previous: {}, exerciseNotes: {},
 });
 
 describe('home', () => {

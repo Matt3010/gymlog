@@ -59,49 +59,37 @@ export function exerciseStats(sessions: readonly SessionSets[]): ExerciseHistory
   };
 }
 
-export interface Overview {
-  readonly workouts: number;
-  readonly workoutsLast30Days: number;
-  readonly volumeLast30Days: number;
-  readonly exercises: {
-    readonly exerciseId: number;
-    readonly name: string;
-    readonly sessions: number;
-    readonly avgWeight: number;
-    readonly maxWeight: number;
-    readonly lastAt: string;
-  }[];
+/** One exercise at a glance, for the exercise list. */
+export interface ExerciseSummary {
+  readonly exerciseId: number;
+  readonly name: string;
+  readonly sessions: number;
+  readonly avgWeight: number;
+  readonly maxWeight: number;
+  readonly lastAt: string;
 }
 
-const THIRTY_DAYS_MS = 30 * 86_400_000;
-
 /**
- * How many workouts, the last thirty days, and each exercise's average and
- * heaviest weight. `sets` come oldest first, as the stats repository reads them.
+ * Each exercise done: in how many sessions, its average and heaviest weight,
+ * the last time; the most recently done first. `sets` come oldest first, as
+ * the stats repository reads them.
  */
-export function overview(sets: readonly StatSet[], workoutStarts: readonly string[], now: Date): Overview {
-  const recent = (startedAt: string) => now.getTime() - Date.parse(startedAt) <= THIRTY_DAYS_MS;
-
+export function exerciseSummaries(sets: readonly StatSet[]): ExerciseSummary[] {
   const byExercise = new Map<number, StatSet[]>();
   for (const set of sets) byExercise.set(set.exerciseId, [...(byExercise.get(set.exerciseId) ?? []), set]);
 
-  return {
-    workouts: workoutStarts.length,
-    workoutsLast30Days: workoutStarts.filter(recent).length,
-    volumeLast30Days: setStats(sets.filter((set) => recent(set.startedAt))).volume,
-    exercises: [...byExercise.values()]
-      .map((done) => {
-        const stats = setStats(done);
-        return {
-          exerciseId: done[0]!.exerciseId,
-          name: done[0]!.exerciseName,
-          sessions: new Set(done.map((set) => set.workoutId)).size,
-          avgWeight: stats.avgWeight,
-          maxWeight: stats.maxWeight,
-          // The sets come oldest first: the last one is the latest.
-          lastAt: done.at(-1)!.startedAt,
-        };
-      })
-      .sort((a, b) => b.lastAt.localeCompare(a.lastAt)),
-  };
+  return [...byExercise.values()]
+    .map((done) => {
+      const stats = setStats(done);
+      return {
+        exerciseId: done[0]!.exerciseId,
+        name: done[0]!.exerciseName,
+        sessions: new Set(done.map((set) => set.workoutId)).size,
+        avgWeight: stats.avgWeight,
+        maxWeight: stats.maxWeight,
+        // The sets come oldest first: the last one is the latest.
+        lastAt: done.at(-1)!.startedAt,
+      };
+    })
+    .sort((a, b) => b.lastAt.localeCompare(a.lastAt));
 }

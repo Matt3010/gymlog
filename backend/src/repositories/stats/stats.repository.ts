@@ -11,11 +11,10 @@ export interface StatSet {
   readonly weightKg: number;
 }
 
-/** What the statistics are made from: every set done, and when each workout started. */
+/** What the statistics are made from: every set done. */
 export interface StatsRepository {
   /** The user's sets, of one exercise or all, oldest first. */
   sets(userId: number, exerciseId?: number): Promise<StatSet[]>;
-  workoutStarts(userId: number): Promise<string[]>;
 }
 
 export function createStatsRepository(db: Executor): StatsRepository {
@@ -36,11 +35,5 @@ export function createStatsRepository(db: Executor): StatsRepository {
         .where(and(eq(workouts.userId, userId), exerciseId === undefined ? undefined : eq(workoutSets.exerciseId, exerciseId)))
         .orderBy(asc(workouts.startedAt), asc(workoutSets.id));
       return rows.map((row) => ({ ...row, startedAt: row.startedAt.toISOString() }));
-    },
-
-    async workoutStarts(userId) {
-      const rows = await db.select({ startedAt: workouts.startedAt }).from(workouts).where(eq(workouts.userId, userId));
-      return rows.map((row) => row.startedAt.toISOString());
-    },
-  };
+    },  };
 }

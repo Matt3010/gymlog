@@ -13,7 +13,7 @@ const set = (exerciseId: number, exerciseName: string, reps: number, weightKg: n
 
 const detail = (extra: Partial<WorkoutDetail> = {}): WorkoutDetail => ({
   id: 1, planDayId: 5, planName: 'Forza', dayName: 'A', startedAt: '2026-10-01T17:00:00.000Z', finishedAt: null, notes: null,
-  plan: [], sets: [], previous: {}, ...extra,
+  plan: [], sets: [], previous: {}, exerciseNotes: {}, ...extra,
 });
 
 describe('the blocks of a workout', () => {
@@ -21,7 +21,7 @@ describe('the blocks of a workout', () => {
     const squat = target(1, 'Squat');
     const bench = target(2, 'Panca', { sets: 4 });
     const done = [set(1, 'Squat', 8, 100), set(2, 'Panca', 10, 60), set(1, 'Squat', 8, 102.5)];
-    const previous = { '1': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 97.5 }] } };
+    const previous = { '1': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 97.5 }], note: null } };
     const blocks = blocksOf(detail({ plan: [squat, bench], sets: done, previous }));
     expect(blocks).toEqual([
       { exerciseId: 1, name: 'Squat', target: squat, sets: [done[0], done[2]], previous: previous['1'] },
@@ -51,7 +51,7 @@ describe('the blocks of a workout', () => {
   });
 
   it('carry the last time for exercises outside the plan too', () => {
-    const previous = { '3': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 12, weightKg: 14 }] } };
+    const previous = { '3': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 12, weightKg: 14 }], note: null } };
     const blocks = blocksOf(detail({ sets: [set(3, 'Curl', 12, 15)], previous }));
     expect(blocks[0]!.previous).toEqual(previous['3']);
   });
@@ -78,12 +78,12 @@ describe('the next set, proposed', () => {
   });
 
   it('prefers today over last time, once a set is done', () => {
-    const previous = { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 95 }] };
+    const previous = { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 95 }], note: null };
     expect(prefill({ ...block, previous, sets: [set(1, 'Squat', 6, 100)] })).toEqual({ reps: 6, weightKg: 100 });
   });
 
   it('starts from the first set of last time', () => {
-    const previous = { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 95 }, { reps: 6, weightKg: 100 }] };
+    const previous = { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 95 }, { reps: 6, weightKg: 100 }], note: null };
     expect(prefill({ ...block, previous })).toEqual({ reps: 8, weightKg: 95 });
   });
 

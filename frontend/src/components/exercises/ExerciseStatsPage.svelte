@@ -1,7 +1,7 @@
 <script lang="ts">
   import { statsApi } from '../../lib/endpoints';
   import { formatDay, formatKg, formatNumber } from '../../lib/format';
-  import { STATS_PATH, workoutPath } from '../../lib/routing';
+  import { EXERCISES_PATH, workoutPath } from '../../lib/routing';
   import type { ExerciseStats } from '../../lib/types';
   import Alert from '../Alert.svelte';
   import EmptyState from '../EmptyState.svelte';
@@ -10,7 +10,6 @@
   import PanelSkeleton from '../PanelSkeleton.svelte';
   import Table from '../Table.svelte';
   import type { Column } from '../../lib/table';
-  import LineChart from './LineChart.svelte';
 
   /**
    * Come va un esercizio: i numeri di sempre in cima, e sotto ogni sessione,
@@ -38,7 +37,7 @@
   });
 
   /** Il ritorno in cima alla pagina: un oggetto qui e non nel markup, che Stryker non sa leggere. */
-  const back = { href: STATS_PATH, label: 'Statistiche' };
+  const back = { href: EXERCISES_PATH, label: 'Esercizi' };
 </script>
 
 <PageShell title={stats?.exercise.name ?? 'Statistiche'} {back}>
@@ -63,13 +62,6 @@
         </dl>
       </PageCard>
 
-      {#if stats.sessions.length > 1}
-        <PageCard>
-          <span class="eyebrow">Andamento</span>
-          <!-- le sessioni arrivano dalla più recente: il grafico va da sinistra, dalla più vecchia -->
-          <LineChart name={stats.exercise.name} sessions={[...stats.sessions].reverse()} />
-        </PageCard>
-      {/if}
       <PageCard>
         <span class="eyebrow">Sessione per sessione</span>
         <Table inRiga columns={COLUMNS} rows={stats.sessions.map((session) => ({ ...session, id: String(session.workoutId) }))} label="Le sessioni di {stats.exercise.name}">

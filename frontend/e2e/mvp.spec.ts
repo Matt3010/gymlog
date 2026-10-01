@@ -113,6 +113,9 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByRole('button', { name: 'Peso, più 2,5' }).click();
   await page.getByRole('button', { name: 'Segna la serie 2' }).click();
   await expect(page.locator('.set .what')).toHaveText(['8 × 60 kg', '8 × 62,5 kg']);
+  await page.getByLabel('Nota', { exact: true }).first().fill('scendere più lento');
+  await page.getByLabel('Nota', { exact: true }).first().blur();
+  await expect(page.getByText('Salvata')).toBeVisible();
 
   // The rest the plan asks for runs above the tab bar, clear of the page's last buttons.
   const rest = page.getByRole('timer', { name: 'Recupero' });
@@ -135,14 +138,18 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByRole('link', { name: 'Allenati' }).first().click();
   await page.getByRole('button', { name: 'A 2 esercizi' }).click();
   await expect(page.getByText('L’ultima volta').locator('..')).toContainText('Oggi · 8 × 60 kg, 8 × 62,5 kg');
+  await expect(page.getByText('«scendere più lento»')).toBeVisible();
   await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('60');
 
-  // The stats: one finished workout and one open, Squat's numbers from its two sets.
-  await page.getByRole('link', { name: 'Statistiche' }).click();
-  await expect(tile(page, 'Allenamenti')).toHaveText('2');
-  await expect(tile(page, 'Volume 30 giorni')).toHaveText('980 kg');
+  // Three sections only; the exercises say how each is going, and a row opens its stats.
+  await expect(page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link')).toHaveText(['Allenati', 'Schede', 'Esercizi']);
+  await page.getByRole('link', { name: 'Esercizi' }).click();
+  await expect(page.getByRole('link', { name: /^Squat/ })).toContainText('media 61,25 kg · max 62,5 kg · 1 sessione · l’ultima oggi');
+  await expect(page.getByRole('link', { name: /^Panca piana/ })).not.toContainText('media');
   await page.getByRole('link', { name: /^Squat/ }).click();
+  await expect(page).toHaveURL(/\/esercizi\/\d+$/);
   await expect(page.getByRole('heading', { name: 'Squat' })).toBeVisible();
+  await expect(page.getByRole('img')).toHaveCount(0);
   await expect(tile(page, 'Massimo')).toHaveText('62,5 kg');
   await expect(tile(page, 'Media')).toHaveText('61,25 kg');
   await expect(tile(page, '1RM stimato')).toHaveText('79,17 kg');
@@ -157,9 +164,11 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   expect(['none', 'normal', '']).toContain(label);
 
   // The history, opened once, lists both and asks the server once.
+  await page.getByRole('link', { name: 'Allenati' }).click();
   const asked: string[] = [];
-  page.on('request', (request) => request.url().includes('/api/workouts?') && asked.push(request.url()));
-  await page.getByRole('link', { name: 'Storico' }).click();
+  page.on('request', (request) => request.url().includes('/api/workouts?limit=20') && asked.push(request.url()));
+  await page.getByRole('link', { name: 'Tutto lo storico' }).click();
+  await expect(page.getByRole('heading', { name: 'Storico' })).toBeVisible();
   await expect(page.locator('.row')).toHaveCount(2);
   await page.waitForTimeout(500);
   expect(asked).toHaveLength(1);

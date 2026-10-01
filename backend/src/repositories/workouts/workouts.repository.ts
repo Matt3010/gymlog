@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import { type Executor, exercises, workoutSets, workouts } from "../../lib";
+import { type Executor, exercises, workoutExerciseNotes, workoutSets, workouts } from "../../lib";
 
 export interface Workout {
   readonly id: number;
@@ -34,6 +34,8 @@ export interface PreviousSets {
   readonly workoutId: number;
   readonly startedAt: string;
   readonly sets: { readonly reps: number; readonly weightKg: number }[];
+  /** What was written about the exercise that time. */
+  readonly note: string | null;
 }
 
 /** The plan day a workout follows, names copied so the history keeps them. */
@@ -67,6 +69,10 @@ export interface WorkoutsRepository {
   /** For each exercise done before this workout started, the sets of the last workout with it. */
   previous(userId: number, workoutId: number): Promise<Map<number, PreviousSets>>;
   addSet(workoutId: number, input: SetInput): Promise<WorkoutSet>;
+  /** One note per exercise in a workout; null takes it away. */
+  setExerciseNote(workoutId: number, exerciseId: number, note: string | null): Promise<void>;
+  /** By exercise id. */
+  exerciseNotes(workoutId: number): Promise<Map<number, string>>;
   updateSet(userId: number, setId: number, change: { reps: number; weightKg: number }): Promise<WorkoutSet | undefined>;
   deleteSet(userId: number, setId: number): Promise<boolean>;
 }
@@ -167,7 +173,7 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
 
     async previous(userId, workoutId) {
       // Raw rows: Drizzle leaves timestamps as Postgres writes them ("2026-09-03 17:00:00+00").
-      const { rows } = await db.execute<{ exercise_id: number; workout_id: number; started_at: string; reps: number; weight_kg: number }>(sql`
+      const { rows } = await db.execute<{ exercise_id: number; workout_id: number; started_at: string; reps: number; weight_kg: number; note: string | null }>(sql`
         with done as (
           select s.exercise_id, w.id as workout_id, w.started_at,
                  row_number() over (partition by s.exercise_id order by w.started_at desc, w.id desc) as rank
@@ -177,18 +183,36 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
             and w.started_at < (select started_at from workouts where id = ${workoutId} and user_id = ${userId})
           group by s.exercise_id, w.id, w.started_at
         )
-        select d.exercise_id, d.workout_id, d.started_at, s.reps, s.weight_kg
+        select d.exercise_id, d.workout_id, d.started_at, s.reps, s.weight_kg, n.note
         from done d
         join workout_sets s on s.workout_id = d.workout_id and s.exercise_id = d.exercise_id
+        left join workout_exercise_notes n on n.workout_id = d.workout_id and n.exercise_id = d.exercise_id
         where d.rank = 1
         order by s.id`);
       const previous = new Map<number, PreviousSets>();
       for (const row of rows) {
-        const entry = previous.get(row.exercise_id) ?? { workoutId: row.workout_id, startedAt: new Date(row.started_at).toISOString(), sets: [] };
+        const entry = previous.get(row.exercise_id)
+          ?? { workoutId: row.workout_id, startedAt: new Date(row.started_at).toISOString(), sets: [], note: row.note };
         entry.sets.push({ reps: row.reps, weightKg: row.weight_kg });
         previous.set(row.exercise_id, entry);
       }
       return previous;
+    },
+
+    async setExerciseNote(workoutId, exerciseId, note) {
+      if (note === null) {
+        await db.delete(workoutExerciseNotes)
+          .where(and(eq(workoutExerciseNotes.workoutId, workoutId), eq(workoutExerciseNotes.exerciseId, exerciseId)));
+        return;
+      }
+      await db.insert(workoutExerciseNotes).values({ workoutId, exerciseId, note })
+        .onConflictDoUpdate({ target: [workoutExerciseNotes.workoutId, workoutExerciseNotes.exerciseId], set: { note } });
+    },
+
+    async exerciseNotes(workoutId) {
+      const rows = await db.select({ exerciseId: workoutExerciseNotes.exerciseId, note: workoutExerciseNotes.note })
+        .from(workoutExerciseNotes).where(eq(workoutExerciseNotes.workoutId, workoutId));
+      return new Map(rows.map((row) => [row.exerciseId, row.note]));
     },
 
     async addSet(workoutId, input) {

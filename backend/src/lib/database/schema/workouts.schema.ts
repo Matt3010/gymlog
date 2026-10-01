@@ -1,4 +1,4 @@
-import { index, integer, numeric, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, numeric, pgTable, primaryKey, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { exercises } from "./exercises.schema";
 import { planDays } from "./plans.schema";
 import { users } from "./users.schema";
@@ -28,3 +28,10 @@ export const workoutSets = pgTable("workout_sets", {
   weightKg: numeric("weight_kg", { precision: 6, scale: 2, mode: "number" }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("workout_sets_workout").on(table.workoutId), index("workout_sets_exercise").on(table.exerciseId)]);
+
+/** What the user wrote about one exercise in one workout: "spalla fastidiosa, scendere di peso". */
+export const workoutExerciseNotes = pgTable("workout_exercise_notes", {
+  workoutId: integer("workout_id").notNull().references(() => workouts.id, { onDelete: "cascade" }),
+  exerciseId: integer("exercise_id").notNull().references(() => exercises.id, { onDelete: "cascade" }),
+  note: text("note").notNull(),
+}, (table) => [primaryKey({ columns: [table.workoutId, table.exerciseId] })]);

@@ -23,8 +23,9 @@ const DETAIL: WorkoutDetail = {
   plan: [target(1, 1, 'Squat', 3, '8-10', 90), target(2, 2, 'Panca piana', 3, '10', null)],
   sets: [set(100, 1, 'Squat', 8, 60)],
   previous: {
-    1: { workoutId: 3, startedAt: '2026-09-20T17:00:00.000Z', sets: [{ reps: 8, weightKg: 60 }, { reps: 8, weightKg: 60 }, { reps: 6, weightKg: 62.5 }] },
+    1: { workoutId: 3, startedAt: '2026-09-20T17:00:00.000Z', sets: [{ reps: 8, weightKg: 60 }, { reps: 8, weightKg: 60 }, { reps: 6, weightKg: 62.5 }], note: 'ginocchio un po’ dentro' },
   },
+  exerciseNotes: { 1: 'scendere più lento' },
 };
 
 /** The server keeping the workout: sets added, changed, removed; the end set and taken back. */
@@ -325,5 +326,63 @@ describe('while it loads, the page', () => {
     silentApi();
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     expect(document.querySelector('.skeleton')).toBeInTheDocument();
+  });
+});
+
+describe('a note on an exercise', () => {
+  const note = (name: string) => within(screen.getByRole('button', { name: new RegExp(`^${name}`) }).closest('.card') as HTMLElement).getByLabelText('Nota');
+
+  it('shows what was written last time under it, and today’s in the field', async () => {
+    server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    expect(await screen.findByText('«ginocchio un po’ dentro»')).toBeInTheDocument();
+    expect(note('Squat')).toHaveValue('scendere più lento');
+    await userEvent.setup().click(screen.getByRole('button', { name: /^Panca piana/ }));
+    expect(note('Panca piana')).toHaveValue('');
+    expect(note('Panca piana')).toHaveAttribute('placeholder', 'Come è andato, cosa cambiare la prossima volta');
+  });
+
+  it('is saved when you leave the field, only if changed, and says so quietly', async () => {
+    const api = server().on('PUT /workouts/7/exercises/1/note', (call: Call) => ({ exerciseId: 1, note: (call.body as { note: string }).note }));
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    await screen.findByText('«ginocchio un po’ dentro»');
+    await user.click(note('Squat'));
+    await user.tab();
+    expect(api.changes()).toEqual([]);
+    await user.clear(note('Squat'));
+    await user.type(note('Squat'), '  più lento  ');
+    await user.tab();
+    expect(api.changes()).toEqual([{ route: 'PUT /workouts/7/exercises/1/note', body: { note: 'più lento' } }]);
+    expect(await screen.findByText('Salvata')).toBeInTheDocument();
+  });
+
+  it('emptied is removed', async () => {
+    const api = server().on('PUT /workouts/7/exercises/1/note', { exerciseId: 1, note: null });
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    await screen.findByText('«ginocchio un po’ dentro»');
+    await user.clear(note('Squat'));
+    await user.tab();
+    expect(api.changes()).toEqual([{ route: 'PUT /workouts/7/exercises/1/note', body: { note: null } }]);
+  });
+
+  it('refused keeps the text and says why', async () => {
+    server().on('PUT /workouts/7/exercises/1/note', { status: 400, body: { error: 'Testo della nota: troppo lungo.' } });
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    await screen.findByText('«ginocchio un po’ dentro»');
+    await user.type(note('Squat'), ' e poi');
+    await user.tab();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Testo della nota: troppo lungo.');
+    expect(note('Squat')).toHaveValue('scendere più lento e poi');
+    expect(screen.queryByText('Salvata')).not.toBeInTheDocument();
+  });
+
+  it('of last time is not shown when there was none', async () => {
+    server({ ...DETAIL, previous: { 1: { ...DETAIL.previous[1]!, note: null } } });
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    await screen.findByText('L’ultima volta');
+    expect(document.querySelector('.last-note')).toBeNull();
   });
 });

@@ -8,7 +8,6 @@ import { createApiServer } from "./api.bootstrap";
 
 const SECRET = new Uint8Array(32).fill(7);
 const PASSWORD = "correct horse battery";
-const NOW = new Date("2026-10-01T12:00:00.000Z");
 
 /** A browser of one: keeps the cookies it is given, sends the page's header on changes. */
 function client(base: () => string) {
@@ -42,7 +41,7 @@ describe.skipIf(SERVER === undefined)("the API", () => {
 
   beforeAll(async () => {
     server = createApiServer({
-      db: handle.db, jwtSecret: SECRET, secureCookie: true, limiter: createLoginLimiter(3), now: () => NOW,
+      db: handle.db, jwtSecret: SECRET, secureCookie: true, limiter: createLoginLimiter(3),
       logError: (_line, error) => errors.push(error),
       log: (line) => lines.push(line),
     });
@@ -194,12 +193,6 @@ describe.skipIf(SERVER === undefined)("the API", () => {
         expect(await client(at).call("GET", "/api/auth/signup")).toMatchObject({ body: { open: false } });
         expect(await client(at).call("POST", "/api/auth/register", { username: "chiuso", password: PASSWORD }))
           .toMatchObject({ status: 403, body: { error: "Le registrazioni sono chiuse." } });
-        // Built without `now`: the last thirty days end on the real clock, so a workout started now counts.
-        const { username } = await signedIn();
-        const browser = client(at);
-        await browser.call("POST", "/api/auth/login", { username, password: PASSWORD });
-        await browser.call("POST", "/api/workouts", {});
-        expect((await browser.call("GET", "/api/stats/overview")).body).toMatchObject({ workouts: 1, workoutsLast30Days: 1 });
       } finally {
         await new Promise((resolve) => closed.close(resolve));
       }
@@ -209,7 +202,7 @@ describe.skipIf(SERVER === undefined)("the API", () => {
   describe("every request", () => {
     it("needs a login, except logging in", async () => {
       const anonymous = client(() => base);
-      for (const path of ["/api/auth/me", "/api/exercises", "/api/plans", "/api/workouts", "/api/stats/overview"]) {
+      for (const path of ["/api/auth/me", "/api/exercises", "/api/plans", "/api/workouts", "/api/stats/exercises"]) {
         expect(await anonymous.call("GET", path)).toMatchObject({ status: 401, body: { error: "Accesso richiesto." } });
       }
     });
@@ -309,7 +302,9 @@ describe.skipIf(SERVER === undefined)("the API", () => {
 
       const dayId = renamed.days[0].id;
       const workout = (await call("POST", "/api/workouts", { planDayId: dayId })).body;
-      expect(workout).toMatchObject({ planDayId: dayId, planName: "Forza 2", dayName: "A", plan: renamed.days[0].exercises, sets: [], previous: {} });
+      expect(workout).toMatchObject({ planDayId: dayId, planName: "Forza 2", dayName: "A", plan: renamed.days[0].exercises, sets: [], previous: {}, exerciseNotes: {} });
+      expect(await call("PUT", `/api/workouts/${workout.id}/exercises/${squat.id}/note`, { note: " ginocchio ok " }))
+        .toMatchObject({ status: 200, body: { exerciseId: squat.id, note: "ginocchio ok" } });
 
       const set = (await call("POST", `/api/workouts/${workout.id}/sets`, { exerciseId: squat.id, reps: 5, weightKg: 100 })).body;
       expect(set).toMatchObject({ id: expect.any(Number), exerciseId: squat.id, exerciseName: "Squat", reps: 5, weightKg: 100 });
@@ -318,19 +313,21 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect(await call("DELETE", `/api/sets/${extra.id}`)).toMatchObject({ status: 200 });
 
       const finished = (await call("PATCH", `/api/workouts/${workout.id}`, { finished: true, notes: "bene" })).body;
-      expect(finished).toMatchObject({ notes: "bene", finishedAt: expect.any(String), sets: [{ id: set.id, weightKg: 102.5 }] });
+      expect(finished).toMatchObject({ notes: "bene", finishedAt: expect.any(String), sets: [{ id: set.id, weightKg: 102.5 }], exerciseNotes: { [squat.id]: "ginocchio ok" } });
       expect((await call("GET", `/api/workouts/${workout.id}`)).body).toEqual(finished);
 
       const list = (await call("GET", "/api/workouts")).body;
       expect(list).toEqual([expect.objectContaining({ id: workout.id, sets: 1, exercises: 1, volume: 512.5 })]);
 
       const next = (await call("POST", "/api/workouts", { planDayId: null })).body;
-      expect(next.previous).toEqual({ [squat.id]: { workoutId: workout.id, startedAt: workout.startedAt, sets: [{ reps: 5, weightKg: 102.5 }] } });
+      expect(next.previous).toEqual({ [squat.id]: { workoutId: workout.id, startedAt: workout.startedAt, sets: [{ reps: 5, weightKg: 102.5 }], note: "ginocchio ok" } });
 
       const stats = (await call("GET", `/api/stats/exercises/${squat.id}`)).body;
       expect(stats).toMatchObject({ exercise: { id: squat.id }, overall: { sessions: 1, maxWeight: 102.5 }, sessions: [{ workoutId: workout.id, volume: 512.5 }] });
-      const overview = (await call("GET", "/api/stats/overview")).body;
-      expect(overview).toMatchObject({ workouts: 2, exercises: [{ exerciseId: squat.id, maxWeight: 102.5 }] });
+      expect((await call("GET", "/api/stats/exercises")).body).toEqual([
+        { exerciseId: squat.id, name: "Squat", sessions: 1, avgWeight: 102.5, maxWeight: 102.5, lastAt: workout.startedAt },
+      ]);
+      expect((await call("GET", "/api/stats/overview")).status).toBe(404);
 
       expect(await call("DELETE", `/api/workouts/${next.id}`)).toMatchObject({ status: 200 });
       expect((await call("GET", `/api/workouts/${next.id}`)).status).toBe(404);

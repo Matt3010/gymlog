@@ -52,9 +52,9 @@ export function intParam(context: Context, key: string, fallback: number, min: n
   return Number.isInteger(value) ? Math.min(max, Math.max(min, value)) : fallback;
 }
 
-/** The numeric id captured by the route. Out of range: nothing has it. */
-export function idParam(context: Context): number {
-  const value = Number(context.params[0]);
+/** The numeric id captured by the route (the first, or the one at `index`). Out of range: nothing has it. */
+export function idParam(context: Context, index = 0): number {
+  const value = Number(context.params[index]);
   // The route takes digits only: anything past the largest id, however long, is out.
   if (value <= 0 || value > MAX_ID) throw new HttpError(404, "Non trovato.");
   return value;

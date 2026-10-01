@@ -11,8 +11,7 @@ import { createWorkoutsManager } from "./workouts/workouts.manager";
 
 describe.skipIf(SERVER === undefined)("the training services and managers", () => {
   const handle = testDatabase();
-  const NOW = new Date("2026-10-01T12:00:00.000Z");
-
+  
   /** What the controllers call: each context's service, with its manager's methods where one joins services. */
   function services() {
     const db = handle.db;
@@ -21,7 +20,7 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       exercises: createExercisesService(db),
       plans: { ...createPlansService(db), ...createPlansManager(db) },
       workouts: { ...createWorkoutsService(db), ...createWorkoutsManager(db) },
-      stats: { ...createStatsService(db, () => NOW), ...createStatsManager(db) },
+      stats: { ...createStatsService(db), ...createStatsManager(db) },
     };
   }
 
@@ -108,8 +107,9 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const workout = await workouts.start(user.id, null);
       expect(workout).toMatchObject({ planDayId: null, planName: null, dayName: null, plan: [], sets: [] });
       expect(workout.previous).toEqual({
-        [squat.id]: { workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 5, weightKg: 90 }] },
+        [squat.id]: { workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 5, weightKg: 90 }], note: null },
       });
+      expect(workout.exerciseNotes).toEqual({});
     });
 
     it("start from a plan day, with what it asks for", async () => {
@@ -127,6 +127,26 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const plan = await other.plans.create(other.user.id, other.input);
       const { user } = await setup();
       await expect(workouts.start(user.id, plan.days[0]!.id)).rejects.toThrow(new InputError("Il giorno della scheda non esiste più. Ricarica la pagina."));
+    });
+
+    it("keep a note for each exercise of the session", async () => {
+      const { user, squat, bench, workouts } = await setup();
+      const workout = await workouts.start(user.id, null);
+      expect(await workouts.setExerciseNote(user.id, workout.id, squat.id, "spalla fastidiosa")).toEqual({ exerciseId: squat.id, note: "spalla fastidiosa" });
+      await workouts.setExerciseNote(user.id, workout.id, bench.id, "presa stretta");
+      await workouts.setExerciseNote(user.id, workout.id, bench.id, null);
+      expect((await workouts.get(user.id, workout.id)).exerciseNotes).toEqual({ [squat.id]: "spalla fastidiosa" });
+    });
+
+    it("take notes only in the user's own workouts, on the user's own exercises", async () => {
+      const { user, squat, workouts } = await setup();
+      const other = await setup();
+      const workout = await workouts.start(user.id, null);
+      const theirs = await workouts.start(other.user.id, null);
+      await expect(workouts.setExerciseNote(user.id, theirs.id, squat.id, "x")).rejects.toThrow(NotFoundError);
+      await expect(workouts.setExerciseNote(user.id, workout.id, other.squat.id, "x"))
+        .rejects.toThrow(new InputError("Uno degli esercizi non esiste più. Ricarica la pagina."));
+      expect((await workouts.get(user.id, workout.id)).exerciseNotes).toEqual({});
     });
 
     it("log, change and delete sets", async () => {
@@ -200,23 +220,18 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       await expect(other.stats.exercise(other.user.id, squat.id)).rejects.toThrow(NotFoundError);
     });
 
-    it("count the last thirty days up to the real clock by default", async () => {
-      const { user, squat, workoutsRepo } = await setup();
-      const today = await workoutsRepo.create(user.id, null);
-      await workoutsRepo.addSet(today.id, { exerciseId: squat.id, reps: 2, weightKg: 50 });
-      expect(await createStatsService(handle.db).overview(user.id)).toMatchObject({ workoutsLast30Days: 1, volumeLast30Days: 100 });
-    });
-
-    it("give an overview as of now", async () => {
+    it("sum up each of the user's exercises done", async () => {
       const { user, squat, stats, workoutsRepo } = await setup();
+      const other = await setup();
       const old = await workoutsRepo.create(user.id, null, new Date("2026-08-01T17:00:00Z"));
       const recent = await workoutsRepo.create(user.id, null, new Date("2026-09-20T17:00:00Z"));
       await workoutsRepo.addSet(old.id, { exerciseId: squat.id, reps: 5, weightKg: 80 });
       await workoutsRepo.addSet(recent.id, { exerciseId: squat.id, reps: 5, weightKg: 100 });
-      expect(await stats.overview(user.id)).toEqual({
-        workouts: 2, workoutsLast30Days: 1, volumeLast30Days: 500,
-        exercises: [{ exerciseId: squat.id, name: "Squat", sessions: 2, avgWeight: 90, maxWeight: 100, lastAt: "2026-09-20T17:00:00.000Z" }],
-      });
+      const theirs = await workoutsRepo.create(other.user.id, null);
+      await workoutsRepo.addSet(theirs.id, { exerciseId: other.squat.id, reps: 1, weightKg: 300 });
+      expect(await stats.exercises(user.id)).toEqual([
+        { exerciseId: squat.id, name: "Squat", sessions: 2, avgWeight: 90, maxWeight: 100, lastAt: "2026-09-20T17:00:00.000Z" },
+      ]);
     });
   });
 });

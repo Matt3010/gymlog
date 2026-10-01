@@ -31,3 +31,10 @@ export function parseSet(value: unknown): SetInput {
   const body = object(value);
   return { exerciseId: id(body, "exerciseId"), ...parseSetChange(body) };
 }
+
+/** The note on one exercise in a workout: blank takes it away. The key must be there. */
+export function parseExerciseNote(value: unknown): { note: string | null } {
+  const body = object(value);
+  if (!("note" in body)) throw new InputError("Testo della nota: obbligatorio.");
+  return { note: optionalText(body, "note") };
+}

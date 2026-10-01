@@ -1,6 +1,6 @@
 import { api } from './client';
 import type {
-  Exercise, ExerciseInput, ExerciseStats, Overview, Plan, PlanInput, WorkoutDetail, WorkoutSet, WorkoutSummary,
+  Exercise, ExerciseInput, ExerciseOverview, ExerciseStats, Plan, PlanInput, WorkoutDetail, WorkoutSet, WorkoutSummary,
 } from './types';
 
 /* Ogni chiamata dell'API, con i suoi tipi: le pagine chiamano queste, non indirizzi scritti a mano. */
@@ -29,10 +29,14 @@ export const workoutsApi = {
   addSet: (workoutId: number, set: { exerciseId: number; reps: number; weightKg: number }) =>
     api.post<WorkoutSet>(`/workouts/${workoutId}/sets`, set),
   updateSet: (id: number, set: { reps: number; weightKg: number }) => api.patch<WorkoutSet>(`/sets/${id}`, set),
+  /** Vuota o `null` la toglie. */
+  saveNote: (workoutId: number, exerciseId: number, note: string | null) =>
+    api.put<{ exerciseId: number; note: string | null }>(`/workouts/${workoutId}/exercises/${exerciseId}/note`, { note }),
   removeSet: (id: number) => api.delete<{ ok: true }>(`/sets/${id}`),
 };
 
 export const statsApi = {
-  overview: () => api.get<Overview>('/stats/overview'),
+  /** Solo quelli fatti almeno una volta, dal più recente. */
+  exercises: () => api.get<ExerciseOverview[]>('/stats/exercises'),
   exercise: (id: number) => api.get<ExerciseStats>(`/stats/exercises/${id}`),
 };

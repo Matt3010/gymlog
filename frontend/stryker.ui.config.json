@@ -10,7 +10,7 @@
     "json"
   ],
   "jsonReporter": {
-    "fileName": "reports/mutation/lib.json"
+    "fileName": "reports/mutation/ui.json"
   },
   "coverageAnalysis": "perTest",
   "concurrency": 4,
@@ -19,15 +19,21 @@
     "low": 100,
     "break": null
   },
-  "tempDirName": ".stryker-tmp/lib",
+  "tempDirName": ".stryker-tmp/ui",
   "cleanTempDir": "always",
   "vitest": {
     "configFile": "vitest.config.ts",
     "related": false
   },
   "mutate": [
-    "src/lib/**/*.ts",
-    "!src/lib/**/*.test.ts",
-    "src/sw/build.ts"
-  ]
+    "src/components/**/*.svelte",
+    "src/App.svelte"
+  ],
+  "mutator": {
+    "excludedMutations": [
+      "StringLiteral",
+      "ObjectLiteral",
+      "Regex"
+    ]
+  }
 }
