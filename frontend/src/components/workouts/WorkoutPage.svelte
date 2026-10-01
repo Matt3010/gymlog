@@ -8,7 +8,7 @@
   import { toast } from '../../lib/toast.svelte';
   import { ui } from '../../lib/ui.svelte';
   import type { Exercise, WorkoutDetail, WorkoutSet } from '../../lib/types';
-  import { blocksOf, describeSets, describeTarget, prefill, readSet, type Block } from '../../lib/workout';
+  import { blocksOf, describeTarget, prefill, readSet, type Block } from '../../lib/workout';
   import Alert from '../Alert.svelte';
   import Button from '../Button.svelte';
   import Icon from '../Icon.svelte';
@@ -212,10 +212,15 @@
             </p>
           {/if}
           {#if block.previous}
-            <p class="line">
-              <span class="eyebrow">L’ultima volta</span>
-              {formatDay(block.previous.startedAt)} · {describeSets(block.previous.sets)}
-            </p>
+            <!-- una serie per pezzo, mai spezzata a metà fra due righe -->
+            <div class="line">
+              <span class="eyebrow" id="past-{block.exerciseId}">L’ultima volta · {formatDay(block.previous.startedAt)}</span>
+              <ol class="past" aria-labelledby="past-{block.exerciseId}">
+                {#each block.previous.sets as set, index (index)}
+                  <li><span class="nr">{index + 1}</span> {set.reps} × {formatKg(set.weightKg)}</li>
+                {/each}
+              </ol>
+            </div>
           {/if}
 
           {#if block.sets.length > 0}
@@ -355,6 +360,30 @@
     font-size: 13px;
     color: var(--ink-2);
   }
+
+  /* le serie dell'ultima volta: un pezzo ciascuna, che va a capo intero */
+  .past {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 4px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .past li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px 3px 3px;
+    border-radius: 999px;
+    background: var(--sunken);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+
+  .past .nr { width: 20px; height: 20px; }
 
   .sets {
     display: grid;

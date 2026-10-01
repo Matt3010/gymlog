@@ -62,7 +62,10 @@ describe('a workout in progress', () => {
     expect(await screen.findByRole('heading', { name: 'Forza · A' })).toBeInTheDocument();
     expect(screen.getByText(/in corso/)).toBeInTheDocument();
     expect(screen.getByText('Scheda').parentElement).toHaveTextContent('10 · 8-10 · 6 · recupero 1:30');
-    expect(screen.getByText('L’ultima volta').parentElement).toHaveTextContent('dom 20 set · 8 × 60 kg, 8 × 60 kg, 6 × 62,5 kg');
+    // one set per item, never broken across lines; the day goes with the label
+    const last = screen.getByRole('list', { name: 'L’ultima volta · dom 20 set' });
+    expect(within(last).getAllByRole('listitem').map((item) => item.textContent?.replace(/\s+/g, ' ').trim()))
+      .toEqual(['1 8 × 60 kg', '2 8 × 60 kg', '3 6 × 62,5 kg']);
     expect(screen.getByRole('button', { name: /^Squat/ })).toHaveTextContent('1/3');
     expect(screen.getByRole('button', { name: /^Panca piana/ })).toHaveTextContent('0/3');
     expect(doneSets()).toEqual(['8 × 60 kg']);
@@ -463,7 +466,7 @@ describe('a note on an exercise', () => {
   it('of last time is not shown when there was none', async () => {
     server({ ...DETAIL, previous: { 1: { ...DETAIL.previous[1]!, note: null } } });
     render(Host, { page: WorkoutPage, params: { id: 7 } });
-    await screen.findByText('L’ultima volta');
+    await screen.findByRole('list', { name: /^L’ultima volta/ });
     const squat = screen.getByRole('button', { name: /^Squat/ }).closest('.card')!;
     expect(squat.querySelector('.last-note')).toBeNull();
   });

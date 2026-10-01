@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanExercise, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types';
-import { blocksOf, describeSets, describeTarget, inProgress, prefill, readSet, targetReps } from './workout';
+import { blocksOf, describeTarget, inProgress, prefill, readSet, targetReps } from './workout';
 
 const target = (exerciseId: number, exerciseName: string, extra: Partial<PlanExercise> = {}): PlanExercise => ({
   id: exerciseId * 10, exerciseId, exerciseName, position: 0, reps: ['8-10', '8-10', '8-10'], restSeconds: 90, notes: null, ...extra,
@@ -108,21 +108,6 @@ describe('what the plan asks, said', () => {
 
   it('without a rest is the reps alone, with the notes after', () => {
     expect(describeTarget(target(1, 'Squat', { reps: ['max'], restSeconds: null, notes: 'lento' }))).toBe('max · lento');
-  });
-});
-
-describe('sets, in short', () => {
-  it('do not group: each set as it was done', () => {
-    expect(describeSets([{ reps: 8, weightKg: 60 }, { reps: 8, weightKg: 60 }, { reps: 6, weightKg: 62.5 }])).toBe('8 × 60 kg, 8 × 60 kg, 6 × 62,5 kg');
-  });
-
-  it('are written like the logged ones, one by one, in order', () => {
-    expect(describeSets([{ reps: 10, weightKg: 57.5 }, { reps: 10, weightKg: 60 }, { reps: 9, weightKg: 60 }])).toBe('10 × 57,5 kg, 10 × 60 kg, 9 × 60 kg');
-    expect(describeSets([])).toBe('');
-  });
-
-  it('are nothing without sets', () => {
-    expect(describeSets([])).toBe('');
   });
 });
 

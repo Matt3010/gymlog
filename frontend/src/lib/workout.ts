@@ -65,12 +65,6 @@ export function describeTarget(target: PlanExercise): string {
     .join(' · ');
 }
 
-/**
- * «10 × 57,5 kg, 10 × 60 kg, 9 × 60 kg»: le serie una per una, scritte come
- * quelle segnate oggi. Raggrupparle («2 × 8 · 60 kg») metteva due «×» con
- * due significati diversi accanto alle serie di oggi, e non si capiva.
- */
-export const describeSets = (sets: DoneSet[]): string => sets.map((set) => `${set.reps} × ${formatKg(set.weightKg)}`).join(', ');
 
 /** L'allenamento ancora aperto più recente, fra quelli dal più recente. */
 export const inProgress = (workouts: WorkoutSummary[]): WorkoutSummary | undefined =>
