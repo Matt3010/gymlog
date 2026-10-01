@@ -1,4 +1,4 @@
-import { found, foundIf } from "../../errors";
+import { ConflictError, found, foundIf } from "../../errors";
 import type { Executor } from "../../lib";
 import {
   createWorkoutsRepository, type PreviousNote, type PreviousSets, type SetInput, type Workout, type WorkoutChange, type WorkoutSet, type WorkoutStart,
@@ -32,8 +32,23 @@ export function createWorkoutsService(db: Executor): WorkoutsService {
   return {
     list: (userId, limit, offset) => workouts.list(userId, limit, offset),
     get: async (userId, id) => found(await workouts.find(userId, id)),
-    start: (userId, start) => workouts.create(userId, start),
-    update: async (userId, id, change) => found(await workouts.update(userId, id, change)),
+    // One workout in progress at a time: the user is held while checking, so two starts at once can't both pass.
+    start: async (userId, start) => {
+      await workouts.lockUser(userId);
+      if (await workouts.openOther(userId) !== undefined) {
+        throw new ConflictError("Hai già un allenamento in corso: terminalo prima di iniziarne un altro.");
+      }
+      return workouts.create(userId, start);
+    },
+    update: async (userId, id, change) => {
+      if (change.finished === false) {
+        await workouts.lockUser(userId);
+        if (await workouts.openOther(userId, id) !== undefined) {
+          throw new ConflictError("C’è già un altro allenamento in corso: terminalo prima di riaprire questo.");
+        }
+      }
+      return found(await workouts.update(userId, id, change));
+    },
     delete: async (userId, id) => foundIf(await workouts.delete(userId, id)),
     sets: (workoutId) => workouts.sets(workoutId),
     previous: async (userId, workoutId) => Object.fromEntries(await workouts.previous(userId, workoutId)),

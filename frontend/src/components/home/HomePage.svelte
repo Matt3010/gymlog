@@ -1,5 +1,6 @@
 <script lang="ts">
   import { session } from '../../lib/client';
+  import { current } from '../../lib/current.svelte';
   import { plansApi, workoutsApi } from '../../lib/endpoints';
   import { nav } from '../../lib/nav.svelte';
   import { planPath, workoutPath } from '../../lib/routing';
@@ -45,6 +46,10 @@
 
   /** «A» da sola non dice niente: un nome di una o due lettere è un giorno. */
   const dayLabel = (name: string): string => (name.length <= 2 ? `Giorno ${name}` : name);
+
+  /* uno alla volta: con un allenamento in corso (la barra sopra le sezioni) non se ne comincia un altro */
+  const busy = $derived(current.workout !== null);
+  const blocked = $derived(starting || busy);
 
   /** Uscire chiede prima, come ogni tasto rosso: un tocco per sbaglio in palestra costa un nuovo accesso. */
   function askOut(anchor: HTMLElement): void {
@@ -100,9 +105,10 @@
             <h2>{plan.name}</h2>
           {/if}
         </div>
+        {#if busy}<p class="busy">Hai un allenamento in corso: terminalo per iniziarne un altro.</p>{/if}
         <div class="days">
           {#each plan.days as day (day.id)}
-            <button type="button" class="day" disabled={starting} onclick={() => void start(day.id)}>
+            <button type="button" class="day" disabled={blocked} onclick={() => void start(day.id)}>
               <span class="day-text">
                 <span class="day-name">{dayLabel(day.name)}</span>
                 <span class="day-what">{day.exercises.length === 0 ? 'Nessun esercizio' : day.exercises.map((exercise) => exercise.exerciseName).join(', ')}</span>
@@ -115,7 +121,7 @@
     {/if}
     <!-- fuori dalle card, secondario: è l'eccezione, non la prima scelta -->
     <span class="free">
-      <Button disabled={starting} onclick={() => void start(null)}>
+      <Button disabled={blocked} onclick={() => void start(null)}>
         <Icon name="plus" /> Allenamento libero
       </Button>
     </span>
@@ -126,6 +132,8 @@
 <style>
 
   .plan-head { display: grid; gap: 6px; }
+
+  .busy { margin: 0; font-size: 13px; color: var(--ink-2); }
 
   /* il menu della scheda è largo quanto la card: si tocca col pollice, e il nome ci sta intero */
   .pick :global(.pick-field) {

@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { current } from '../../lib/current.svelte';
 import { install } from '../../lib/install.svelte';
 import { nav } from '../../lib/nav.svelte';
 import type { Plan, WorkoutDetail, WorkoutSummary } from '../../lib/types';
@@ -102,6 +103,20 @@ describe('home', () => {
     expect(await screen.findByRole('heading', { name: 'Forza' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Scheda' })).not.toBeInTheDocument();
     expect(days()).toEqual(['Giorno A E0, E1', 'Giorno B E0']);
+  });
+
+  it('lets no other workout start while one is in progress: it says so, and where to end it', async () => {
+    fakeApi().on('GET /plans', [FORZA]).on(RECENT, []);
+    current.set({ id: 9, title: 'Forza · A', startedAt: '2026-10-01T17:00:00.000Z', sets: 2 });
+    render(HomePage);
+    await screen.findByRole('heading', { name: 'Forza' });
+    expect(screen.getByText('Hai un allenamento in corso: terminalo per iniziarne un altro.')).toBeInTheDocument();
+    for (const day of screen.getAllByRole('button', { name: /^Giorno/ })) expect(day).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Allenamento libero' })).toBeDisabled();
+    // ended elsewhere: free again
+    current.set(null);
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Allenamento libero' })).toBeEnabled());
+    expect(screen.queryByText(/terminalo per iniziarne un altro/)).not.toBeInTheDocument();
   });
 
   it('starts a workout from a day and opens it', async () => {

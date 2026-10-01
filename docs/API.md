@@ -89,9 +89,9 @@ interface ExerciseSummary { exerciseId: number; name: string; sessions: number; 
 | PUT | /api/plans/:id | `PlanInput` | `Plan` |
 | DELETE | /api/plans/:id | – | `{ ok: true }` (gli allenamenti restano, senza scheda) |
 | GET | /api/workouts?limit=&offset= | – | `WorkoutSummary[]` (dal più recente) |
-| POST | /api/workouts | `{ planDayId: number \| null }` | `WorkoutDetail` |
+| POST | /api/workouts | `{ planDayId: number \| null }` | `WorkoutDetail`; 409 se ce n'è già uno in corso (uno alla volta) |
 | GET | /api/workouts/:id | – | `WorkoutDetail` |
-| PATCH | /api/workouts/:id | `{ notes?: string \| null, finished?: boolean }` | `WorkoutDetail` |
+| PATCH | /api/workouts/:id | `{ notes?: string \| null, finished?: boolean }` | `WorkoutDetail`; `finished: false` dà 409 se un altro è in corso |
 | DELETE | /api/workouts/:id | – | `{ ok: true }` |
 | POST | /api/workouts/:id/sets | `{ exerciseId, reps, weightKg }` | `WorkoutSet` |
 | PUT | /api/workouts/:id/exercises/:exerciseId/note | `{ note: string \| null }` (vuota o null la toglie, fino a 1000 caratteri) | `{ exerciseId, note }` |

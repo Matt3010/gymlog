@@ -111,10 +111,34 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
   });
 
   describe("workouts", () => {
+    it("are one at a time: another does not start while one is in progress", async () => {
+      const { user, workouts } = await setup();
+      const first = await workouts.start(user.id, null);
+      await expect(workouts.start(user.id, null))
+        .rejects.toThrow(new ConflictError("Hai già un allenamento in corso: terminalo prima di iniziarne un altro."));
+      await workouts.update(user.id, first.id, { finished: true });
+      const second = await workouts.start(user.id, null);
+      // and a finished one is not reopened over the one in progress
+      await expect(workouts.update(user.id, first.id, { finished: false }))
+        .rejects.toThrow(new ConflictError("C’è già un altro allenamento in corso: terminalo prima di riaprire questo."));
+      await workouts.update(user.id, second.id, { finished: true });
+      expect((await workouts.update(user.id, first.id, { finished: false })).finishedAt).toBeNull();
+      // another user's workout in progress is no obstacle
+      const other = await setup();
+      await expect(workouts.start(other.user.id, null)).resolves.toMatchObject({ finishedAt: null });
+    });
+
+    it("are one at a time even when two starts arrive together", async () => {
+      const { user, workouts } = await setup();
+      const both = await Promise.allSettled([workouts.start(user.id, null), workouts.start(user.id, null)]);
+      expect(both.map((one) => one.status).sort()).toEqual(["fulfilled", "rejected"]);
+    });
+
     it("start free, with what was done before", async () => {
       const { user, squat, workouts, workoutsRepo } = await setup();
       const earlier = await workoutsRepo.create(user.id, null, new Date("2026-09-01T17:00:00Z"));
       await workoutsRepo.addSet(earlier.id, { exerciseId: squat.id, reps: 5, weightKg: 90 });
+      await workoutsRepo.update(user.id, earlier.id, { finished: true });
       const workout = await workouts.start(user.id, null);
       expect(workout).toMatchObject({ planDayId: null, planName: null, dayName: null, plan: [], sets: [] });
       expect(workout.previous).toEqual({

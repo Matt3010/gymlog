@@ -320,6 +320,10 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect(list).toEqual([expect.objectContaining({ id: workout.id, sets: 1, exercises: 1, volume: 512.5 })]);
 
       const next = (await call("POST", "/api/workouts", { planDayId: null })).body;
+      // one in progress at a time: another is refused with the reason, until this one is ended
+      expect(await call("POST", "/api/workouts", { planDayId: dayId }))
+        .toMatchObject({ status: 409, body: { error: "Hai già un allenamento in corso: terminalo prima di iniziarne un altro." } });
+      await call("PATCH", `/api/workouts/${next.id}`, { finished: true });
       const again = (await call("POST", "/api/workouts", { planDayId: dayId })).body;
       // Renaming the plan and the day, the day kept by its id: the workout follows, targets included.
       const renamedAgain = (await call("PUT", `/api/plans/${plan.id}`, {
@@ -348,7 +352,10 @@ describe.skipIf(SERVER === undefined)("the API", () => {
     it("page the workouts, within bounds", async () => {
       const { call } = await signedIn();
       const ids: number[] = [];
-      for (let i = 0; i < 3; i++) ids.push((await call("POST", "/api/workouts", i === 0 ? undefined : {})).body.id);
+      for (let i = 0; i < 3; i++) {
+        ids.push((await call("POST", "/api/workouts", i === 0 ? undefined : {})).body.id);
+        await call("PATCH", `/api/workouts/${ids[i]}`, { finished: true });
+      }
       expect((await call("GET", "/api/workouts")).body).toHaveLength(3);
       expect((await call("GET", "/api/workouts?limit=2")).body.map((w: { id: number }) => w.id)).toEqual([ids[2], ids[1]]);
       expect((await call("GET", "/api/workouts?limit=2&offset=2")).body.map((w: { id: number }) => w.id)).toEqual([ids[0]]);

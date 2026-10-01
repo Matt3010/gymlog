@@ -1,5 +1,5 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
-import { type Executor, exercises, workoutExerciseNotes, workoutSets, workouts } from "../../lib";
+import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
+import { type Executor, exercises, users, workoutExerciseNotes, workoutSets, workouts } from "../../lib";
 
 export interface Workout {
   readonly id: number;
@@ -72,6 +72,13 @@ export interface WorkoutsRepository {
   create(userId: number, start: WorkoutStart | null, startedAt?: Date): Promise<Workout>;
   update(userId: number, id: number, change: WorkoutChange): Promise<Workout | undefined>;
   delete(userId: number, id: number): Promise<boolean>;
+  /**
+   * Holds the user still until the caller's transaction ends: two starts that
+   * arrive together go one after the other, and the second sees the first.
+   */
+  lockUser(userId: number): Promise<void>;
+  /** The id of the user's workout in progress, other than `except`, if any. */
+  openOther(userId: number, except?: number): Promise<number | undefined>;
 
   /** In the order they were logged. */
   sets(workoutId: number): Promise<WorkoutSet[]>;
@@ -168,6 +175,17 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
       if (Object.keys(set).length === 0) return this.find(userId, id);
       const [row] = await db.update(workouts).set(set).where(mine(userId, id)).returning(columns);
       return row === undefined ? undefined : toWorkout(row);
+    },
+
+    async lockUser(userId) {
+      await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+    },
+
+    async openOther(userId, except) {
+      const [row] = await db.select({ id: workouts.id }).from(workouts)
+        .where(and(eq(workouts.userId, userId), isNull(workouts.finishedAt), except === undefined ? undefined : ne(workouts.id, except)))
+        .limit(1);
+      return row?.id;
     },
 
     async delete(userId, id) {
