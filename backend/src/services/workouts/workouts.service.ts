@@ -1,0 +1,38 @@
+import { found, foundIf } from "../../errors";
+import type { Executor } from "../../lib";
+import {
+  createWorkoutsRepository, type PreviousSets, type SetInput, type Workout, type WorkoutChange, type WorkoutSet, type WorkoutStart,
+  type WorkoutSummary,
+} from "../../repositories";
+
+/** Workouts and their sets on their own. Plans and exercises come in through the workouts manager. */
+export interface WorkoutsService {
+  list(userId: number, limit: number, offset: number): Promise<WorkoutSummary[]>;
+  get(userId: number, id: number): Promise<Workout>;
+  start(userId: number, start: WorkoutStart | null): Promise<Workout>;
+  update(userId: number, id: number, change: WorkoutChange): Promise<Workout>;
+  delete(userId: number, id: number): Promise<void>;
+  sets(workoutId: number): Promise<WorkoutSet[]>;
+  /** By exercise id: the sets of the last earlier workout with it. */
+  previous(userId: number, workoutId: number): Promise<Record<string, PreviousSets>>;
+  /** Into a workout already found as the user's, of an exercise already checked as theirs. */
+  addSet(workoutId: number, input: SetInput): Promise<WorkoutSet>;
+  updateSet(userId: number, setId: number, change: { reps: number; weightKg: number }): Promise<WorkoutSet>;
+  deleteSet(userId: number, setId: number): Promise<void>;
+}
+
+export function createWorkoutsService(db: Executor): WorkoutsService {
+  const workouts = createWorkoutsRepository(db);
+  return {
+    list: (userId, limit, offset) => workouts.list(userId, limit, offset),
+    get: async (userId, id) => found(await workouts.find(userId, id)),
+    start: (userId, start) => workouts.create(userId, start),
+    update: async (userId, id, change) => found(await workouts.update(userId, id, change)),
+    delete: async (userId, id) => foundIf(await workouts.delete(userId, id)),
+    sets: (workoutId) => workouts.sets(workoutId),
+    previous: async (userId, workoutId) => Object.fromEntries(await workouts.previous(userId, workoutId)),
+    addSet: (workoutId, input) => workouts.addSet(workoutId, input),
+    updateSet: async (userId, setId, change) => found(await workouts.updateSet(userId, setId, change)),
+    deleteSet: async (userId, setId) => foundIf(await workouts.deleteSet(userId, setId)),
+  };
+}

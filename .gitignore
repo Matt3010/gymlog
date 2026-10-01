@@ -1,0 +1,18 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+.angular/
+
+# IDE
+.idea/
+.vscode/
+
+.stryker-tmp/
+reports/
+coverage/
+
+# Playwright
+test-results/
+playwright-report/

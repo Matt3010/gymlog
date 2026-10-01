@@ -1,0 +1,14 @@
+{
+  "name": "gymlog",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Schede, allenamenti e pesi in palestra: PWA Angular, API Node, Postgres, dietro nginx su un Raspberry Pi.",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "verify": "pnpm -r run verify",
+    "deploy:pi": "bash scripts/deploy-pi.sh"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "@gymlog/backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "L'API di gymlog: utenti, esercizi, schede, allenamenti e statistiche, su Postgres.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "dev": "tsx watch src/main.ts",
+    "user:create": "tsx src/cli/users.ts create",
+    "user:password": "tsx src/cli/users.ts password",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "pnpm typecheck && pnpm test",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check",
+    "mutate": "stryker run --mutate"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.3",
+    "jose": "^6.2.12",
+    "pg": "^8.23.0",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
+    "@types/node": "^22.20.4",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

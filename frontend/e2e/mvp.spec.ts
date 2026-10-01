@@ -1,0 +1,183 @@
+import { expect, type Locator, type Page, test } from '@playwright/test';
+
+/*
+ * The MVP as someone uses it at the gym, on a phone: exercises, a plan with
+ * two days, a workout logged set by set, the next one showing the last time,
+ * and the numbers in the stats. Along the way, what a fake DOM cannot see:
+ * the page's last buttons clear of the tab bar, and a message never on top
+ * of them.
+ */
+
+test.skip(!process.env.E2E_DATABASE_URL, 'needs E2E_DATABASE_URL, like the backend database tests');
+
+const base = () => process.env.E2E_BASE_URL!;
+
+/** Where the tab bar starts, from the top of the window. */
+async function tabBarTop(page: Page): Promise<number> {
+  return (await page.getByRole('navigation', { name: 'Sezioni' }).boundingBox())!.y;
+}
+
+async function scrollToEnd(page: Page): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForFunction(() => Math.ceil(window.scrollY + window.innerHeight) >= document.documentElement.scrollHeight - 1);
+}
+
+/** Each of these whole on screen, above the tab bar. */
+async function expectClearOfTabBar(page: Page, ...buttons: Locator[]): Promise<void> {
+  const top = await tabBarTop(page);
+  for (const button of buttons) {
+    const box = (await button.boundingBox())!;
+    expect(box.y, `${await button.textContent()} starts on screen`).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height, `${await button.textContent()} ends above the tab bar`).toBeLessThanOrEqual(top);
+  }
+}
+
+/** Something floating (the message, the rest bar), while showing, covers none of these. */
+async function expectUncovered(page: Page, floating: Locator, ...buttons: Locator[]): Promise<void> {
+  const over = (await floating.boundingBox())!;
+  for (const button of buttons) {
+    const box = (await button.boundingBox())!;
+    const overlap = box.y < over.y + over.height && over.y < box.y + box.height && box.x < over.x + over.width && over.x < box.x + box.width;
+    expect(overlap, `${await floating.getAttribute('aria-label') ?? 'the message'} covers ${await button.textContent()}`).toBe(false);
+  }
+}
+
+const expectToastClearOf = (page: Page, ...buttons: Locator[]) => expectUncovered(page, page.locator('#toast'), ...buttons);
+
+const tile = (page: Page, name: string) => page.locator('dt', { hasText: new RegExp(`^${name}$`) }).locator('xpath=following-sibling::dd[1]');
+
+test('from the first exercise to the stats of a lift', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
+
+  await page.goto(base());
+  await page.getByLabel('Utente').fill(process.env.E2E_USER!);
+  await page.getByLabel('Password', { exact: true }).fill(process.env.E2E_PASSWORD!);
+  await page.getByRole('button', { name: 'Entra' }).click();
+  await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
+  // Before the door the app asks who you are and tries a renewal: two 401s the browser logs, as it should.
+  errors.length = 0;
+
+  // Two exercises.
+  await page.getByRole('link', { name: 'Esercizi' }).click();
+  await expect(page.getByRole('button', { name: 'Nuovo' })).toHaveCount(0);
+  for (const name of ['Squat', 'Panca piana']) {
+    await page.getByPlaceholder('Un esercizio nuovo, per nome').fill(name);
+    await page.getByPlaceholder('Un esercizio nuovo, per nome').press('Enter');
+    await expect(page.getByPlaceholder('Un esercizio nuovo, per nome')).toHaveValue('');
+  }
+  await expect(page.locator('.row .name')).toHaveText(['Panca piana', 'Squat']);
+
+  // A plan: day A with Squat 3 × 8-10 and Panca, day B with Panca.
+  await page.getByRole('link', { name: 'Schede' }).click();
+  await page.getByRole('link', { name: 'Nuova' }).click();
+  await page.getByPlaceholder('Forza, autunno').fill('Forza');
+  await page.getByRole('button', { name: 'Aggiungi esercizio' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Squat' }).click();
+  await page.getByLabel('Ripetizioni').first().fill('8-10');
+  await page.getByRole('button', { name: 'Aggiungi esercizio' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Panca piana' }).click();
+  await page.getByRole('button', { name: 'Aggiungi giorno' }).click();
+  await page.getByRole('button', { name: 'Aggiungi esercizio' }).nth(1).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Panca piana' }).click();
+  await page.getByRole('button', { name: 'Salva la scheda' }).click();
+  await expect(page.locator('#toast')).toHaveText('Scheda salvata.');
+  await expect(page).toHaveURL(/\/schede\/\d+$/);
+
+  // At the end of the editor its buttons are clear of the tab bar, and of the message.
+  await scrollToEnd(page);
+  const editorButtons = [
+    page.getByRole('button', { name: 'Aggiungi giorno' }),
+    page.getByRole('button', { name: 'Elimina scheda' }),
+    page.getByRole('button', { name: 'Salva la scheda' }),
+  ];
+  await expectClearOfTabBar(page, ...editorButtons);
+  await expect(page.locator('#toast')).toBeVisible();
+  await expectToastClearOf(page, ...editorButtons);
+
+  // Leaving the page takes its message away.
+  await page.getByRole('link', { name: 'Allenati' }).click();
+  await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
+  await expect(page.locator('#toast')).toBeHidden();
+
+  // The workout of day A: the first set needs its weight, the second repeats it plus 2,5.
+  await page.getByRole('button', { name: 'A 2 esercizi' }).click();
+  await expect(page.getByRole('heading', { name: 'Forza · A' })).toBeVisible();
+  await expect(page.getByLabel('Ripetizioni', { exact: true })).toHaveValue('8');
+  await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('');
+  await page.getByLabel('Peso', { exact: true }).fill('60');
+  await page.getByRole('button', { name: 'Segna la serie 1' }).click();
+  await expect(page.getByRole('button', { name: 'Segna la serie 2' })).toBeVisible();
+  await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('60');
+  await page.getByRole('button', { name: 'Peso, più 2,5' }).click();
+  await page.getByRole('button', { name: 'Segna la serie 2' }).click();
+  await expect(page.locator('.set .what')).toHaveText(['8 × 60 kg', '8 × 62,5 kg']);
+
+  // The rest the plan asks for runs above the tab bar, clear of the page's last buttons.
+  const rest = page.getByRole('timer', { name: 'Recupero' });
+  await expect(rest).toContainText(/Recupero 1:(30|29|28)/);
+  await scrollToEnd(page);
+  const workoutButtons = [page.getByRole('button', { name: 'Elimina' }), page.getByRole('button', { name: 'Termina' })];
+  await expectClearOfTabBar(page, rest, ...workoutButtons);
+  await expectUncovered(page, rest, ...workoutButtons);
+
+  await page.getByRole('button', { name: 'Termina' }).click();
+  await expect(page.locator('#toast')).toHaveText('Allenamento terminato.');
+  await expect(rest).toBeHidden();
+  await scrollToEnd(page);
+  const finishedButtons = [page.getByRole('button', { name: 'Elimina' }), page.getByRole('button', { name: 'Riapri' })];
+  await expectClearOfTabBar(page, ...finishedButtons);
+  await expect(page.locator('#toast')).toBeVisible();
+  await expectToastClearOf(page, ...finishedButtons);
+
+  // The next workout of day A shows the last time, and starts from its weight.
+  await page.getByRole('link', { name: 'Allenati' }).first().click();
+  await page.getByRole('button', { name: 'A 2 esercizi' }).click();
+  await expect(page.getByText('L’ultima volta').locator('..')).toContainText('Oggi · 8 × 60 kg, 8 × 62,5 kg');
+  await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('60');
+
+  // The stats: one finished workout and one open, Squat's numbers from its two sets.
+  await page.getByRole('link', { name: 'Statistiche' }).click();
+  await expect(tile(page, 'Allenamenti')).toHaveText('2');
+  await expect(tile(page, 'Volume 30 giorni')).toHaveText('980 kg');
+  await page.getByRole('link', { name: /^Squat/ }).click();
+  await expect(page.getByRole('heading', { name: 'Squat' })).toBeVisible();
+  await expect(tile(page, 'Massimo')).toHaveText('62,5 kg');
+  await expect(tile(page, 'Media')).toHaveText('61,25 kg');
+  await expect(tile(page, '1RM stimato')).toHaveText('79,17 kg');
+  await expect(tile(page, 'Volume')).toHaveText('980 kg');
+  await expect(page.getByRole('row').nth(1).locator('td')).toHaveText(['Oggi', '2', '16', '980', '61,25', '62,5', '79,17']);
+  // on the phone the sessions stay in rows: the header shown once, each session on one line, nothing wider than the screen
+  await expect(page.locator('thead')).toBeVisible();
+  const cells = await page.getByRole('row').nth(1).locator('td').evaluateAll((tds) => tds.map((td) => Math.round(td.getBoundingClientRect().top)));
+  expect(new Set(cells).size).toBe(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  const label = await page.getByRole('row').nth(1).locator('td').first().evaluate((td) => getComputedStyle(td, '::before').content);
+  expect(['none', 'normal', '']).toContain(label);
+
+  // The history, opened once, lists both and asks the server once.
+  const asked: string[] = [];
+  page.on('request', (request) => request.url().includes('/api/workouts?') && asked.push(request.url()));
+  await page.getByRole('link', { name: 'Storico' }).click();
+  await expect(page.locator('.row')).toHaveCount(2);
+  await page.waitForTimeout(500);
+  expect(asked).toHaveLength(1);
+
+  expect(errors).toEqual([]);
+
+  // Without network the app still opens, from the copy the service worker
+  // keeps, and says what is missing instead of a browser error page.
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Storico' })).toBeVisible();
+  await page.context().setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Il server non risponde' })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveText('Il telefono è senza rete, e la richiesta non è partita.');
+  await page.context().setOffline(false);
+  await page.getByRole('button', { name: 'Riprova' }).click();
+  await expect(page.getByRole('heading', { name: 'Storico' })).toBeVisible();
+});

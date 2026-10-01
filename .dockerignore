@@ -1,0 +1,6 @@
+# Dependencies are installed in the image: never the host's, at any depth.
+**/node_modules
+**/dist
+**/.angular
+.env
+.git

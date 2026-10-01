@@ -1,0 +1,81 @@
+import { formatKg, parseKg } from './format';
+import type { DoneSet, PlanExercise, PreviousSets, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types';
+
+/**
+ * Un esercizio della pagina di un allenamento: cosa chiede la scheda, le
+ * serie fatte oggi e quelle dell'ultima volta.
+ */
+export interface Block {
+  exerciseId: number;
+  name: string;
+  /** Cosa chiede il giorno della scheda; `null` per un esercizio fuori scheda. */
+  target: PlanExercise | null;
+  sets: WorkoutSet[];
+  previous: PreviousSets | null;
+}
+
+/**
+ * La pagina di un allenamento, esercizio per esercizio.
+ *
+ * Prima quelli del giorno della scheda, nel loro ordine, anche senza serie:
+ * sono la lista di quello che resta da fare. Poi quelli fatti fuori scheda,
+ * nell'ordine in cui sono comparsi, e in fondo quelli appena aggiunti che
+ * non hanno ancora una serie. Un esercizio compare una volta sola.
+ */
+export function blocksOf(detail: WorkoutDetail, added: { id: number; name: string }[] = []): Block[] {
+  const blocks = new Map<number, Block>();
+  const open = (exerciseId: number, name: string, target: PlanExercise | null) => {
+    if (blocks.has(exerciseId)) return;
+    blocks.set(exerciseId, { exerciseId, name, target, sets: [], previous: detail.previous[String(exerciseId)] ?? null });
+  };
+
+  for (const exercise of detail.plan) open(exercise.exerciseId, exercise.exerciseName, exercise);
+  for (const done of detail.sets) {
+    open(done.exerciseId, done.exerciseName, null);
+    blocks.get(done.exerciseId)!.sets.push(done);
+  }
+  for (const exercise of added) open(exercise.id, exercise.name, null);
+  return [...blocks.values()];
+}
+
+/** Le ripetizioni che chiede la scheda, da proporre: il primo numero scritto («8-10» → 8), se c'è. */
+export function targetReps(reps: string): number | null {
+  const first = /\d+/.exec(reps);
+  return first ? Number(first[0]) : null;
+}
+
+/**
+ * La prossima serie, già scritta: chi si allena di solito ripete quella di
+ * prima, o riparte da dove era arrivato l'ultima volta. Il peso non si
+ * inventa: la prima volta in assoluto resta da scrivere.
+ */
+export function prefill(block: Block): { reps: number | null; weightKg: number | null } {
+  const last = block.sets.at(-1) ?? block.previous?.sets[0];
+  if (last) return { reps: last.reps, weightKg: last.weightKg };
+  return { reps: block.target ? targetReps(block.target.reps) : null, weightKg: null };
+}
+
+/**
+ * «10 × 57,5 kg, 10 × 60 kg, 9 × 60 kg»: le serie una per una, scritte come
+ * quelle segnate oggi. Raggrupparle («2 × 8 · 60 kg») metteva due «×» con
+ * due significati diversi accanto alle serie di oggi, e non si capiva.
+ */
+export const describeSets = (sets: DoneSet[]): string => sets.map((set) => `${set.reps} × ${formatKg(set.weightKg)}`).join(', ');
+
+/** L'allenamento ancora aperto più recente, fra quelli dal più recente. */
+export const inProgress = (workouts: WorkoutSummary[]): WorkoutSummary | undefined =>
+  workouts.find((workout) => workout.finishedAt === null);
+
+/**
+ * Una serie come la scrive chi si allena: le ripetizioni intere, i chili con
+ * la virgola o col punto. Quello che il server rifiuterebbe si dice qui, con
+ * le parole di chi sta scrivendo.
+ */
+export function readSet(reps: string, kg: string): { reps: number; weightKg: number } | { error: string } {
+  const repsValue = /^\d+$/.test(reps.trim()) ? Number(reps.trim()) : NaN;
+  if (!(repsValue >= 1 && repsValue <= 100)) return { error: 'Le ripetizioni vanno da 1 a 100.' };
+  const weightKg = parseKg(kg);
+  if (weightKg === null || weightKg > 1000) return { error: 'Il peso va da 0 a 1000 kg, con la virgola se serve.' };
+  if (Math.round(weightKg * 100) / 100 !== weightKg) return { error: 'Il peso ha al più due decimali.' };
+  return { reps: repsValue, weightKg };
+}

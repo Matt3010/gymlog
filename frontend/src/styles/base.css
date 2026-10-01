@@ -1,0 +1,172 @@
+/* Base
+   Reset, page frame, the glass surface shared by sheets and cards,
+   and the two type styles used throughout. */
+
+* { box-sizing: border-box; }
+
+/* several overlay pieces set their own display, which would beat the UA rule */
+[hidden] { display: none !important; }
+
+html, body { height: 100%; margin: 0; }
+
+/*
+ * Installata su iPhone, la pagina arriva in fondo allo schermo.
+ *
+ * Con la barra di stato trasparente iOS disegna la pagina da sotto
+ * l'orologio, ma le dà un'altezza di schermo meno barra: `100%`, `vh` e
+ * `dvh` si fermano tutti quarantasette pixel prima del fondo, e sotto resta
+ * una fascia che niente riesce a riempire. Allungare un pezzo dentro la
+ * pagina non basta, perché oltre quella riga non si disegna. Solo `lvh`
+ * vale lo schermo intero, e va dato alla radice.
+ *
+ * Solo da installata: in una scheda del browser `lvh` è l'altezza a barre
+ * nascoste, e la pagina finirebbe sotto la barra dell'indirizzo.
+ */
+@media (display-mode: standalone) {
+  html, body { height: 100lvh; }
+}
+
+/*
+ * Il corpo scorre: qui non c'è una mappa ferma sotto ai pannelli, ci sono
+ * pagine lunghe quanto il loro contenuto.
+ */
+body {
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: -0.006em;
+  color: var(--ink);
+  background: #e8ebef;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  body { background: #0b0d10; }
+}
+
+button { font: inherit; color: inherit; cursor: pointer; }
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.ico {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* glass surface shared by panel, sheets, popover */
+.surface {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2), inset 0 1px 0 var(--highlight);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .surface { background: var(--glass-strong); }
+}
+
+/* thin scrollbars inside the overlay */
+.surface ::-webkit-scrollbar, .surface::-webkit-scrollbar { width: 8px; height: 8px; }
+.surface ::-webkit-scrollbar-thumb, .surface::-webkit-scrollbar-thumb {
+  background: var(--hairline);
+  border-radius: 99px;
+}
+
+/* ---------------------------------------------------------------- typography */
+
+h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 620;
+  letter-spacing: -0.017em;
+}
+
+.eyebrow {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------------ sheets */
+
+/*
+ * La scatola di tutto quello che si apre davanti.
+ *
+ * Un esercizio, una serie da correggere, un esercizio da aggiungere
+ * all'allenamento: stesso posto, stessa larghezza, stesso riempimento, e su
+ * un telefono prendono lo schermo allo stesso modo, maniglia compresa. La
+ * scatola è una; dentro, ognuna si arreda come vuole.
+ */
+.modal {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: var(--z-sheet);
+  width: min(356px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  padding: var(--card-pad);
+  overflow: auto;
+  animation: sheet-in 0.32s var(--ease);
+}
+
+@media (max-width: 600px) {
+  /* su un telefono la sheet è una cosa che si spinge via, la maniglia lo dice
+     e swipeToClose la fa seguire il dito */
+  .modal { padding-top: 22px; }
+
+  .modal::before {
+    content: "";
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 38px;
+    height: 4px;
+    border-radius: 99px;
+    background: var(--hairline);
+  }
+
+  /*
+   * Su un telefono una finestra è un foglio che sale dal fondo e si ferma
+   * appena sotto l'orologio, come quelli del sistema.
+   *
+   * Arriva in fondo e prende quasi tutto lo schermo, perché appoggiata in
+   * basso e alta quanto il contenuto lasciava sopra mezzo schermo di nero.
+   * Ma non passa sotto la barra di stato: così sopra il titolo non serve lo
+   * spazio per l'orologio, che dentro al foglio si leggeva come un vuoto, e
+   * gli angoli tondi in alto dicono che è un foglio appoggiato sopra alla
+   * pagina, che si spinge via col dito. In basso restano dritti, perché lì
+   * finisce lo schermo, non il foglio.
+   *
+   * `.surface.modal` e non `.modal`: il vestito — bordo, angoli, ombra — lo
+   * mette `.surface`, e per vincere su di lei ci vogliono due classi.
+   */
+  .surface.modal {
+    top: calc(env(safe-area-inset-top) + 10px);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+    max-height: none;
+    border: 0;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    padding-bottom: calc(var(--card-pad) + env(safe-area-inset-bottom));
+    animation-name: sheet-in-mobile;
+  }
+}

@@ -1,0 +1,92 @@
+/* Design tokens
+   Colour, ink, elevation, stacking and geometry — plus their dark twins.
+   Everything else in the sheet reads from here and nowhere else. */
+
+:root {
+  color-scheme: light dark;
+
+  --font: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif;
+
+  /* surfaces */
+  --base: 255 255 255;
+  --glass: rgb(var(--base) / 0.88);
+  --glass-strong: rgb(var(--base) / 0.97);
+  --sunken: rgb(14 17 22 / 0.04);
+  --sunken-hover: rgb(14 17 22 / 0.07);
+  --hairline: rgb(14 17 22 / 0.09);
+  --hairline-soft: rgb(14 17 22 / 0.06);
+  --highlight: rgb(255 255 255 / 0.65);
+
+  /* ink */
+  --ink: #0e1116;
+  --ink-2: #5a6472;
+  --ink-3: #8b94a3;
+  --on-accent: #ffffff;
+  /* il blu di dove sei: lo stesso del pin dell'email sulla porta */
+  --me: #2f6fed;
+  --accent: #0e1116;
+  --accent-grad: linear-gradient(180deg, #232932 0%, #0e1116 100%);
+  --danger: #c0372b;
+  /* come sta una cosa che parla con noi: gli stessi quattro colori ovunque —
+     sul pin, sull'agente, su un collegamento. Il quarto e' --ink-3, che vuol
+     dire «non ha mai parlato», e il quinto non esiste. */
+  --ok: #2f9e5e;
+  --warn: #d98613;
+
+  /* elevation */
+  --shadow-1: 0 1px 2px rgb(10 13 18 / 0.05), 0 2px 8px rgb(10 13 18 / 0.05);
+  --shadow-2: 0 2px 6px rgb(10 13 18 / 0.06), 0 14px 32px -10px rgb(10 13 18 / 0.22);
+  --shadow-3: 0 4px 10px rgb(10 13 18 / 0.08), 0 28px 60px -16px rgb(10 13 18 / 0.34);
+
+  /* stacking: what floats above the pages, in the order it covers them */
+  --z-bar: 1100;
+  --z-hint: 1200;
+  --z-sheet: 1300;
+  /* le domande a foglietto stanno sopra alla finestra da cui nascono */
+  --z-popover: 1400;
+  --z-toast: 1500;
+
+  /* geometry */
+  /* La barra in fondo con le sezioni. Tutto quello che galleggia sopra al
+     fondo dello schermo — il messaggio con l'annulla, il recupero che scorre,
+     l'ultima riga di una pagina — deve stare sopra questa riga, e la misura
+     sta qui una volta sola invece che sommata a mano in ogni componente. */
+  --tab-bar: calc(62px + env(safe-area-inset-bottom));
+  /* Lo spazio dove si posa un messaggio: 14px di stacco e due righe di testo.
+     In fondo a ogni pagina resta libero, così con la pagina tutta scorsa il
+     messaggio sta sotto i suoi ultimi tasti invece che sopra: «Scheda
+     salvata» copriva proprio «Elimina scheda». */
+  --sopra-alla-barra: calc(var(--tab-bar) + 84px);
+  --card-pad: 14px;
+  --r-lg: 20px;
+  --r-md: 13px;
+  --r-sm: 10px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --base: 20 23 28;
+    --glass: rgb(var(--base) / 0.86);
+    --glass-strong: rgb(var(--base) / 0.96);
+    --sunken: rgb(255 255 255 / 0.06);
+    --sunken-hover: rgb(255 255 255 / 0.1);
+    --hairline: rgb(255 255 255 / 0.1);
+    --hairline-soft: rgb(255 255 255 / 0.07);
+    --highlight: rgb(255 255 255 / 0.08);
+
+    --ink: #eef1f5;
+    --ink-2: #9aa4b2;
+    --ink-3: #6f7987;
+    --on-accent: #0e1116;
+    --accent: #f2f4f7;
+    --accent-grad: linear-gradient(180deg, #ffffff 0%, #dfe4ea 100%);
+    --danger: #ff6b5e;
+
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 8px rgb(0 0 0 / 0.3);
+    --shadow-2: 0 2px 6px rgb(0 0 0 / 0.35), 0 14px 32px -10px rgb(0 0 0 / 0.6);
+    --shadow-3: 0 4px 10px rgb(0 0 0 / 0.4), 0 28px 60px -16px rgb(0 0 0 / 0.75);
+  }
+}

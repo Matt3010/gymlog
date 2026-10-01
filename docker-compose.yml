@@ -1,0 +1,77 @@
+services:
+  # The API: users, exercises, plans, workouts, statistics.
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    image: gymlog-api:latest
+    container_name: gymlog-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://gymlog:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/gymlog
+      API_PORT: "3000"
+      # Inside the compose network only (no published port): nginx reaches it here.
+      API_HOST: 0.0.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Alive means the API answers and the database with it.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    stop_grace_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # The front: nginx serving the PWA and passing /api to the API.
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    image: gymlog-web:latest
+    container_name: gymlog-web
+    restart: unless-stopped
+    # Loopback only: the Cloudflare Tunnel on the host publishes it over HTTPS,
+    # so no port is opened on the router or the LAN.
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8091}:80"
+    depends_on:
+      - api
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: gymlog-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gymlog
+      POSTGRES_USER: gymlog
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # A named volume, not a folder next to the code: a redeploy never touches it.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gymlog -d gymlog"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  pgdata:

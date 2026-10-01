@@ -1,0 +1,38 @@
+/* Controls
+   The pieces that appear in more than one place: fields, buttons, category
+   chips, the emoji button and the colour swatch. */
+
+/* ------------------------------------------------------------------- inputs */
+
+input, textarea {
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--ink);
+  background: var(--sunken);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  padding: 9px 11px;
+  width: 100%;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+input::placeholder, textarea::placeholder { color: var(--ink-3); }
+
+input:hover, textarea:hover { background: var(--sunken-hover); }
+
+input:focus, textarea:focus {
+  outline: 0;
+  background: var(--glass-strong);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 11%, transparent);
+}
+
+textarea { resize: vertical; min-height: 66px; }
+
+input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+.field { display: grid; gap: 6px; }
+
+/* I bottoni non stanno più qui: look e varianti vivono in Button.svelte, così
+   chi ne usa uno sceglie un nome ("primary", "icon"...) invece di ricordarsi
+   una classe. Qui restano solo campi ed etichette. */
