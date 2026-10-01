@@ -5,6 +5,7 @@ import { install } from '../../lib/install.svelte';
 import { nav } from '../../lib/nav.svelte';
 import type { Plan, WorkoutDetail, WorkoutSummary } from '../../lib/types';
 import { fakeApi } from '../../test/fake-api';
+import Host from '../../test/Host.svelte';
 import HomePage from './HomePage.svelte';
 
 const RECENT = 'GET /workouts?limit=6&offset=0';
@@ -31,6 +32,21 @@ const started = (id: number): WorkoutDetail => ({
 });
 
 describe('home', () => {
+  it('logs out only after asking, from a red icon', async () => {
+    const api = fakeApi().on('GET /workouts', []).on('GET /plans', []).on('POST /auth/logout', { ok: true });
+    render(Host, { page: HomePage });
+    const user = userEvent.setup();
+    const out = await screen.findByRole('button', { name: /^Esci/ });
+    expect(out).toHaveClass('is-danger');
+    await user.click(out);
+    const question = within(await screen.findByRole('alertdialog', { name: 'Uscire da gymlog?' }));
+    await user.click(question.getByRole('button', { name: 'Annulla' }));
+    expect(api.changes()).toEqual([]);
+    await user.click(out);
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Esci' }));
+    await vi.waitFor(() => expect(api.changes()).toEqual([{ route: 'POST /auth/logout', body: undefined }]));
+  });
+
   it('offers the days of the plans in use, not of the archived ones', async () => {
     fakeApi().on('GET /plans', [FORZA, VECCHIA]).on(RECENT, []);
     render(HomePage);

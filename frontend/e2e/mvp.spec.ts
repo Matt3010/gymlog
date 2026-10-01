@@ -466,6 +466,7 @@ test('a new person creates an account and is in at once', async ({ page }) => {
   await page.getByRole('button', { name: 'Crea l’account' }).click();
   await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
   await page.getByRole('button', { name: /^Esci/ }).click();
+  await page.getByRole('alertdialog', { name: 'Uscire da gymlog?' }).getByRole('button', { name: 'Esci' }).click();
 
   // the same name, any case, is taken; and it signs in lower-case
   await page.getByRole('button', { name: 'Crea un account' }).click();

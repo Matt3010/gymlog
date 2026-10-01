@@ -5,6 +5,7 @@
   import { nav } from '../../lib/nav.svelte';
   import { HISTORY_PATH, planPath, workoutPath } from '../../lib/routing';
   import type { Plan, WorkoutSummary } from '../../lib/types';
+  import { ui } from '../../lib/ui.svelte';
   import { inProgress } from '../../lib/workout';
   import Alert from '../Alert.svelte';
   import Button from '../Button.svelte';
@@ -38,6 +39,11 @@
   const open = $derived(recent ? inProgress(recent) : undefined);
   const done = $derived((recent ?? []).filter((workout) => workout !== open).slice(0, 5));
 
+  /** Uscire chiede prima, come ogni tasto rosso: un tocco per sbaglio in palestra costa un nuovo accesso. */
+  function askOut(anchor: HTMLElement): void {
+    ui.askSure(anchor, { title: 'Uscire da gymlog?', verb: 'Esci', onYes: () => void session.logout() });
+  }
+
   async function start(planDayId: number | null): Promise<void> {
     starting = true;
     error = '';
@@ -53,7 +59,7 @@
 
 <PageShell title="Allenati">
   {#snippet tools()}
-    <Button look="icon" title="Esci ({session.user?.username})" onclick={() => void session.logout()}>
+    <Button look="icon" tone="danger" title="Esci ({session.user?.username})" onclick={(event: MouseEvent) => askOut(event.currentTarget as HTMLElement)}>
       <Icon name="logout" />
     </Button>
   {/snippet}

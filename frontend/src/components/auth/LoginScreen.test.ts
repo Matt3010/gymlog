@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import App from '../../App.svelte';
@@ -179,7 +179,9 @@ describe('the app', () => {
   it('signs out from home', async () => {
     const api = home(fakeApi().on('GET /auth/me', { user: ANNA }).on('POST /auth/logout', { ok: true }));
     render(App);
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Esci (anna)' }));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Esci (anna)' }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Esci' }));
     expect(await screen.findByRole('heading', { name: 'Bentornato' })).toBeInTheDocument();
     expect(api.changes().map((change) => change.route)).toEqual(['POST /auth/logout']);
   });
