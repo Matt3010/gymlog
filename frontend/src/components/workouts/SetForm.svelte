@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { Autosave } from '../../lib/autosave.svelte';
-  import { workoutsApi } from '../../lib/endpoints';
   import { tasti } from '../../lib/fondo.svelte';
   import { formatKg } from '../../lib/format';
   import type { WorkoutSet } from '../../lib/types';
@@ -16,18 +15,22 @@
    * (`ui.openModal`): un numero sbagliato col pollice capita. Si salva da sé
    * mentre cambia, dopo una pausa, e chiudendo parte quello che aspettava:
    * nessun tasto «Salva». Togliere chiede prima, accanto al tasto.
+   *
+   * Dove va a finire lo dice chi la apre (`save`, `remove`): la pagina
+   * dell'allenamento la mette nella coda delle modifiche, che parte anche
+   * senza rete, quando torna.
    */
   let {
     set,
     number,
-    onsaved,
-    ondeleted,
+    save,
+    remove: take,
   }: {
     set: WorkoutSet;
     /** Quale serie è, per la domanda: la seconda, la terza. */
     number: number;
-    onsaved: (set: WorkoutSet) => void;
-    ondeleted: (id: number) => void;
+    save: (change: { reps: number; weightKg: number }) => void;
+    remove: () => void;
   } = $props();
 
   // svelte-ignore state_referenced_locally
@@ -35,9 +38,8 @@
   // svelte-ignore state_referenced_locally
   let kg = $state(String(set.weightKg).replace('.', ','));
   let error = $state('');
-  let working = $state(false);
 
-  const saver = new Autosave<{ reps: number; weightKg: number }>(async (typed) => onsaved(await workoutsApi.updateSet(set.id, typed)));
+  const saver = new Autosave<{ reps: number; weightKg: number }>(async (typed) => save(typed));
   onDestroy(() => void saver.flush());
 
   /** Com'era scritta, per non rimandarla uguale. */
@@ -63,17 +65,9 @@
   // la finestra da chiudere dopo aver tolto è questa, anche se nel frattempo ne è comparsa un'altra
   const finestra = ui.modal;
 
-  async function remove(): Promise<void> {
-    working = true;
-    try {
-      await workoutsApi.removeSet(set.id);
-      ondeleted(set.id);
-      if (finestra) ui.closeModal(finestra);
-    } catch (failure) {
-      error = (failure as Error).message;
-    } finally {
-      working = false;
-    }
+  function remove(): void {
+    take();
+    if (finestra) ui.closeModal(finestra);
   }
 
   tasti(() => [
@@ -81,12 +75,11 @@
       label: 'Togli',
       look: 'danger',
       icon: 'trash',
-      disabled: working,
       onpick: (anchor) => {
         ui.askSure(anchor, {
           title: `Togliere la serie ${number} di ${set.exerciseName}?`,
           verb: 'Togli',
-          onYes: () => void remove(),
+          onYes: remove,
         });
         return false;
       },

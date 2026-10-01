@@ -1,5 +1,6 @@
 <script lang="ts">
   import { rete } from '../lib/rete.svelte';
+  import { outbox } from '../lib/sync';
 
   /**
    * Una riga che dice che la rete manca, finché manca.
@@ -7,13 +8,17 @@
    * Senza, ci si accorgeva della rete caduta solo dopo aver scritto e
    * premuto «Salva». Sta in alto, piccola e ferma, e non chiede niente: se
    * ne va da sola quando la rete torna. È di tutta l'app, non di una pagina.
+   *
+   * Quello che si segna senza rete resta sul telefono e parte quando torna
+   * (lib/outbox): lo dice, con quante modifiche aspettano.
    */
+  const waiting = $derived(outbox.pending === 1 ? '1 modifica in attesa.' : `${outbox.pending} modifiche in attesa.`);
 </script>
 
 {#if rete.manca}
   <p class="rete" role="status" data-rete>
     <span class="punto" aria-hidden="true"></span>
-    Il telefono è senza rete. Quello che segni adesso non arriva.
+    Il telefono è senza rete. Quello che segni resta sul telefono e parte quando torna.{#if outbox.pending > 0}{' '}{waiting}{/if}
   </p>
 {/if}
 

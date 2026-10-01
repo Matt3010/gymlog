@@ -485,13 +485,65 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   });
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Storico' })).toBeVisible();
+  // Without network the app still opens, signed in, on the last copy it has, and says the network is missing.
   await page.context().setOffline(true);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Il server non risponde' })).toBeVisible();
-  await expect(page.getByRole('alert')).toHaveText('Il telefono è senza rete, e la richiesta non è partita.');
-  await page.context().setOffline(false);
-  await page.getByRole('button', { name: 'Riprova' }).click();
   await expect(page.getByRole('heading', { name: 'Storico' })).toBeVisible();
+  await expect(page.locator('.row')).toHaveCount(2);
+  await expect(page.getByRole('status').filter({ hasText: 'senza rete' })).toBeVisible();
+  await page.context().setOffline(false);
+  await expect(page.getByRole('status').filter({ hasText: 'senza rete' })).toHaveCount(0);
+});
+
+test('at the gym without network: sets logged anyway, kept through a reload, sent when it comes back', async ({ page, context }) => {
+  await page.goto(base());
+  await page.getByRole('button', { name: 'Crea un account' }).click();
+  await page.getByLabel('Utente').fill('senza.rete');
+  await page.getByLabel('Password', { exact: true }).fill('password lunga');
+  await page.getByLabel('Ripeti la password').fill('password lunga');
+  await page.getByRole('button', { name: 'Crea l’account' }).click();
+  await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
+  // an exercise, and a free workout with it: started with the network, like at the door of the gym
+  await page.evaluate(() => fetch('/api/exercises', {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-gymlog': '1' }, body: JSON.stringify({ name: 'Stacco' }),
+  }));
+  await page.getByRole('button', { name: 'Allenamento libero' }).click();
+  await expect(page).toHaveURL(/\/allenamenti\/\d+$/);
+  const workoutUrl = page.url();
+  // the app is kept on the phone by its service worker, which by now runs the page;
+  // as on any day after the first, the app opened with its copy already in place
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  await page.reload();
+  await page.getByRole('button', { name: 'Aggiungi un esercizio' }).click();
+  await page.getByRole('dialog').getByText('Stacco').click();
+
+  // down in the basement: no network
+  await context.setOffline(true);
+  await expect(page.getByRole('status').filter({ hasText: 'senza rete' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Serie' }).click();
+  await page.getByLabel('Ripetizioni', { exact: true }).fill('8');
+  await page.getByLabel('Peso', { exact: true }).fill('100');
+  await page.getByRole('button', { name: 'Segna la serie 1' }).click();
+  await expect(page.locator('.set .what')).toHaveText(['8 × 100 kg']);
+  await expect(page.getByRole('status').filter({ hasText: 'senza rete' })).toContainText('1 modifica in attesa.');
+  await page.getByLabel('Nota', { exact: true }).first().fill('presa mista');
+  await page.getByLabel('Nota', { exact: true }).first().blur();
+
+  // the phone reloads the app, still without network: everything is still there
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Allenamento libero' })).toBeVisible();
+  await expect(page.locator('.set .what')).toHaveText(['8 × 100 kg']);
+  await expect(page.getByLabel('Nota', { exact: true }).first()).toHaveValue('presa mista');
+  await expect(page.getByRole('status').filter({ hasText: 'senza rete' })).toContainText('2 modifiche in attesa.');
+
+  // the network is back: the changes leave by themselves, and the server has them
+  await context.setOffline(false);
+  await expect(page.getByRole('status').filter({ hasText: 'senza rete' })).toHaveCount(0);
+  const id = workoutUrl.split('/').pop();
+  const onServer = () => page.evaluate((workout) => fetch(`/api/workouts/${workout}`)
+    .then((r) => r.json() as Promise<{ sets: { reps: number; weightKg: number; exerciseName: string }[]; exerciseNotes: Record<string, string> }>)
+    .then((d) => [d.sets.map((one) => `${one.exerciseName} ${one.reps} × ${one.weightKg}`), Object.values(d.exerciseNotes)]), id);
+  await expect.poll(onServer).toEqual([['Stacco 8 × 100'], ['presa mista']]);
 });
 
 test('a new person creates an account and is in at once', async ({ page }) => {

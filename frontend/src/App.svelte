@@ -20,9 +20,12 @@
   import NowBar from './components/workouts/NowBar.svelte';
   import { session } from './lib/client';
   import { nav } from './lib/nav.svelte';
+  import { startSync } from './lib/sync';
   import { ui } from './lib/ui.svelte';
 
   onMount(() => void session.check());
+  // le modifiche fatte senza rete partono da sole, quando la rete c'è
+  onMount(() => startSync());
 
   /*
    * Cambiare pagina chiude quello che sta davanti: una finestra galleggia

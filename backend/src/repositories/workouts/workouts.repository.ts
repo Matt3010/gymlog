@@ -22,6 +22,8 @@ export interface SetInput {
   readonly exerciseId: number;
   readonly reps: number;
   readonly weightKg: number;
+  /** The app's name for it: the same key twice in a workout is the same set. */
+  readonly key?: string;
 }
 
 export interface WorkoutSet extends SetInput {
@@ -267,9 +269,15 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
       return row === undefined ? null : { workoutId: row.id, startedAt: new Date(row.started_at).toISOString(), note: row.notes };
     },
 
-    async addSet(workoutId, input) {
-      const [row] = await db.insert(workoutSets).values({ workoutId, ...input }).returning({ id: workoutSets.id });
-      return findSet(row!.id);
+    async addSet(workoutId, { key, ...input }) {
+      const [row] = await db.insert(workoutSets).values({ workoutId, ...input, clientKey: key ?? null })
+        .onConflictDoNothing({ target: [workoutSets.workoutId, workoutSets.clientKey] })
+        .returning({ id: workoutSets.id });
+      if (row) return findSet(row.id);
+      // already there under this key: the same set sent again, given back as it is
+      const [kept] = await db.select({ id: workoutSets.id }).from(workoutSets)
+        .where(and(eq(workoutSets.workoutId, workoutId), eq(workoutSets.clientKey, key!)));
+      return findSet(kept!.id);
     },
 
     async updateSet(userId, setId, change) {

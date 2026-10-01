@@ -1,6 +1,7 @@
 <script lang="ts">
   import { session } from '../../lib/client';
   import { current } from '../../lib/current.svelte';
+  import { outbox } from '../../lib/sync';
   import { plansApi, workoutsApi } from '../../lib/endpoints';
   import { nav } from '../../lib/nav.svelte';
   import { planPath, workoutPath } from '../../lib/routing';
@@ -53,7 +54,12 @@
 
   /** Uscire chiede prima, come ogni tasto rosso: un tocco per sbaglio in palestra costa un nuovo accesso. */
   function askOut(anchor: HTMLElement): void {
-    ui.askSure(anchor, { title: 'Uscire da gymlog?', verb: 'Esci', onYes: () => void session.logout() });
+    // quello che è ancora in coda (fatto senza rete) uscendo si perde: lo si dice prima
+    const waiting = outbox.pending;
+    const detail = waiting === 0 ? undefined
+      : waiting === 1 ? '1 modifica fatta senza rete non è ancora partita: uscendo si perde.'
+      : `${waiting} modifiche fatte senza rete non sono ancora partite: uscendo si perdono.`;
+    ui.askSure(anchor, { title: 'Uscire da gymlog?', detail, verb: 'Esci', onYes: () => void session.logout() });
   }
 
   async function start(planDayId: number | null): Promise<void> {

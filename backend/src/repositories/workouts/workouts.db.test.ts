@@ -59,6 +59,22 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     expect((await repo().sets(workout.id)).map((set) => [set.exerciseName, set.reps, set.weightKg])).toEqual([["Squat", 5, 100], ["Panca", 8, 62.5]]);
   });
 
+  it("logs a set sent twice with the same key once: an answer lost on a flaky network makes the app send it again", async () => {
+    const { user, squat } = await setup();
+    const workout = await repo().create(user.id, null);
+    const other = await repo().create(user.id, null);
+    const first = await repo().addSet(workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100, key: "k-1" });
+    const again = await repo().addSet(workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100, key: "k-1" });
+    expect(again).toEqual(first);
+    expect(await repo().sets(workout.id)).toHaveLength(1);
+    // the key belongs to its workout; and sets without a key are all kept
+    await repo().addSet(other.id, { exerciseId: squat.id, reps: 5, weightKg: 100, key: "k-1" });
+    await repo().addSet(workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100 });
+    await repo().addSet(workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100 });
+    expect(await repo().sets(workout.id)).toHaveLength(3);
+    expect(await repo().sets(other.id)).toHaveLength(1);
+  });
+
   it("changes and deletes a set of the user only", async () => {
     const { user, squat } = await setup();
     const other = await setup();

@@ -12,7 +12,8 @@ export class ApiError extends Error {
 }
 
 export interface Client {
-  get<T>(path: string): Promise<T>;
+  /** `fresh`: solo la risposta del server, mai la copia (per chi deve sapere com'è adesso). */
+  get<T>(path: string, options?: { fresh?: boolean }): Promise<T>;
   post<T>(path: string, payload?: unknown): Promise<T>;
   put<T>(path: string, payload: unknown): Promise<T>;
   patch<T>(path: string, payload: unknown): Promise<T>;
@@ -20,6 +21,12 @@ export interface Client {
 }
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
+
+/** Dove stanno le copie delle letture, per indirizzo. */
+export interface Copies {
+  read(path: string): unknown;
+  write(path: string, value: unknown): void;
+}
 
 /**
  * Cosa dire quando il server non ha scritto il motivo. «errore 500» e
@@ -51,7 +58,7 @@ const senzaRisposta = (): string =>
  * Le modifiche portano l'header `x-gymlog`: il server rifiuta quelle senza,
  * così un modulo su un altro sito non può scrivere a nome tuo.
  */
-export function createClient({ fetch, onSignedOut }: { fetch: Fetch; onSignedOut: () => void }): Client {
+export function createClient({ fetch, onSignedOut, copies }: { fetch: Fetch; onSignedOut: () => void; copies?: Copies }): Client {
   let renewing: Promise<boolean> | null = null;
 
   async function send(path: string, method: string, payload?: unknown): Promise<Response> {
@@ -97,8 +104,26 @@ export function createClient({ fetch, onSignedOut }: { fetch: Fetch; onSignedOut
     return (await response.json()) as T;
   }
 
+  /*
+   * In palestra la rete va e viene: ogni lettura che arriva lascia una copia,
+   * e quando la rete manca (nessuna risposta, non un errore del server) si
+   * mostra quella. Le porte (/auth) no: chi è entrato lo dice il server.
+   */
+  async function read<T>(path: string, fresh: boolean): Promise<T> {
+    const keep = copies !== undefined && !path.startsWith('/auth/');
+    try {
+      const value = await request<T>(path, 'GET');
+      if (keep) copies.write(path, value);
+      return value;
+    } catch (error) {
+      const copy = keep && !fresh && error instanceof ApiError && error.status === undefined ? copies.read(path) : undefined;
+      if (copy === undefined) throw error;
+      return copy as T;
+    }
+  }
+
   return {
-    get: (path) => request(path, 'GET'),
+    get: (path, options) => read(path, options?.fresh ?? false),
     post: (path, payload) => request(path, 'POST', payload),
     put: (path, payload) => request(path, 'PUT', payload),
     patch: (path, payload) => request(path, 'PATCH', payload),

@@ -164,3 +164,42 @@ describe('an expired login', () => {
     expect(onSignedOut).not.toHaveBeenCalled();
   });
 });
+
+describe('the copy kept on the phone', () => {
+  const kept = () => {
+    const box = new Map<string, unknown>();
+    return { box, copies: { read: (path: string) => box.get(path), write: (path: string, value: unknown) => void box.set(path, value) } };
+  };
+
+  it('is written by every read that arrives, and given back when the network is missing', async () => {
+    const { copies } = kept();
+    const { fetch } = server({ '/api/plans': [json(200, [{ id: 1 }]), new TypeError('Failed to fetch')] });
+    const api = createClient({ fetch, onSignedOut: vi.fn(), copies });
+    expect(await api.get('/plans')).toEqual([{ id: 1 }]);
+    expect(await api.get('/plans')).toEqual([{ id: 1 }]);
+  });
+
+  it('is not a reason to hide a real answer of the server: an error stays an error', async () => {
+    const { copies } = kept();
+    const { fetch } = server({ '/api/plans/1': [json(200, { id: 1 }), json(404, { error: 'Non trovato.' })] });
+    const api = createClient({ fetch, onSignedOut: vi.fn(), copies });
+    await api.get('/plans/1');
+    await expect(api.get('/plans/1')).rejects.toThrow('Non trovato.');
+  });
+
+  it('without a copy, says the network is missing as before', async () => {
+    const { copies } = kept();
+    const { fetch } = server({ '/api/plans': [new TypeError('Failed to fetch')] });
+    await expect(createClient({ fetch, onSignedOut: vi.fn(), copies }).get('/plans')).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('is skipped by a read that wants it fresh, or the doors', async () => {
+    const { box, copies } = kept();
+    const { fetch } = server({ '/api/workouts?limit=6&offset=0': [json(200, []), new TypeError('x')], '/api/auth/me': [json(200, { user: { id: 1 } })] });
+    const api = createClient({ fetch, onSignedOut: vi.fn(), copies });
+    await api.get('/workouts?limit=6&offset=0');
+    await expect(api.get('/workouts?limit=6&offset=0', { fresh: true })).rejects.toBeInstanceOf(ApiError);
+    await api.get('/auth/me');
+    expect([...box.keys()]).toEqual(['/workouts?limit=6&offset=0']);
+  });
+});

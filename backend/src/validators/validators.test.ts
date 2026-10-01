@@ -198,6 +198,11 @@ describe("a set", () => {
     expect(parseSet({ exerciseId: 2, reps: 1, weightKg: 1000 })).toMatchObject({ reps: 1, weightKg: 1000 });
   });
 
+  it("may carry a key of the app, to be logged once however many times it is sent", () => {
+    expect(parseSet({ exerciseId: 2, reps: 8, weightKg: 60, key: "3f2a-9c" })).toEqual({ exerciseId: 2, reps: 8, weightKg: 60, key: "3f2a-9c" });
+    expect(() => parseSet({ exerciseId: 2, reps: 8, weightKg: 60, key: "x".repeat(65) })).toThrow("Chiave: troppo lungo");
+  });
+
   it("keeps two decimals of kg", () => {
     expect(parseSet({ exerciseId: 2, reps: 8, weightKg: 1.25 }).weightKg).toBe(1.25);
     expect(() => parseSet({ exerciseId: 2, reps: 8, weightKg: 1.255 })).toThrow("Peso: al più due decimali.");

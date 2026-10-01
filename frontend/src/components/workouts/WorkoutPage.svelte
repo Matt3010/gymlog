@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { workoutsApi } from '../../lib/endpoints';
+  import { outbox } from '../../lib/sync';
   import { formatClock, formatDay, formatDuration, formatKg, formatRest } from '../../lib/format';
   import { nav } from '../../lib/nav.svelte';
   import { HOME_PATH } from '../../lib/routing';
@@ -38,7 +39,14 @@
    */
   let { id }: { id: number } = $props();
 
-  let detail = $state<WorkoutDetail | null>(null);
+  /*
+   * Quello che si vede è l'ultima copia del server con sopra le modifiche
+   * ancora in coda (lib/outbox): ogni serie, nota o «Termina» si mostra
+   * subito e parte quando può, anche senza rete. Quando la coda è arrivata,
+   * la copia si rifà da capo dal server.
+   */
+  let server = $state<WorkoutDetail | null>(null);
+  const detail = $derived(server ? outbox.shown(server) : null);
   let error = $state('');
   /** Esercizi aggiunti da qui che non hanno ancora una serie. */
   let added = $state<{ id: number; name: string }[]>([]);
@@ -56,7 +64,6 @@
   let tab = $state<Tab>('sets');
   const workingKg = (): number | null => Number(kg.replace(',', '.')) || null;
 
-  let working = $state(false);
 
   /* Il recupero che chiede la scheda, dopo ogni serie. A zero il telefono
      vibra, se sa farlo: in tasca o sulla panca non lo si guarda. */
@@ -78,14 +85,17 @@
     });
   });
 
+  $effect(() => outbox.onSynced((workoutId, fresh) => workoutId === id && (server = fresh)));
+
   $effect(() => {
     workoutsApi.get(id).then(
       (loaded) => {
-        detail = loaded;
+        server = loaded;
         // si apre il primo esercizio con delle serie ancora da fare
-        const all = blocksOf(loaded);
+        const shown = untrack(() => outbox.shown(loaded));
+        const all = blocksOf(shown);
         const next = all.find((block) => block.sets.length < (block.target?.reps.length ?? 1)) ?? all[0];
-        if (next && loaded.finishedAt === null) untrack(() => open(next));
+        if (next && shown.finishedAt === null) untrack(() => open(next));
       },
       (failure: Error) => (error = failure.message),
     );
@@ -100,27 +110,22 @@
     error = '';
   }
 
-  async function addSet(block: Block): Promise<void> {
+  function addSet(block: Block): void {
     const typed = readSet(reps, kg);
     if ('error' in typed) {
       error = typed.error;
       return;
     }
-    working = true;
     error = '';
-    try {
-      const done = await workoutsApi.addSet(id, { exerciseId: block.exerciseId, ...typed });
-      detail?.sets.push(done);
-      added = added.filter((one) => one.id !== block.exerciseId);
-      // la prossima serie si propone da capo: quello che chiede la scheda per lei
-      const now = blocksOf(detail!, added).find((one) => one.exerciseId === block.exerciseId);
-      if (now) reps = String(prefill(now).reps ?? reps);
-      if (block.target?.restSeconds) rest.start(block.target.restSeconds);
-    } catch (failure) {
-      error = (failure as Error).message;
-    } finally {
-      working = false;
-    }
+    outbox.add({
+      kind: 'addSet', workoutId: id, setId: outbox.tempId(), exerciseName: block.name,
+      body: { exerciseId: block.exerciseId, ...typed, key: outbox.newKey() },
+    });
+    added = added.filter((one) => one.id !== block.exerciseId);
+    // la prossima serie si propone da capo: quello che chiede la scheda per lei
+    const now = blocksOf(detail!, added).find((one) => one.exerciseId === block.exerciseId);
+    if (now) reps = String(prefill(now).reps ?? reps);
+    if (block.target?.restSeconds) rest.start(block.target.restSeconds);
   }
 
   /** Un esercizio fuori scheda, scelto in una finestra. */
@@ -134,20 +139,13 @@
     if (block) open(block);
   }
 
-  async function setFinished(value: boolean): Promise<void> {
-    working = true;
-    try {
-      detail = await workoutsApi.update(id, { finished: value });
-      if (value) {
-        active = null;
-        rest.stop();
-        toast.show('Allenamento terminato.');
-        window.scrollTo({ top: 0 });
-      }
-    } catch (failure) {
-      error = (failure as Error).message;
-    } finally {
-      working = false;
+  function setFinished(value: boolean): void {
+    outbox.add({ kind: 'workout', workoutId: id, change: { finished: value } });
+    if (value) {
+      active = null;
+      rest.stop();
+      toast.show('Allenamento terminato.');
+      window.scrollTo({ top: 0 });
     }
   }
 
@@ -161,18 +159,12 @@
     });
   }
 
-  async function remove(): Promise<void> {
-    working = true;
-    try {
-      await workoutsApi.remove(id);
-      rest.stop();
-      if (current.workout?.id === id) current.set(null);
-      toast.show('Allenamento eliminato.');
-      nav.go(HOME_PATH, { replace: true });
-    } catch (failure) {
-      error = (failure as Error).message;
-      working = false;
-    }
+  function remove(): void {
+    outbox.add({ kind: 'deleteWorkout', workoutId: id });
+    rest.stop();
+    if (current.workout?.id === id) current.set(null);
+    toast.show('Allenamento eliminato.');
+    nav.go(HOME_PATH, { replace: true });
   }
 
   /** Una serie da correggere, o da togliere, in una finestra. */
@@ -183,8 +175,8 @@
       props: {
         set,
         number,
-        onsaved: (saved: WorkoutSet) => detail && (detail.sets = detail.sets.map((one) => (one.id === saved.id ? saved : one))),
-        ondeleted: (setId: number) => detail && (detail.sets = detail.sets.filter((one) => one.id !== setId)),
+        save: (body: { reps: number; weightKg: number }) => outbox.add({ kind: 'updateSet', workoutId: id, setId: set.id, body }),
+        remove: () => outbox.add({ kind: 'deleteSet', workoutId: id, setId: set.id }),
       },
     });
   }
@@ -201,7 +193,6 @@
         tone="danger"
         title="Elimina l’allenamento"
         aria-label="Elimina l’allenamento"
-        disabled={working}
         onclick={(event: MouseEvent) => askRemove(event.currentTarget as HTMLElement)}
       >
         <Icon name="trash" />
@@ -290,7 +281,7 @@
                 placeholder="Come è andato, cosa cambiare la prossima volta"
                 note={detail.exerciseNotes[block.exerciseId] ?? ''}
                 previous={block.previous?.note ? { note: block.previous.note } : null}
-                save={(text) => workoutsApi.saveNote(id, block.exerciseId, text)}
+                save={async (text) => outbox.add({ kind: 'note', workoutId: id, exerciseId: block.exerciseId, note: text })}
               />
             </div>
           {/if}
@@ -301,7 +292,7 @@
                 <Stepper label="Peso" unit="kg" step={2.5} decimals bind:value={kg} />
               </div>
               {#if error}<Alert message={error} />{/if}
-              <Button look="primary" extra="log" disabled={working} onclick={() => void addSet(block)}>
+              <Button look="primary" extra="log" onclick={() => addSet(block)}>
                 <Icon name="check" /> Segna la serie {block.sets.length + 1}
               </Button>
             </div>
@@ -324,7 +315,7 @@
         placeholder="Come è andata, cosa cambiare"
         note={detail.notes ?? ''}
         previous={detail.previousNote}
-        save={(text) => workoutsApi.update(id, { notes: text })}
+        save={async (text) => outbox.add({ kind: 'workout', workoutId: id, change: { notes: text } })}
       />
     </PageCard>
 
@@ -332,11 +323,11 @@
 
     <div class="actions">
       {#if finished}
-        <Button look="ghost" disabled={working} onclick={() => void setFinished(false)}>
+        <Button look="ghost" onclick={() => setFinished(false)}>
           <Icon name="reopen" /> Riapri
         </Button>
       {:else}
-        <Button look="ghost" disabled={working} onclick={() => void setFinished(true)}>
+        <Button look="ghost" onclick={() => setFinished(true)}>
           <Icon name="finish" /> Termina
         </Button>
       {/if}

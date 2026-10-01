@@ -93,7 +93,7 @@ interface ExerciseSummary { exerciseId: number; name: string; sessions: number; 
 | GET | /api/workouts/:id | – | `WorkoutDetail` |
 | PATCH | /api/workouts/:id | `{ notes?: string \| null, finished?: boolean }` | `WorkoutDetail`; `finished: false` dà 409 se un altro è in corso |
 | DELETE | /api/workouts/:id | – | `{ ok: true }` |
-| POST | /api/workouts/:id/sets | `{ exerciseId, reps, weightKg }` | `WorkoutSet` |
+| POST | /api/workouts/:id/sets | `{ exerciseId, reps, weightKg, key? }` (`key`, fino a 64 caratteri: la stessa due volte nello stesso allenamento dà la serie già segnata, non una nuova) | `WorkoutSet` |
 | PUT | /api/workouts/:id/exercises/:exerciseId/note | `{ note: string \| null }` (vuota o null la toglie, fino a 1000 caratteri) | `{ exerciseId, note }` |
 | PATCH | /api/sets/:id | `{ reps, weightKg }` | `WorkoutSet` |
 | DELETE | /api/sets/:id | – | `{ ok: true }` |

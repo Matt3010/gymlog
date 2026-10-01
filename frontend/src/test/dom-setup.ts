@@ -5,6 +5,7 @@ import { install } from '../lib/install.svelte';
 import { current } from '../lib/current.svelte';
 import { nav } from '../lib/nav.svelte';
 import { rest } from '../lib/rest.svelte';
+import { outbox } from '../lib/sync';
 import { toast } from '../lib/toast.svelte';
 import { ui } from '../lib/ui.svelte';
 
@@ -17,6 +18,7 @@ afterEach(() => {
   toast.hide();
   rest.stop();
   current.workout = null;
+  outbox.forget();
   localStorage.clear();
   install.offerta = null;
   install.nonOra = false;

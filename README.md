@@ -26,6 +26,12 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
   sessioni e l'ultima volta; aprendolo, sessione per sessione: serie, ripetizioni,
   volume (ripetizioni × kg), peso medio delle serie, peso massimo e massimale stimato
   (formula di Epley), con il grafico del massimale stimato e del peso più alto.
+- **Senza rete:** l'app si apre anche senza rete, con l'ultima copia dei dati. Durante
+  un allenamento serie, correzioni, note e «Termina» si salvano sul telefono e partono da
+  sole, in ordine, quando la rete torna (anche se nel frattempo l'app si è ricaricata);
+  ogni serie ha una chiave, così una risposta persa per strada non la segna due volte.
+  Iniziare un allenamento nuovo chiede la rete.
+- **Uno alla volta:** con un allenamento in corso non se ne comincia un altro.
 - **In corso:** l'allenamento aperto sta in una barra sopra le sezioni, da ogni pagina:
   cosa è, quante serie e da quanto, o il recupero che manca (che continua anche fuori
   dall'allenamento). Toccandola si riprende.
