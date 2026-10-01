@@ -442,7 +442,15 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(tile(page, 'Media')).toHaveText('61,25 kg');
   await expect(tile(page, '1RM stimato')).toHaveText('79,17 kg');
   await expect(tile(page, 'Volume')).toHaveText('980 kg');
-  await expect(page.getByRole('row').nth(1).locator('td')).toHaveText(['Oggi', '2', '16', '980', '61,25', '62,5', '79,17']);
+  await expect(page.getByRole('row').nth(1).locator('td')).toHaveText(['Oggi', '2', '16', '980', '61,25', '62,5', '79,17', '']);
+  // each heading stands right over its numbers: 1RM too, whether a row has an arrow or not
+  const rightEdges = await page.locator('table').evaluate((table) => [...table.querySelectorAll('tr')].map((row) => {
+    // where what is written in the cell ends, not the cell itself
+    const range = document.createRange();
+    range.selectNodeContents(row.children[6]!);
+    return Math.round(range.getBoundingClientRect().right);
+  }));
+  expect(new Set(rightEdges).size).toBe(1);
   // on the phone the sessions stay in rows: the header shown once, each session on one line, nothing wider than the screen
   await expect(page.locator('thead')).toBeVisible();
   const cells = await page.getByRole('row').nth(1).locator('td').evaluateAll((tds) => tds.map((td) => Math.round(td.getBoundingClientRect().top)));

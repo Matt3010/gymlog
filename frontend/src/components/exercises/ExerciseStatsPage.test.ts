@@ -62,13 +62,19 @@ describe('the stats of an exercise', () => {
     fakeApi().on('GET /stats/exercises/1', SQUAT);
     render(ExerciseStatsPage, { id: 1 });
     const table = await screen.findByRole('table');
-    expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Data', 'Serie', 'Rip.', 'Volume', 'Media', 'Max', '1RM']);
+    expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Data', 'Serie', 'Rip.', 'Volume', 'Media', 'Max', '1RM', '']);
     const rows = within(table).getAllByRole('row').slice(1).map((row) => [...row.children].map((cell) => cell.textContent));
     expect(rows).toEqual([
-      ['dom 20 set', '1', '3', '330', '110', '110', '121'],
-      ['ven 18 set', '2', '18', '1720', '90', '95', '116,67'],
+      // the arrow has a column of its own: 1RM stays over its numbers, with or without one
+      ['dom 20 set', '1', '3', '330', '110', '110', '121', ''],
+      ['ven 18 set', '2', '18', '1720', '90', '95', '116,67', ''],
     ]);
     expect(within(table).getByRole('link', { name: 'ven 18 set' })).toHaveAttribute('href', '/allenamenti/5');
+    // a number stands under its heading: right-aligned like it, so a shorter one still ends under it
+    const headers = within(table).getAllByRole('columnheader');
+    for (const row of within(table).getAllByRole('row').slice(1)) {
+      [...row.children].forEach((cell, at) => expect(cell.classList.contains('end')).toBe(headers[at]!.classList.contains('end')));
+    }
   });
 
   it('keeps the table of sessions in rows on a phone too, the header once', async () => {

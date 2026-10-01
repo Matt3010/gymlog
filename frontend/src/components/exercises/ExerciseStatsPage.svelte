@@ -30,6 +30,8 @@
     { label: 'Media', align: 'end', width: 'fit' },
     { label: 'Max', align: 'end', width: 'fit' },
     { label: '1RM', align: 'end', width: 'fit' },
+    // la freccia ha una colonna sua: così «1RM» sta sopra ai suoi numeri, con la freccia o senza
+    { label: '', width: 'fit' },
   ];
 
   let stats = $state<ExerciseStats | null>(null);
@@ -78,13 +80,15 @@
         <Table inRiga columns={COLUMNS} rows={stats.sessions.map((session, index) => ({ ...session, id: String(session.workoutId), before: stats!.sessions[index + 1]?.bestE1rm }))} label="Le sessioni di {stats.exercise.name}">
           {#snippet row(session)}
             <td><a href={workoutPath(session.workoutId)}>{formatDay(session.startedAt)}</a></td>
-            <td>{session.sets}</td>
-            <td>{session.reps}</td>
-            <td>{formatNumber(session.volume)}</td>
-            <td>{formatNumber(session.avgWeight)}</td>
-            <td>{formatNumber(session.maxWeight)}</td>
+            <!-- i numeri a destra, come le loro intestazioni: uno più corto finisce lo stesso sotto di lei -->
+            <td class="end">{session.sets}</td>
+            <td class="end">{session.reps}</td>
+            <td class="end">{formatNumber(session.volume)}</td>
+            <td class="end">{formatNumber(session.avgWeight)}</td>
+            <td class="end">{formatNumber(session.maxWeight)}</td>
+            <td class="end">{formatNumber(session.bestE1rm)}</td>
             <!-- la freccia dice se il massimale stimato è salito dalla sessione prima -->
-            <td><span class="e1rm">{formatNumber(session.bestE1rm)}<Trend trend={trendOf(session.bestE1rm, session.before)} against="before" /></span></td>
+            <td class="trend-cell"><Trend trend={trendOf(session.bestE1rm, session.before)} against="before" /></td>
           {/snippet}
         </Table>
         <p class="unit">Pesi e volume in kg.</p>
@@ -117,10 +121,8 @@
   td a:hover { text-decoration: underline; }
 }
 
-  .e1rm { display: inline-flex; align-items: center; gap: 6px; }
-
-  .e1rm :global(.trend) { width: 18px; height: 18px; }
-  .e1rm :global(.trend .ico) { width: 12px; height: 12px; }
+  .trend-cell :global(.trend) { width: 18px; height: 18px; vertical-align: middle; }
+  .trend-cell :global(.trend .ico) { width: 12px; height: 12px; }
 
   .unit { margin: 0; font-size: 11.5px; color: var(--ink-3); }
 </style>
