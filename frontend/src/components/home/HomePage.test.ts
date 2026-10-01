@@ -18,6 +18,7 @@ const day = (id: number, name: string, exercises: number) => ({
 });
 
 const FORZA: Plan = { id: 1, name: 'Forza', notes: null, archived: false, days: [day(11, 'A', 2), day(12, 'B', 1)] };
+const SPINTA: Plan = { id: 3, name: 'Spinta', notes: null, archived: false, days: [day(31, 'Push', 1), day(32, 'Vuoto', 0)] };
 const VECCHIA: Plan = { id: 2, name: 'Vecchia', notes: null, archived: true, days: [day(21, 'Unico', 1)] };
 
 function workout(id: number, change: Partial<WorkoutSummary> = {}): WorkoutSummary {
@@ -47,19 +48,23 @@ describe('home', () => {
     await vi.waitFor(() => expect(api.changes()).toEqual([{ route: 'POST /auth/logout', body: undefined }]));
   });
 
-  it('offers the days of the plans in use, not of the archived ones', async () => {
-    fakeApi().on('GET /plans', [FORZA, VECCHIA]).on(RECENT, []);
+  it('gives each plan in use its own card, its days saying what is in them', async () => {
+    fakeApi().on('GET /plans', [FORZA, SPINTA, VECCHIA]).on(RECENT, []);
     render(HomePage);
-    expect(await screen.findByText('Forza')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'A 2 esercizi' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'B 1 esercizio' })).toBeInTheDocument();
+    const forza = (await screen.findByRole('heading', { name: 'Forza' })).closest('.card') as HTMLElement;
+    const spinta = screen.getByRole('heading', { name: 'Spinta' }).closest('.card') as HTMLElement;
+    expect(forza).not.toBe(spinta);
+    expect(within(forza).getAllByRole('button').map((b) => b.textContent?.replace(/\s+/g, ' ').trim()))
+      .toEqual(['Giorno A E0, E1', 'Giorno B E0']);
+    expect(within(spinta).getAllByRole('button').map((b) => b.textContent?.replace(/\s+/g, ' ').trim()))
+      .toEqual(['Push E0', 'Vuoto Nessun esercizio']);
     expect(screen.queryByText('Vecchia')).not.toBeInTheDocument();
   });
 
   it('starts a workout from a day and opens it', async () => {
     const api = fakeApi().on('GET /plans', [FORZA]).on(RECENT, []).on('POST /workouts', started(40));
     render(HomePage);
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'B 1 esercizio' }));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Giorno B E0' }));
     expect(api.changes()).toEqual([{ route: 'POST /workouts', body: { planDayId: 12 } }]);
     expect(nav.path).toBe('/allenamenti/40');
   });
@@ -67,7 +72,10 @@ describe('home', () => {
   it('starts a free workout', async () => {
     const api = fakeApi().on('GET /plans', [FORZA]).on(RECENT, []).on('POST /workouts', started(41));
     render(HomePage);
-    expect(await screen.findByRole('button', { name: 'Allenamento libero' })).toHaveClass('primary');
+    // secondary, outside the plans' cards: a way out, not the first choice
+    const free = await screen.findByRole('button', { name: 'Allenamento libero' });
+    expect(free).toHaveClass('ghost');
+    expect(free.closest('.card')).toBeNull();
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Allenamento libero' }));
     expect(api.changes()).toEqual([{ route: 'POST /workouts', body: { planDayId: null } }]);
     expect(nav.path).toBe('/allenamenti/41');
@@ -77,10 +85,10 @@ describe('home', () => {
     fakeApi().on('GET /plans', [FORZA]).on(RECENT, [])
       .on('POST /workouts', { status: 400, body: { error: 'Il giorno della scheda non esiste più. Ricarica la pagina.' } });
     render(HomePage);
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'A 2 esercizi' }));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Giorno A E0, E1' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Il giorno della scheda non esiste più. Ricarica la pagina.');
     expect(nav.path).toBe('/');
-    expect(screen.getByRole('button', { name: 'A 2 esercizi' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Giorno A E0, E1' })).toBeEnabled();
   });
 
   it('puts the workout left open on top, to resume', async () => {

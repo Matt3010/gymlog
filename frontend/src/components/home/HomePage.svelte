@@ -39,6 +39,9 @@
   const open = $derived(recent ? inProgress(recent) : undefined);
   const done = $derived((recent ?? []).filter((workout) => workout !== open).slice(0, 5));
 
+  /** «A» da sola non dice niente: un nome di una o due lettere è un giorno. */
+  const dayLabel = (name: string): string => (name.length <= 2 ? `Giorno ${name}` : name);
+
   /** Uscire chiede prima, come ogni tasto rosso: un tocco per sbaglio in palestra costa un nuovo accesso. */
   function askOut(anchor: HTMLElement): void {
     ui.askSure(anchor, { title: 'Uscire da gymlog?', verb: 'Esci', onYes: () => void session.logout() });
@@ -87,33 +90,39 @@
       </PageCard>
     {/if}
 
-    <PageCard>
-      <span class="eyebrow">Inizia un allenamento</span>
-      {#if plans.length === 0}
+    {#if plans.length === 0}
+      <PageCard>
         <EmptyState title="Nessuna scheda, per ora." line="Scrivi una scheda con i suoi giorni, o allenati senza.">
           <Button look="primary" href={planPath(null)}>Scrivi una scheda</Button>
         </EmptyState>
-      {/if}
-      {#each plans as plan (plan.id)}
-        <div class="plan">
-          <span class="plan-name">{plan.name}</span>
-          <div class="days">
-            {#each plan.days as day (day.id)}
-              <button type="button" class="day" disabled={starting} onclick={() => void start(day.id)}>
-                <span class="day-name">{day.name}</span>
-                <span class="day-count">{day.exercises.length === 1 ? '1 esercizio' : `${day.exercises.length} esercizi`}</span>
-                <Icon name="next" />
-              </button>
-            {/each}
-          </div>
+      </PageCard>
+    {/if}
+    <!-- una card per scheda: il nome in testa, e ogni giorno dice cosa c'è dentro -->
+    {#each plans as plan (plan.id)}
+      <PageCard>
+        <div class="plan-head">
+          <span class="eyebrow">Inizia un allenamento</span>
+          <h2>{plan.name}</h2>
         </div>
-      {/each}
-      <span class="free">
-        <Button look="primary" disabled={starting} onclick={() => void start(null)}>
-          <Icon name="plus" /> Allenamento libero
-        </Button>
-      </span>
-    </PageCard>
+        <div class="days">
+          {#each plan.days as day (day.id)}
+            <button type="button" class="day" disabled={starting} onclick={() => void start(day.id)}>
+              <span class="day-text">
+                <span class="day-name">{dayLabel(day.name)}</span>
+                <span class="day-what">{day.exercises.length === 0 ? 'Nessun esercizio' : day.exercises.map((exercise) => exercise.exerciseName).join(', ')}</span>
+              </span>
+              <Icon name="next" />
+            </button>
+          {/each}
+        </div>
+      </PageCard>
+    {/each}
+    <!-- fuori dalle card, secondario: è l'eccezione, non la prima scelta -->
+    <span class="free">
+      <Button disabled={starting} onclick={() => void start(null)}>
+        <Icon name="plus" /> Allenamento libero
+      </Button>
+    </span>
 
     {#if done.length > 0}
       <PageCard>
@@ -146,9 +155,9 @@
 
   .when { font-size: 12px; color: var(--ink-3); }
 
-  .plan { display: grid; gap: 8px; }
+  .plan-head { display: grid; gap: 2px; }
 
-  .plan-name { font-weight: 600; }
+  .plan-head h2 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.015em; overflow-wrap: anywhere; }
 
   .days { display: grid; }
 
@@ -162,18 +171,25 @@
     padding: 6px 0;
     border: 0;
     border-bottom: 1px solid var(--hairline-soft);
+    color: inherit;
     border-radius: 0;
     background: transparent;
     text-align: left;
   }
 
+  /* l'ultimo giorno chiude la card: niente tratto sotto */
+  .day:last-child { border-bottom: 0; }
+
   .day:active { background: var(--sunken); }
 
   .day:disabled { opacity: 0.6; pointer-events: none; }
 
+  .day-text { flex: 1; display: grid; gap: 1px; min-width: 0; }
+
   .day-name { font-size: 15px; font-weight: 620; letter-spacing: -0.01em; overflow-wrap: anywhere; }
 
-  .day-count { flex: 1; font-size: 12.5px; color: var(--ink-3); }
+  /* gli esercizi del giorno su una riga sola: si riconosce il giorno, non serve leggerli tutti */
+  .day-what { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .day :global(.ico) { width: 16px; height: 16px; color: var(--ink-3); }
 

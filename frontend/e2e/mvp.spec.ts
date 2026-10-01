@@ -324,7 +324,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expectFlatRows(page);
 
   // The workout of day A: the first set needs its weight, the second repeats it plus 2,5.
-  await page.getByRole('button', { name: 'A 2 esercizi' }).click();
+  await page.getByRole('button', { name: /^Giorno A / }).click();
   await expect(page.getByRole('heading', { name: 'Forza! · A' })).toBeVisible();
   await expect(page.getByLabel('Ripetizioni', { exact: true })).toHaveValue('8');
   await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('');
@@ -377,7 +377,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   // Leaving the page takes its message away. The next workout of day A shows the last time, and starts from its weight.
   await page.getByRole('link', { name: 'Allenati' }).first().click();
   await expect(page.locator('#toast')).toBeHidden();
-  await page.getByRole('button', { name: 'A 2 esercizi' }).click();
+  await page.getByRole('button', { name: /^Giorno A / }).click();
   await expect(page.getByText('L’ultima volta', { exact: true }).locator('..')).toContainText('Oggi · 8 × 60 kg, 8 × 62,5 kg');
   await expect(page.getByText('«scendere più lento»')).toBeVisible();
   // last time's note comes back with «Riusa», ready to be changed, and saves itself
