@@ -92,7 +92,9 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const { user, input, plans } = await setup();
       const plan = await plans.create(user.id, input);
       const other = await plans.create(user.id, input);
-      await expect(plans.replace(user.id, plan.id, { ...input, days: [{ ...input.days[0]!, id: other.days[0]!.id }] }))
+      // One of its own days next to the other plan's: one stranger is enough to refuse.
+      const days = [{ ...input.days[0]!, id: plan.days[0]!.id }, { ...input.days[0]!, id: other.days[0]!.id }];
+      await expect(plans.replace(user.id, plan.id, { ...input, days }))
         .rejects.toThrow(new InputError("Uno dei giorni non esiste più. Ricarica la pagina."));
       expect(await plans.get(user.id, other.id)).toEqual(other);
     });

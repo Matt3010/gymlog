@@ -6,7 +6,7 @@ export type Body = Record<string, unknown>;
 /** Field names as the app shows them, for error messages. */
 const FIELD_LABELS: Record<string, string> = {
   username: "Utente", name: "Nome", muscleGroup: "Gruppo muscolare", notes: "Note", archived: "Archiviata",
-  days: "Giorni", exercises: "Esercizi", exerciseId: "Esercizio", sets: "Serie", reps: "Ripetizioni",
+  days: "Giorni", exercises: "Esercizi", exerciseId: "Esercizio", reps: "Ripetizioni",
   restSeconds: "Recupero", planDayId: "Giorno", finished: "Terminato", weightKg: "Peso", note: "Testo della nota",
 };
 

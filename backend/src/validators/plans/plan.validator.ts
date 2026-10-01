@@ -38,7 +38,7 @@ export function parsePlan(value: unknown): PlanInput {
       const name = text(day, "name");
       const exercises = list(day, "exercises");
       if (exercises.length > MAX_EXERCISES_PER_DAY) throw new InputError(`Esercizi: al più ${MAX_EXERCISES_PER_DAY} per giorno.`);
-      return { ...(dayId === undefined ? {} : { id: dayId }), name, exercises: exercises.map(parsePlanExercise) };
+      return { id: dayId, name, exercises: exercises.map(parsePlanExercise) };
     }),
   };
 }

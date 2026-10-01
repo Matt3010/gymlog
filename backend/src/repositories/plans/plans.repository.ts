@@ -14,7 +14,7 @@ export interface PlanInput {
   readonly notes: string | null;
   readonly archived: boolean;
   /** A day already saved carries its id: it is changed in place, so workouts stay linked to it. */
-  readonly days: readonly { readonly id?: number; readonly name: string; readonly exercises: readonly PlanExerciseInput[] }[];
+  readonly days: readonly { readonly id?: number | undefined; readonly name: string; readonly exercises: readonly PlanExerciseInput[] }[];
 }
 
 export interface PlanExercise extends PlanExerciseInput {
@@ -143,7 +143,7 @@ export function createPlansRepository(db: Executor): PlansRepository {
       if (row === undefined) return undefined;
       // Days left out go with their exercises; workouts that followed them keep their sets and names, without a plan.
       const kept = input.days.flatMap((day) => (day.id === undefined ? [] : [day.id]));
-      await db.delete(planDays).where(and(eq(planDays.planId, id), kept.length === 0 ? undefined : notInArray(planDays.id, kept)));
+      await db.delete(planDays).where(and(eq(planDays.planId, id), notInArray(planDays.id, kept)));
       await writeDays(db, id, input);
       // Workouts show the names as they are now: the plan's, and their day's.
       await db.execute(sql`
