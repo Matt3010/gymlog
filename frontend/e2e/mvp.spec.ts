@@ -378,7 +378,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByRole('link', { name: 'Allenati' }).first().click();
   await expect(page.locator('#toast')).toBeHidden();
   await page.getByRole('button', { name: /^Giorno A / }).click();
-  await expect(page.getByText('L’ultima volta', { exact: true }).locator('..')).toContainText('Oggi · 8 × 60 kg, 8 × 62,5 kg');
+  await expect(page.getByRole('list', { name: 'L’ultima volta · Oggi' }).getByRole('listitem')).toHaveText(['1 8 × 60 kg', '2 8 × 62,5 kg']);
   await expect(page.getByText('«scendere più lento»')).toBeVisible();
   // last time's note comes back with «Riusa», ready to be changed, and saves itself
   const squatNote = page.getByLabel('Nota', { exact: true }).first();
