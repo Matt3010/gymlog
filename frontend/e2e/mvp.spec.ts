@@ -456,4 +456,15 @@ test('a new person creates an account and is in at once', async ({ page }) => {
   await page.getByLabel('Password', { exact: true }).fill('password lunga');
   await page.getByRole('button', { name: 'Entra' }).click();
   await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
+
+  // No workout in progress: one is started, its page opens, and the bin in its header deletes it.
+  await expect(page.getByRole('link', { name: /Riprendi/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Allenamento libero' }).click();
+  await expect(page).toHaveURL(/\/allenamenti\/\d+$/);
+  await page.locator('header').getByRole('button', { name: 'Elimina l’allenamento' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Elimina' }).click();
+  await expect(page.getByText('Allenamento eliminato.')).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Riprendi/ })).toHaveCount(0);
 });
