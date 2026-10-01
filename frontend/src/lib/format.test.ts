@@ -60,6 +60,8 @@ describe('a duration', () => {
   it('is minutes under the hour, hours and minutes above', () => {
     expect(formatDuration('2026-09-01T17:00:00Z', '2026-09-01T17:42:30Z')).toBe('42 min');
     expect(formatDuration('2026-09-01T17:00:00Z', '2026-09-01T18:05:00Z')).toBe('1 h 05 min');
+    // the server's clock a little ahead of the phone's: a workout just started is not «-1 min»
+    expect(formatDuration('2026-09-01T17:00:40Z', '2026-09-01T17:00:00Z')).toBe('0 min');
     expect(formatDuration('2026-09-01T17:00:00Z', '2026-09-01T17:00:20Z')).toBe('0 min');
   });
 });

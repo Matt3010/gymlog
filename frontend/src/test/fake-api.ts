@@ -32,9 +32,10 @@ export function fakeApi() {
     const call: Call = { method, path, body, headers: { ...(init.headers as Record<string, string>) } };
     calls.push(call);
     const handler = routes.get(`${method} ${path}`);
-    const reply = handler === undefined
+    // a handler may take its time, like a server over a real network
+    const reply = await (handler === undefined
       ? { status: 500, body: { error: `nessuna risposta finta per ${method} ${path}` } }
-      : typeof handler === 'function' ? (handler as (call: Call) => Reply)(call) : handler;
+      : typeof handler === 'function' ? (handler as (call: Call) => Reply)(call) : handler);
     const { status, body: payload } = isReply(reply) ? reply : { status: 200, body: reply };
     return new Response(payload === undefined ? null : JSON.stringify(payload), {
       status,

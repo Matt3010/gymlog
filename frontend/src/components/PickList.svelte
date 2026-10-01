@@ -59,10 +59,7 @@
     max-height: 232px;
     overflow: auto;
     overscroll-behavior: contain;
-    scrollbar-width: none;
   }
-
-  .list::-webkit-scrollbar { display: none; }
 
   .one {
     display: flex;

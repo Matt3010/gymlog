@@ -451,6 +451,13 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
     return Math.round(range.getBoundingClientRect().right);
   }));
   expect(new Set(rightEdges).size).toBe(1);
+  // no scrollbars anywhere: the page and the table still scroll under the thumb, without a bar to show it
+  const bars = await page.evaluate(() => [document.documentElement, document.querySelector('.scorre')!].map((element) => {
+    const style = getComputedStyle(element);
+    const webkit = getComputedStyle(element, '::-webkit-scrollbar');
+    return `${style.scrollbarWidth}|${webkit.display}`;
+  }));
+  expect(bars).toEqual(['none|none', 'none|none']);
   // on the phone the sessions stay in rows: the header shown once, each session on one line, nothing wider than the screen
   await expect(page.locator('thead')).toBeVisible();
   const cells = await page.getByRole('row').nth(1).locator('td').evaluateAll((tds) => tds.map((td) => Math.round(td.getBoundingClientRect().top)));

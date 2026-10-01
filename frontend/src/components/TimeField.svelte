@@ -122,10 +122,7 @@
     overflow: auto;
     overscroll-behavior: contain;
     scroll-snap-type: y proximity;
-    scrollbar-width: none;
   }
-
-  .colonna::-webkit-scrollbar { display: none; }
 
   .due {
     align-self: center;

@@ -27,7 +27,8 @@ export function formatRest(seconds: number): string {
 
 /** Quanto è durato un allenamento: «42 min», «1 h 05 min». */
 export function formatDuration(from: string, to: string): string {
-  const minutes = Math.floor((Date.parse(to) - Date.parse(from)) / 60_000);
+  // mai sotto zero: l'orologio del server può essere un po' avanti rispetto a quello del telefono
+  const minutes = Math.max(0, Math.floor((Date.parse(to) - Date.parse(from)) / 60_000));
   if (minutes < 60) return `${minutes} min`;
   return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`;
 }

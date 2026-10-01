@@ -1,5 +1,6 @@
 import { copies } from './copies';
 import { workoutsApi } from './endpoints';
+import { outbox } from './sync';
 import { inProgress } from './workout';
 
 /** Dove sta, fra le copie del telefono. */
@@ -39,6 +40,8 @@ class Current {
 
   async refresh(): Promise<void> {
     const asked = this.#changes;
+    // prima parte quello che aspetta: un allenamento appena eliminato o terminato non torna indietro
+    await outbox.flush();
     try {
       const open = inProgress(await workoutsApi.latest(6));
       if (asked !== this.#changes) return;

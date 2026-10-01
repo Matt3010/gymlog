@@ -81,12 +81,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .surface { background: var(--glass-strong); }
 }
 
-/* thin scrollbars inside the overlay */
-.surface ::-webkit-scrollbar, .surface::-webkit-scrollbar { width: 8px; height: 8px; }
-.surface ::-webkit-scrollbar-thumb, .surface::-webkit-scrollbar-thumb {
-  background: var(--hairline);
-  border-radius: 99px;
-}
+/* no scrollbars anywhere: on a phone everything scrolls under the thumb,
+   and a bar along the edge only takes room and draws a line where there is none */
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
 
 /* ---------------------------------------------------------------- typography */
 

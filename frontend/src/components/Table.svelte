@@ -165,15 +165,6 @@
     padding-bottom: 1px;
   }
 
-  /* su un telefono la barra ruba due righe di tabella: si vede mentre scorri
-     e poi se ne va, come fa il sistema da solo */
-  .scorre::-webkit-scrollbar { height: 4px; }
-
-  .scorre::-webkit-scrollbar-thumb {
-    border-radius: 99px;
-    background: color-mix(in srgb, var(--ink-3) 40%, transparent);
-  }
-
   table {
     width: 100%;
     border-collapse: separate;

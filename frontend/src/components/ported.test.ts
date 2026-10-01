@@ -42,7 +42,9 @@ describe('the ported pieces not used yet', () => {
   });
 
   it('DateField shows the day chosen, said as a day', () => {
-    const today = new Date().toISOString().slice(0, 10);
+    // today as the phone counts it (local time): in UTC, just after midnight, it is still yesterday
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     render(DateField, { value: today, onchange: vi.fn(), label: 'Il giorno' });
     expect(screen.getByRole('button', { name: 'Il giorno' })).toHaveTextContent('oggi');
   });
