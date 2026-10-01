@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SERVER, testDatabase } from "../lib/database/test-database";
-import { NotFoundError } from "../errors";
+import { ConflictError, NotFoundError } from "../errors";
+import { createDb } from "../lib";
 import { createUsersRepository, createWorkoutsRepository, type PlanInput } from "../repositories";
 import { createExercisesService, createPlansService, createStatsService, createWorkoutsService } from "../services";
 import { InputError } from "../validators";
@@ -44,6 +45,19 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
         .toEqual({ id: squat.id, name: "Squat basso", muscleGroup: null, notes: null });
       await exercises.delete(user.id, bench.id);
       expect((await exercises.list(user.id)).map((exercise) => exercise.id)).toEqual([squat.id]);
+    });
+
+    it("say a taken name in the app's words, and let any other failure through", async () => {
+      const { user, exercises } = await setup();
+      await expect(exercises.create(user.id, { name: "squat", muscleGroup: null, notes: null })).rejects.toThrow(new ConflictError("Esiste già un esercizio con questo nome."));
+      const down = createDb("postgres://nobody:x@127.0.0.1:1/none");
+      try {
+        const failure = createExercisesService(down).create(user.id, { name: "Stacco", muscleGroup: null, notes: null });
+        await expect(failure).rejects.toThrow(/Failed query/);
+        await expect(failure).rejects.not.toBeInstanceOf(ConflictError);
+      } finally {
+        await down.$client.end();
+      }
     });
 
     it("of another user are not found", async () => {

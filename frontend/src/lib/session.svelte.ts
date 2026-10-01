@@ -41,6 +41,20 @@ export class Session {
     this.#enter((await this.#api.post<{ user: User }>('/auth/login', { username, password })).user);
   }
 
+  /** Un account nuovo, ed entrati subito. Rifiutato, lo rilancia: il motivo lo mostra la porta. */
+  async register(username: string, password: string): Promise<void> {
+    this.#enter((await this.#api.post<{ user: User }>('/auth/register', { username, password })).user);
+  }
+
+  /** Se ci si può registrare. Senza risposta no: la porta resta quella di sempre. */
+  async signupOpen(): Promise<boolean> {
+    try {
+      return (await this.#api.get<{ open: boolean }>('/auth/signup')).open;
+    } catch {
+      return false;
+    }
+  }
+
   /** Fuori comunque: se il server non si raggiunge, il biglietto scade da sé. */
   async logout(): Promise<void> {
     await this.#api.post('/auth/logout').catch(() => undefined);

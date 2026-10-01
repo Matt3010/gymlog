@@ -20,6 +20,8 @@ export interface AuthService {
   /** Trades a refresh token for new tokens. The old refresh token stops working. */
   refresh(token: string): Promise<Tokens | undefined>;
   logout(refreshToken: string): Promise<void>;
+  /** A new account, signed in at once. Rejects a name already taken. */
+  register(username: string, password: string): Promise<Tokens>;
   /** Rejects a password too short. */
   createUser(username: string, password: string): Promise<User>;
   /** Rejects a password too short; ends every session of the user. */
@@ -47,7 +49,7 @@ export function createAuthService(db: Executor, tokens: TokenManager): AuthServi
 
   return {
     async login(username, password) {
-      const user = await users.findByUsername(username);
+      const user = await users.findByUsername(username.toLowerCase());
       // A missing user costs the same time as a wrong password.
       const ok = await verifyPassword(password, user?.passwordHash ?? (await DUMMY_HASH));
       // Stryker disable next-line ConditionalExpression: the stand-in hash matches no password, so a missing user is never ok
@@ -72,14 +74,22 @@ export function createAuthService(db: Executor, tokens: TokenManager): AuthServi
       await users.deleteSession(refreshTokenHash(refreshToken));
     },
 
+    async register(username, password) {
+      // Two sign-ups with one name at the same moment: the second meets the
+      // unique index, and the server answers that it exists already.
+      return issue(db, await this.createUser(username, password));
+    },
+
     async createUser(username, password) {
       requireGoodPassword(password);
-      return users.create(username, await hashPassword(password));
+      const name = username.toLowerCase();
+      if (await users.findByUsername(name)) throw new InputError("Questo nome utente è già preso.");
+      return users.create(name, await hashPassword(password));
     },
 
     async setPassword(username, password) {
       requireGoodPassword(password);
-      const user = await users.findByUsername(username);
+      const user = await users.findByUsername(username.toLowerCase());
       if (user === undefined) throw new InputError("Utente non trovato.");
       const hash = await hashPassword(password);
       // Together: a new password with the old sessions still valid would keep a stolen one alive.

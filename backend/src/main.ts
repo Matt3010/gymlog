@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   await migrate(db);
   if (config.jwtSecretGenerated) console.warn("[gymlog] JWT_SECRET not set: everyone signs in again after each restart.");
 
-  const server = createApiServer({ db, jwtSecret: config.jwtSecret, secureCookie: config.secureCookie });
+  const server = createApiServer({ db, jwtSecret: config.jwtSecret, secureCookie: config.secureCookie, allowSignup: config.allowSignup });
   server.listen(config.port, config.host, () => console.log(`[gymlog] API on http://${config.host}:${config.port}`));
 
   let stopping = false;

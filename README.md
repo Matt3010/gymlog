@@ -25,8 +25,9 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
   (ripetizioni × kg), peso medio delle serie, peso massimo e massimale stimato
   (formula di Epley). In più, una panoramica: allenamenti totali e degli ultimi 30
   giorni, volume degli ultimi 30 giorni, media e massimo di ogni esercizio.
-- **Più utenti:** ognuno vede solo i suoi dati. Gli utenti si creano da riga di
-  comando: non c'è registrazione.
+- **Più utenti:** ognuno vede solo i suoi dati. Ci si registra dalla pagina di
+  accesso (si chiude con `ALLOW_SIGNUP=false`), e gli utenti si creano anche da
+  riga di comando.
 
 ## Struttura
 
@@ -92,7 +93,7 @@ migrazioni mancanti a ogni avvio.
 1. `pnpm deploy:pi` (host `rpi` da `~/.ssh/config`). La prima volta crea `~/gymlog/.env`
    da `.env.example` e si ferma: imposta `POSTGRES_PASSWORD` e `JWT_SECRET`
    (`openssl rand -hex 24` e `openssl rand -hex 32`), poi rilancia `pnpm deploy:pi`.
-2. Crea il tuo utente:
+2. Registrati dalla pagina di accesso, oppure crea l'utente da riga di comando:
    `ssh rpi` → `cd gymlog && docker compose exec -it api node_modules/.bin/tsx src/cli/users.ts create <nome>`
 3. Nel Cloudflare Tunnel aggiungi un hostname pubblico (es. `gym.tuodominio.it`) verso
    `http://localhost:8091`.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  InputError, parseExercise, parseLogin, parsePlan, parseSet, parseSetChange, parseWorkoutChange, parseWorkoutStart,
+  InputError, parseExercise, parseLogin, parseRegister, parsePlan, parseSet, parseSetChange, parseWorkoutChange, parseWorkoutStart,
 } from "./index";
 
 describe("a request body", () => {
@@ -12,6 +12,10 @@ describe("a request body", () => {
 describe("a login", () => {
   it("has a username and a password", () => {
     expect(parseLogin({ username: " anna ", password: " secret " })).toEqual({ username: "anna", password: " secret " });
+  });
+
+  it("takes the username whatever the case", () => {
+    expect(parseLogin({ username: "Anna", password: "x" }).username).toBe("anna");
   });
 
   it.each([
@@ -27,6 +31,32 @@ describe("a login", () => {
     expect(parseLogin({ username: "anna", password: "x".repeat(200) }).password).toHaveLength(200);
   });
 
+});
+
+describe("a sign-up", () => {
+  const RULE = "Utente: da 3 a 30 caratteri, solo lettere, numeri, punto, trattino e trattino basso.";
+
+  it("has a username, lower-cased, and a password of ten characters at least", () => {
+    expect(parseRegister({ username: " Mario.Rossi_1-x ", password: "0123456789" })).toEqual({ username: "mario.rossi_1-x", password: "0123456789" });
+    expect(parseRegister({ username: "abc", password: "x".repeat(200) }).username).toBe("abc");
+    expect(parseRegister({ username: "a".repeat(30), password: "x".repeat(10) }).username).toHaveLength(30);
+  });
+
+  it.each([
+    [{ username: "ab", password: "0123456789" }, RULE],
+    [{ username: "a".repeat(31), password: "0123456789" }, RULE],
+    [{ username: "anna rossi", password: "0123456789" }, RULE],
+    [{ username: "anna!", password: "0123456789" }, RULE],
+    [{ username: "ànna", password: "0123456789" }, RULE],
+    [{ username: 5, password: "0123456789" }, RULE],
+    [{ password: "0123456789" }, RULE],
+    [{ username: "anna", password: "012345678" }, "Password: almeno 10 caratteri."],
+    [{ username: "anna", password: "x".repeat(201) }, "Password: al più 200 caratteri."],
+    [{ username: "anna", password: 1234567890 }, "Password: almeno 10 caratteri."],
+    [{ username: "anna" }, "Password: almeno 10 caratteri."],
+  ])("is refused: %j", (body, message) => {
+    expect(() => parseRegister(body)).toThrow(new InputError(message));
+  });
 });
 
 describe("an exercise", () => {

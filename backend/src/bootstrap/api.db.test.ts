@@ -153,6 +153,59 @@ describe.skipIf(SERVER === undefined)("the API", () => {
     });
   });
 
+  describe("signing up", () => {
+    it("says whether it is open, without login", async () => {
+      expect(await client(() => base).call("GET", "/api/auth/signup")).toMatchObject({ status: 200, body: { open: true } });
+    });
+
+    it("makes the account and signs it in", async () => {
+      const browser = client(() => base);
+      const username = `n${Math.random().toString(36).slice(2, 10)}`;
+      const result = await browser.call("POST", "/api/auth/register", { username: username.toUpperCase(), password: PASSWORD }, { "x-gymlog": "1", "x-real-ip": "198.51.100.1" });
+      expect(result).toMatchObject({ status: 200, body: { user: { id: expect.any(Number), username } } });
+      expect(lines).toContain(`[gymlog] new account "${username}" from 198.51.100.1`);
+      expect(result.setCookies).toEqual([expect.stringMatching(/^gymlog_at=/), expect.stringMatching(/^gymlog_rt=/)]);
+      expect(await browser.call("GET", "/api/auth/me")).toMatchObject({ status: 200, body: { user: { username } } });
+    });
+
+    it("refuses a name taken and a bad body", async () => {
+      const { username } = await signedIn();
+      const headers = { "x-gymlog": "1", "x-real-ip": "198.51.100.2" };
+      expect(await client(() => base).call("POST", "/api/auth/register", { username, password: PASSWORD }, headers))
+        .toMatchObject({ status: 400, body: { error: "Questo nome utente è già preso." } });
+      expect(await client(() => base).call("POST", "/api/auth/register", { username: "x", password: PASSWORD }, headers))
+        .toMatchObject({ status: 400, body: { error: "Utente: da 3 a 30 caratteri, solo lettere, numeri, punto, trattino e trattino basso." } });
+    });
+
+    it("stops an address after a few sign-ups", async () => {
+      const browser = client(() => base);
+      const headers = { "x-gymlog": "1", "x-real-ip": "198.51.100.3" };
+      const fresh = () => ({ username: `n${Math.random().toString(36).slice(2, 10)}`, password: PASSWORD });
+      for (let i = 0; i < 3; i++) expect((await browser.call("POST", "/api/auth/register", fresh(), headers)).status).toBe(200);
+      expect(await browser.call("POST", "/api/auth/register", fresh(), headers))
+        .toMatchObject({ status: 429, body: { error: "Troppi tentativi. Riprova tra un quarto d'ora." } });
+    });
+
+    it("is refused when closed", async () => {
+      const closed = createApiServer({ db: handle.db, jwtSecret: SECRET, secureCookie: true, allowSignup: false });
+      await new Promise<void>((resolve) => closed.listen(0, "127.0.0.1", resolve));
+      try {
+        const at = () => `http://127.0.0.1:${(closed.address() as AddressInfo).port}`;
+        expect(await client(at).call("GET", "/api/auth/signup")).toMatchObject({ body: { open: false } });
+        expect(await client(at).call("POST", "/api/auth/register", { username: "chiuso", password: PASSWORD }))
+          .toMatchObject({ status: 403, body: { error: "Le registrazioni sono chiuse." } });
+        // Built without `now`: the last thirty days end on the real clock, so a workout started now counts.
+        const { username } = await signedIn();
+        const browser = client(at);
+        await browser.call("POST", "/api/auth/login", { username, password: PASSWORD });
+        await browser.call("POST", "/api/workouts", {});
+        expect((await browser.call("GET", "/api/stats/overview")).body).toMatchObject({ workouts: 1, workoutsLast30Days: 1 });
+      } finally {
+        await new Promise((resolve) => closed.close(resolve));
+      }
+    });
+  });
+
   describe("every request", () => {
     it("needs a login, except logging in", async () => {
       const anonymous = client(() => base);
@@ -224,6 +277,8 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       const { call } = await signedIn();
       const squat = (await call("POST", "/api/exercises", { name: "Squat" })).body;
       expect(await call("POST", "/api/exercises", { name: "squat" })).toMatchObject({ status: 409, body: { error: "Esiste già un esercizio con questo nome." } });
+      const bench = (await call("POST", "/api/exercises", { name: "Panca" })).body;
+      expect(await call("PATCH", `/api/exercises/${bench.id}`, { name: "SQUAT" })).toMatchObject({ status: 409, body: { error: "Esiste già un esercizio con questo nome." } });
       await call("POST", "/api/plans", { name: "P", days: [{ name: "A", exercises: [{ exerciseId: squat.id, sets: 3, reps: "5" }] }] });
       expect(await call("DELETE", `/api/exercises/${squat.id}`))
         .toMatchObject({ status: 409, body: { error: "Non si può eliminare: è usato in una scheda o in un allenamento." } });

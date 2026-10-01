@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SERVER, testDatabase } from "../../lib/database/test-database";
 import { createTokenManager, refreshTokenHash } from "./token.rules";
 import { createUsersRepository } from "../../repositories";
+import { InputError } from "../../validators";
 import { createAuthService, REFRESH_DAYS } from "./auth.service";
 
 const PASSWORD = "correct horse battery";
@@ -88,6 +89,27 @@ describe.skipIf(SERVER === undefined)("the auth service", () => {
     expect(await auth().refresh(tokens.refresh)).toBeUndefined();
     expect(await auth().login(name, PASSWORD)).toBeUndefined();
     expect(await auth().login(name, "another long password")).toBeDefined();
+  });
+
+  it("registers a user, lower-case, signed in at once", async () => {
+    const name = newName();
+    const tokens = await auth().register(name.toUpperCase(), PASSWORD);
+    expect(tokens.user).toEqual({ id: expect.any(Number), username: name });
+    expect(await auth().verifyAccess(tokens.access)).toEqual(tokens.user);
+    expect(await auth().refresh(tokens.refresh)).toBeDefined();
+    expect(await auth().login(name, PASSWORD)).toBeDefined();
+  });
+
+  it("refuses a name already taken, whatever the case", async () => {
+    const name = newName();
+    await auth().register(name, PASSWORD);
+    await expect(auth().register(name.toUpperCase(), PASSWORD)).rejects.toThrow(new InputError("Questo nome utente è già preso."));
+  });
+
+  it("finds a user by name whatever the case", async () => {
+    const name = newName();
+    await auth().createUser(name.toUpperCase(), PASSWORD);
+    expect((await auth().login(name, PASSWORD))?.user.username).toBe(name);
   });
 
   it("refuses a new password for nobody", async () => {

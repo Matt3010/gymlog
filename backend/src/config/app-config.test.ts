@@ -10,12 +10,18 @@ describe("the configuration", () => {
   });
 
   it("listens on loopback, port 3000, with secure cookies, by default", () => {
-    expect(appConfigFromEnv({ DATABASE_URL: DB })).toMatchObject({ databaseUrl: DB, port: 3000, host: "127.0.0.1", secureCookie: true, jwtSecretGenerated: true });
+    expect(appConfigFromEnv({ DATABASE_URL: DB })).toMatchObject({ databaseUrl: DB, port: 3000, host: "127.0.0.1", secureCookie: true, jwtSecretGenerated: true, allowSignup: true });
   });
 
   it("takes the port, the host and plain-http cookies", () => {
     expect(appConfigFromEnv({ DATABASE_URL: DB, API_PORT: "4000", API_HOST: "0.0.0.0", INSECURE_COOKIE: "1" }))
       .toMatchObject({ port: 4000, host: "0.0.0.0", secureCookie: false });
+  });
+
+  it("closes sign-ups with ALLOW_SIGNUP=false only", () => {
+    expect(appConfigFromEnv({ DATABASE_URL: DB, ALLOW_SIGNUP: "false" }).allowSignup).toBe(false);
+    expect(appConfigFromEnv({ DATABASE_URL: DB, ALLOW_SIGNUP: "true" }).allowSignup).toBe(true);
+    expect(appConfigFromEnv({ DATABASE_URL: DB, ALLOW_SIGNUP: "" }).allowSignup).toBe(true);
   });
 
   it("refuses a port that is not one", () => {

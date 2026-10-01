@@ -10,6 +10,8 @@ export interface AppConfig {
   readonly jwtSecretGenerated: boolean;
   /** False only over plain http on a laptop. */
   readonly secureCookie: boolean;
+  /** Whether anyone can make an account from the login page. */
+  readonly allowSignup: boolean;
 }
 
 /** The settings from the environment (docker compose passes .env). An empty value means "not set". */
@@ -30,5 +32,6 @@ export function appConfigFromEnv(env: Record<string, string | undefined>): AppCo
     jwtSecret: secret.secret,
     jwtSecretGenerated: secret.generated,
     secureCookie: value("INSECURE_COOKIE") !== "1",
+    allowSignup: value("ALLOW_SIGNUP") !== "false",
   };
 }

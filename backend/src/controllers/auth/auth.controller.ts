@@ -2,18 +2,20 @@ import {
   ACCESS_COOKIE, authenticated, type Context, cookieHeader, HttpError, readCookie, REFRESH_COOKIE, route, type Route,
 } from "../../http";
 import { ACCESS_SECONDS, addressKey, type AuthService, type LoginLimiter, REFRESH_DAYS, type Tokens } from "../../services";
-import { parseLogin } from "../../validators";
+import { parseLogin, parseRegister } from "../../validators";
 
 export interface AuthControllerDeps {
   readonly auth: AuthService;
   readonly limiter: LoginLimiter;
   /** False only for trying the app over plain http on a laptop. */
   readonly secureCookie: boolean;
+  /** Whether the login page offers to make an account. */
+  readonly allowSignup: boolean;
   readonly log: (line: string) => void;
 }
 
 /** Login, token renewal, logout, who is signed in. */
-export function authController({ auth, limiter, secureCookie, log }: AuthControllerDeps): Route[] {
+export function authController({ auth, limiter, secureCookie, allowSignup, log }: AuthControllerDeps): Route[] {
   function setTokens(context: Context, tokens: Tokens | undefined): void {
     context.response.setHeader("set-cookie", [
       cookieHeader(ACCESS_COOKIE, "/api", tokens?.access ?? "", tokens === undefined ? 0 : ACCESS_SECONDS, secureCookie),
@@ -36,6 +38,21 @@ export function authController({ auth, limiter, secureCookie, log }: AuthControl
         throw new HttpError(401, "Utente o password errati.");
       }
       limiter.succeed(key);
+      setTokens(context, tokens);
+      return { user: tokens.user };
+    }),
+
+    route("GET", "/api/auth/signup", async () => ({ open: allowSignup })),
+
+    route("POST", "/api/auth/register", async (context) => {
+      if (!allowSignup) throw new HttpError(403, "Le registrazioni sono chiuse.");
+      // A few accounts per address in a quarter of an hour: every attempt counts, made or not.
+      const key = `signup:${addressKey(context.ip)}`;
+      if (limiter.blocked(key)) throw new HttpError(429, "Troppi tentativi. Riprova tra un quarto d'ora.");
+      limiter.fail(key);
+      const { username, password } = parseRegister(await context.body());
+      const tokens = await auth.register(username, password);
+      log(`[gymlog] new account "${tokens.user.username}" from ${context.ip}`);
       setTokens(context, tokens);
       return { user: tokens.user };
     }),

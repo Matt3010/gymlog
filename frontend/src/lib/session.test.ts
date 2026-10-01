@@ -60,6 +60,22 @@ describe('the session', () => {
     expect(wrong.status).toBe('checking');
   });
 
+  it('signs up and is in at once, and passes on a refusal', async () => {
+    const api = client({ 'POST /auth/register': () => ({ user: anna }) });
+    const session = new Session(api);
+    await session.register('anna', 'password lunga');
+    expect([session.status, session.user]).toEqual(['in', anna]);
+    const taken = new Session(client({ 'POST /auth/register': () => { throw new ApiError('Questo nome utente è già preso.', 400); } }));
+    await expect(taken.register('anna', 'password lunga')).rejects.toThrow('Questo nome utente è già preso.');
+    expect(taken.status).not.toBe('in');
+  });
+
+  it('knows whether sign-up is open, closed when it cannot ask', async () => {
+    expect(await new Session(client({ 'GET /auth/signup': () => ({ open: true }) })).signupOpen()).toBe(true);
+    expect(await new Session(client({ 'GET /auth/signup': () => ({ open: false }) })).signupOpen()).toBe(false);
+    expect(await new Session(client({ 'GET /auth/signup': () => { throw new ApiError('giù', 503); } })).signupOpen()).toBe(false);
+  });
+
   it('logs out, even when the server cannot be told', async () => {
     const session = new Session(client({ 'POST /auth/login': () => ({ user: anna }), 'POST /auth/logout': () => { throw new ApiError('Il server non risponde.'); } }));
     await session.login('anna', 'secret');

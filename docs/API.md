@@ -75,6 +75,8 @@ interface Overview {
 | POST | /api/auth/refresh | – | `{ user }` + cookie |
 | POST | /api/auth/logout | – | `{ ok: true }` |
 | GET | /api/auth/me | – | `{ user }` |
+| GET | /api/auth/signup | – | `{ open: boolean }` (se ci si può registrare) |
+| POST | /api/auth/register | `{ username, password }` | `{ user }` + cookie, già dentro (403 se chiuse, 429 se troppe) |
 | GET | /api/health | – | `{ ok: true }` |
 | GET | /api/exercises | – | `Exercise[]` (per nome) |
 | POST | /api/exercises | `ExerciseInput` | `Exercise` |
@@ -95,6 +97,9 @@ interface Overview {
 | DELETE | /api/sets/:id | – | `{ ok: true }` |
 | GET | /api/stats/overview | – | `Overview` |
 | GET | /api/stats/exercises/:id | – | `ExerciseStats` |
+
+Utenti: nome di 3–30 caratteri fra lettere, numeri, `.` `_` `-`, salvato e cercato in minuscolo;
+password di almeno 10 caratteri.
 
 Limiti: nomi 1–100 caratteri, note fino a 1000, `reps` di una serie 1–100 (intero),
 `weightKg` 0–1000, `sets` previste 1–20, `restSeconds` 0–3600, al più 14 giorni per scheda

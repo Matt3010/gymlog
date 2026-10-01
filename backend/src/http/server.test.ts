@@ -1,6 +1,6 @@
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { NotFoundError } from "../errors";
+import { ConflictError, NotFoundError } from "../errors";
 import { InputError } from "../validators";
 import { HttpError } from "./http.errors";
 import { cookieHeader, idParam, readCookie } from "./request";
@@ -68,13 +68,18 @@ describe("errors", () => {
     expect(await call("POST", "/api/x", change)).toMatchObject({ status: 418, body: { error: "Teiera." } });
   });
 
+  it("of something that exists already are 409", async () => {
+    const { call } = await serve(failing(new ConflictError("Esiste già un esercizio con questo nome.")));
+    expect(await call("POST", "/api/x", change)).toMatchObject({ status: 409, body: { error: "Esiste già un esercizio con questo nome." } });
+  });
+
   it("of input are 400, of something missing 404", async () => {
     expect(await (await serve(failing(new InputError("Nome mancante.")))).call("POST", "/api/x", change)).toMatchObject({ status: 400, body: { error: "Nome mancante." } });
     expect(await (await serve(failing(new NotFoundError()))).call("POST", "/api/x", change)).toMatchObject({ status: 404, body: { error: "Non trovato." } });
   });
 
   it("of a name taken are 409, wherever Drizzle put the code", async () => {
-    const message = { status: 409, body: { error: "Esiste già un esercizio con questo nome." } };
+    const message = { status: 409, body: { error: "Esiste già, con lo stesso nome." } };
     expect(await (await serve(failing({ code: "23505" }))).call("POST", "/api/x", change)).toMatchObject(message);
     expect(await (await serve(failing(new Error("q", { cause: { code: "23505" } })))).call("POST", "/api/x", change)).toMatchObject(message);
   });

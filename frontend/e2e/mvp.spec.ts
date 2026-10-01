@@ -181,3 +181,33 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByRole('button', { name: 'Riprova' }).click();
   await expect(page.getByRole('heading', { name: 'Storico' })).toBeVisible();
 });
+
+test('a new person creates an account and is in at once', async ({ page }) => {
+  await page.goto(base());
+  await expect(page.locator('.stop-pin')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Crea un account' }).click();
+  await expect(page.getByRole('heading', { name: 'Crea il tuo account' })).toBeVisible();
+  await page.getByLabel('Utente').fill('Nuova.Persona');
+  await page.getByLabel('Password', { exact: true }).fill('password lunga');
+  await page.getByLabel('Ripeti la password').fill('password lunghe');
+  await page.getByRole('button', { name: 'Crea l’account' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Le due password non coincidono.');
+  await page.getByLabel('Password', { exact: true }).fill('password lunga');
+  await page.getByLabel('Ripeti la password').fill('password lunga');
+  await page.getByRole('button', { name: 'Crea l’account' }).click();
+  await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
+  await page.getByRole('button', { name: /^Esci/ }).click();
+
+  // the same name, any case, is taken; and it signs in lower-case
+  await page.getByRole('button', { name: 'Crea un account' }).click();
+  await page.getByLabel('Utente').fill('nuova.persona');
+  await page.getByLabel('Password', { exact: true }).fill('password lunga');
+  await page.getByLabel('Ripeti la password').fill('password lunga');
+  await page.getByRole('button', { name: 'Crea l’account' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Questo nome utente è già preso.');
+  await page.getByRole('button', { name: 'Ho già un account' }).click();
+  await page.getByLabel('Utente').fill('NUOVA.persona');
+  await page.getByLabel('Password', { exact: true }).fill('password lunga');
+  await page.getByRole('button', { name: 'Entra' }).click();
+  await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
+});

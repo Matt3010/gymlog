@@ -15,6 +15,8 @@ export interface ApiOptions {
   readonly jwtSecret: Uint8Array;
   /** False only for trying the app over plain http on a laptop. */
   readonly secureCookie: boolean;
+  /** Anyone can make an account from the login page; true unless set. */
+  readonly allowSignup?: boolean;
   readonly limiter?: LoginLimiter;
   readonly now?: () => Date;
   readonly logError?: (line: string, error: unknown) => void;
@@ -23,13 +25,13 @@ export interface ApiOptions {
 
 /** Where every dependency is chosen, once: services, managers, controllers. The server is not yet listening. */
 export function createApiServer({
-  db, jwtSecret, secureCookie, limiter = createLoginLimiter(), now = () => new Date(), logError = console.error, log = console.log,
+  db, jwtSecret, secureCookie, allowSignup = true, limiter = createLoginLimiter(), now = () => new Date(), logError = console.error, log = console.log,
 }: ApiOptions): Server {
   const auth = createAuthService(db, createTokenManager(jwtSecret));
 
   const routes = [
     ...healthController(db),
-    ...authController({ auth, limiter, secureCookie, log }),
+    ...authController({ auth, limiter, secureCookie, allowSignup, log }),
     ...exercisesController(createExercisesService(db)),
     ...plansController(createPlansService(db), createPlansManager(db)),
     ...workoutsController(createWorkoutsService(db), createWorkoutsManager(db)),
