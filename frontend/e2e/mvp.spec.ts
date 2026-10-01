@@ -136,7 +136,7 @@ async function expectAligned(page: Page): Promise<void> {
       const start = (element: Element) => {
         const box = element.getBoundingClientRect().left;
         // an exercise's head is a whole-width row whose light bleeds past the text: its text start counts
-        if (element.matches('button:not(.head), input, textarea, .btn')) return box;
+        if (element.matches('button:not(.head), input, textarea, .btn, .tabs')) return box;
         const style = getComputedStyle(element);
         return box + parseFloat(style.paddingLeft) + parseFloat(style.borderLeftWidth);
       };
@@ -378,6 +378,11 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByRole('link', { name: 'Allenati' }).first().click();
   await expect(page.locator('#toast')).toBeHidden();
   await page.getByRole('button', { name: /^Giorno A / }).click();
+  // Squat not started yet: the warm-up comes first, ramped up to last time's weight.
+  await expect(page.getByRole('tab', { name: 'Riscaldamento' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('list', { name: 'Riscaldamento verso 60 kg' }).getByRole('listitem')).toHaveText(['1 8 × 22,5 kg', '2 5 × 35 kg', '3 3 × 47,5 kg']);
+  await expectAligned(page);
+  await page.getByRole('tab', { name: 'Serie' }).click();
   await expect(page.getByRole('list', { name: 'L’ultima volta · Oggi' }).getByRole('listitem')).toHaveText(['1 8 × 60 kg', '2 8 × 62,5 kg']);
   await expect(page.getByText('«scendere più lento»')).toBeVisible();
   // last time's note comes back with «Riusa», ready to be changed, and saves itself

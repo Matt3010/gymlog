@@ -26,6 +26,9 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
   sessioni e l'ultima volta; aprendolo, sessione per sessione: serie, ripetizioni,
   volume (ripetizioni × kg), peso medio delle serie, peso massimo e massimale stimato
   (formula di Epley), con il grafico del massimale stimato e del peso più alto.
+- **Riscaldamento:** nell'esercizio aperto, una linguetta col consiglio (non si segna):
+  40% × 8, 60% × 5, 80% × 3 del peso della prima serie, più un singolo al 90% da 100 kg,
+  al 2,5 sotto. Viene prima finché dell'esercizio non si è fatta nessuna serie.
 - **Meglio o peggio:** una freccia verde, rossa o grigia accanto a ogni serie, rispetto
   alla stessa serie dell'ultima volta, e a ogni sessione nelle statistiche. Chili e
   ripetizioni contano insieme, nel massimale stimato: 9 × 60 batte 10 × 57,5.

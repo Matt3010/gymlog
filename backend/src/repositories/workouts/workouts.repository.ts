@@ -190,11 +190,13 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
       const { rows } = await db.execute<{ exercise_id: number; workout_id: number; started_at: string; rank: number; reps: number; weight_kg: number; note: string | null }>(sql`
         with done as (
           select s.exercise_id, w.id as workout_id, w.started_at,
-                 row_number() over (partition by s.exercise_id order by w.started_at desc, w.id desc) as rank
+                 row_number() over (partition by s.exercise_id order by w.id desc) as rank
           from workout_sets s
           join workouts w on w.id = s.workout_id
+          -- "Before" is the order they were started in, not the clock: without a clock of its own
+          -- the Pi can boot behind, and a later workout would carry an earlier time.
           where w.user_id = ${userId}
-            and w.started_at < (select started_at from workouts where id = ${workoutId} and user_id = ${userId})
+            and w.id < (select id from workouts where id = ${workoutId} and user_id = ${userId})
           group by s.exercise_id, w.id, w.started_at
         )
         select d.exercise_id, d.workout_id, d.started_at, d.rank::int as rank, s.reps, s.weight_kg, n.note
@@ -237,11 +239,11 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
         from workouts w
         join workouts c on c.id = ${workoutId} and c.user_id = ${userId}
         where w.user_id = ${userId}
-          and w.started_at < c.started_at
+          and w.id < c.id
           and w.notes is not null
           and w.plan_name is not distinct from c.plan_name
           and w.day_name is not distinct from c.day_name
-        order by w.started_at desc, w.id desc
+        order by w.id desc
         limit 1`);
       const row = rows[0];
       return row === undefined ? null : { workoutId: row.id, startedAt: new Date(row.started_at).toISOString(), note: row.notes };

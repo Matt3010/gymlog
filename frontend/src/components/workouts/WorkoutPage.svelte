@@ -9,9 +9,11 @@
   import { ui } from '../../lib/ui.svelte';
   import type { Exercise, WorkoutDetail, WorkoutSet } from '../../lib/types';
   import { trendOf } from '../../lib/trend';
+  import { warmupFor } from '../../lib/warmup';
   import { blocksOf, describeTarget, prefill, readSet, type Block } from '../../lib/workout';
   import Alert from '../Alert.svelte';
   import Button from '../Button.svelte';
+  import Tabs from '../Tabs.svelte';
   import Trend from '../Trend.svelte';
   import Icon from '../Icon.svelte';
   import PageCard from '../PageCard.svelte';
@@ -43,6 +45,17 @@
   let active = $state<number | null>(null);
   let reps = $state('');
   let kg = $state('');
+
+  /*
+   * Il riscaldamento: una linguetta sua nell'esercizio aperto, prima delle
+   * serie finché non se n'è fatta nessuna. È solo un consiglio, calcolato dal
+   * peso scritto per la prima serie: non si segna e non si salva.
+   */
+  type Tab = 'warmup' | 'sets';
+  const TABS: { id: Tab; label: string }[] = [{ id: 'warmup', label: 'Riscaldamento' }, { id: 'sets', label: 'Serie' }];
+  let tab = $state<Tab>('sets');
+  const workingKg = (): number | null => Number(kg.replace(',', '.')) || null;
+
   let working = $state(false);
 
   /* Il recupero che chiede la scheda, dopo ogni serie. A zero il telefono
@@ -74,6 +87,7 @@
     const proposed = prefill(block);
     reps = proposed.reps === null ? '' : String(proposed.reps);
     kg = proposed.weightKg === null ? '' : String(proposed.weightKg).replace('.', ',');
+    tab = block.sets.length === 0 && warmupFor(proposed.weightKg).length > 0 ? 'warmup' : 'sets';
     error = '';
   }
 
@@ -206,64 +220,81 @@
           <Icon name={isOpen ? 'collapse' : 'expand'} />
         </button>
 
-        {#if isOpen || block.sets.length > 0}
-          {#if block.target}
-            <p class="line">
-              <span class="eyebrow">Scheda</span>
-              {describeTarget(block.target)}
-            </p>
-          {/if}
-          {#if block.previous}
-            <!-- una serie per pezzo, mai spezzata a metà fra due righe -->
-            <div class="line">
-              <span class="eyebrow" id="past-{block.exerciseId}">L’ultima volta · {formatDay(block.previous.startedAt)}</span>
-              <ol class="past" aria-labelledby="past-{block.exerciseId}">
-                {#each block.previous.sets as set, index (index)}
-                  <li><span class="nr">{index + 1}</span> {set.reps} × {formatKg(set.weightKg)} <Trend trend={trendOf(set, block.previous.before[index])} against="before" /></li>
-                {/each}
-              </ol>
-            </div>
-          {/if}
-
-          {#if block.sets.length > 0}
-            <ol class="sets">
-              {#each block.sets as done, index (done.id)}
-                <li>
-                  <button type="button" class="set" onclick={() => editSet(done, index + 1)}>
-                    <span class="nr">{index + 1}</span>
-                    <span class="what">{done.reps} × {formatKg(done.weightKg)}</span>
-                    <Trend trend={trendOf(done, block.previous?.sets[index])} />
-                    <Icon name="edit" />
-                  </button>
-                </li>
+        {#if isOpen && !finished}
+          <Tabs value={tab} options={TABS} label="Riscaldamento o serie di {block.name}" onpick={(picked) => (tab = picked)} />
+        {/if}
+        {#if isOpen && !finished && tab === 'warmup'}
+          {@const ramp = warmupFor(workingKg())}
+          {#if ramp.length === 0}
+            <p class="hint">Scrivi il peso della prima serie: il riscaldamento si calcola da lì.</p>
+          {:else}
+            <ol class="sets warmup" aria-label="Riscaldamento verso {formatKg(workingKg()!)}">
+              {#each ramp as step, index (index)}
+                <li class="set"><span class="nr">{index + 1}</span> <span class="what">{step.reps} × {formatKg(step.weightKg)}</span></li>
               {/each}
             </ol>
+            <p class="hint">Un consiglio, a salire verso i {formatKg(workingKg()!)} della prima serie.</p>
           {/if}
-        {/if}
+        {:else}
+          {#if isOpen || block.sets.length > 0}
+            {#if block.target}
+              <p class="line">
+                <span class="eyebrow">Scheda</span>
+                {describeTarget(block.target)}
+              </p>
+            {/if}
+            {#if block.previous}
+              <!-- una serie per pezzo, mai spezzata a metà fra due righe -->
+              <div class="line">
+                <span class="eyebrow" id="past-{block.exerciseId}">L’ultima volta · {formatDay(block.previous.startedAt)}</span>
+                <ol class="past" aria-labelledby="past-{block.exerciseId}">
+                  {#each block.previous.sets as set, index (index)}
+                    <li><span class="nr">{index + 1}</span> {set.reps} × {formatKg(set.weightKg)} <Trend trend={trendOf(set, block.previous.before[index])} against="before" /></li>
+                  {/each}
+                </ol>
+              </div>
+            {/if}
 
-        {#if isOpen || block.sets.length > 0 || detail.exerciseNotes[block.exerciseId]}
-          <div class="note">
-            <NoteField
-              label="Nota"
-              fieldLabel="Nota"
-              placeholder="Come è andato, cosa cambiare la prossima volta"
-              note={detail.exerciseNotes[block.exerciseId] ?? ''}
-              previous={block.previous?.note ? { note: block.previous.note } : null}
-              save={(text) => workoutsApi.saveNote(id, block.exerciseId, text)}
-            />
-          </div>
-        {/if}
-        {#if isOpen && !finished}
-          <div class="add">
-            <div class="steppers">
-              <Stepper label="Ripetizioni" step={1} min={1} bind:value={reps} />
-              <Stepper label="Peso" unit="kg" step={2.5} decimals bind:value={kg} />
+            {#if block.sets.length > 0}
+              <ol class="sets">
+                {#each block.sets as done, index (done.id)}
+                  <li>
+                    <button type="button" class="set" onclick={() => editSet(done, index + 1)}>
+                      <span class="nr">{index + 1}</span>
+                      <span class="what">{done.reps} × {formatKg(done.weightKg)}</span>
+                      <Trend trend={trendOf(done, block.previous?.sets[index])} />
+                      <Icon name="edit" />
+                    </button>
+                  </li>
+                {/each}
+              </ol>
+            {/if}
+          {/if}
+
+          {#if isOpen || block.sets.length > 0 || detail.exerciseNotes[block.exerciseId]}
+            <div class="note">
+              <NoteField
+                label="Nota"
+                fieldLabel="Nota"
+                placeholder="Come è andato, cosa cambiare la prossima volta"
+                note={detail.exerciseNotes[block.exerciseId] ?? ''}
+                previous={block.previous?.note ? { note: block.previous.note } : null}
+                save={(text) => workoutsApi.saveNote(id, block.exerciseId, text)}
+              />
             </div>
-            {#if error}<Alert message={error} />{/if}
-            <Button look="primary" extra="log" disabled={working} onclick={() => void addSet(block)}>
-              <Icon name="check" /> Segna la serie {block.sets.length + 1}
-            </Button>
-          </div>
+          {/if}
+          {#if isOpen && !finished}
+            <div class="add">
+              <div class="steppers">
+                <Stepper label="Ripetizioni" step={1} min={1} bind:value={reps} />
+                <Stepper label="Peso" unit="kg" step={2.5} decimals bind:value={kg} />
+              </div>
+              {#if error}<Alert message={error} />{/if}
+              <Button look="primary" extra="log" disabled={working} onclick={() => void addSet(block)}>
+                <Icon name="check" /> Segna la serie {block.sets.length + 1}
+              </Button>
+            </div>
+          {/if}
         {/if}
       </PageCard>
     {/each}
@@ -365,6 +396,12 @@
   }
 
   /* le serie dell'ultima volta: un pezzo ciascuna, che va a capo intero */
+  .hint { margin: 0; font-size: 12.5px; color: var(--ink-3); }
+
+  /* il riscaldamento si legge e basta: le righe delle serie, ma più leggere */
+  .warmup .set { cursor: default; background: transparent; }
+  .warmup .what { font-weight: 500; color: var(--ink-2); }
+
   .past {
     display: flex;
     flex-wrap: wrap;

@@ -134,6 +134,55 @@ describe('a workout in progress', () => {
     ]);
   });
 
+  describe('the warm-up', () => {
+    const fresh = { ...DETAIL, sets: [] };
+    const warmup = () => screen.getByRole('list', { name: /^Riscaldamento/ });
+    const steps = () => within(warmup()).getAllByRole('listitem').map((one) => one.textContent?.replace(/\s+/g, ' ').trim());
+
+    it('comes first, in its own tab, for an exercise not started yet: ramped from the weight to lift', async () => {
+      server(fresh);
+      render(Host, { page: WorkoutPage, params: { id: 7 } });
+      const tab = await screen.findByRole('tab', { name: 'Riscaldamento' });
+      expect(tab).toHaveAttribute('aria-selected', 'true');
+      expect(warmup()).toHaveAccessibleName('Riscaldamento verso 60 kg');
+      expect(steps()).toEqual(['1 8 × 22,5 kg', '2 5 × 35 kg', '3 3 × 47,5 kg']);
+      // only advice: nothing to tick off, nothing logged
+      expect(within(warmup()).queryAllByRole('button')).toEqual([]);
+      // the working sets are in the other tab
+      expect(screen.queryByRole('button', { name: 'Segna la serie 1' })).not.toBeInTheDocument();
+      await userEvent.setup().click(screen.getByRole('tab', { name: 'Serie' }));
+      expect(screen.getByRole('button', { name: 'Segna la serie 1' })).toBeInTheDocument();
+      expect(screen.queryByRole('list', { name: /^Riscaldamento/ })).not.toBeInTheDocument();
+    });
+
+    it('follows the weight written for the first set', async () => {
+      server(fresh);
+      render(Host, { page: WorkoutPage, params: { id: 7 } });
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('tab', { name: 'Serie' }));
+      for (let i = 0; i < 16; i++) await user.click(screen.getByRole('button', { name: 'Peso, più 2,5' }));
+      await user.click(screen.getByRole('tab', { name: 'Riscaldamento' }));
+      expect(warmup()).toHaveAccessibleName('Riscaldamento verso 100 kg');
+      expect(steps()).toEqual(['1 8 × 40 kg', '2 5 × 60 kg', '3 3 × 80 kg', '4 1 × 90 kg']);
+    });
+
+    it('waits on the sets tab once a set is done', async () => {
+      server();
+      render(Host, { page: WorkoutPage, params: { id: 7 } });
+      expect(await screen.findByRole('tab', { name: 'Serie' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('says where it comes from when there is no weight yet', async () => {
+      server({ ...fresh, previous: {} });
+      render(Host, { page: WorkoutPage, params: { id: 7 } });
+      const user = userEvent.setup();
+      // nothing to ramp to: the sets come first
+      expect(await screen.findByRole('tab', { name: 'Serie' })).toHaveAttribute('aria-selected', 'true');
+      await user.click(screen.getByRole('tab', { name: 'Riscaldamento' }));
+      expect(screen.getByText('Scrivi il peso della prima serie: il riscaldamento si calcola da lì.')).toBeInTheDocument();
+    });
+  });
+
   it('counts every quick tap on +, none lost', async () => {
     server();
     render(Host, { page: WorkoutPage, params: { id: 7 } });

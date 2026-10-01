@@ -175,6 +175,22 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     expect((await repo().list(user.id, 1, 1)).map((workout) => workout.id)).toEqual([older.id]);
   });
 
+  it("takes as the last time the workout started before, even when the clock went back in between", async () => {
+    // Without a clock of its own the Pi can boot a few seconds (or days) behind, until it syncs:
+    // a workout started after another one can carry an earlier time.
+    const { user, start, squat } = await setup();
+    const first = await repo().create(user.id, start, new Date("2026-09-05T17:00:05Z"));
+    const second = await repo().create(user.id, start, new Date("2026-09-05T17:00:01Z"));
+    await repo().addSet(first.id, { exerciseId: squat.id, reps: 8, weightKg: 60 });
+    await repo().update(user.id, first.id, { notes: "poco riposo" });
+
+    expect((await repo().previous(user.id, second.id)).get(squat.id)?.workoutId).toBe(first.id);
+    expect((await repo().previousNote(user.id, second.id))?.workoutId).toBe(first.id);
+    // and the other way round, the later one is not "before"
+    expect(await repo().previous(user.id, first.id)).toEqual(new Map());
+    expect(await repo().previousNote(user.id, first.id)).toBeNull();
+  });
+
   it("finds, for each exercise, the last earlier workout with it, and the sets of the one before that", async () => {
     const { user, squat, bench } = await setup();
     const other = await setup();
