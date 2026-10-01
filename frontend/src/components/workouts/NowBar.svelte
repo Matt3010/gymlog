@@ -86,11 +86,12 @@
   /* appoggiati sopra le sezioni, uno sull'altro */
   .stack {
     position: fixed;
-    left: max(12px, env(safe-area-inset-left));
-    right: max(12px, env(safe-area-inset-right));
-    bottom: calc(var(--tab-bar) + 10px);
+    /* larghi quanto l'isola delle sezioni, e allineati a lei */
+    left: var(--island-side);
+    right: var(--island-side);
+    bottom: calc(var(--tab-bar) + 8px);
     z-index: var(--z-bar);
-    max-width: 616px;
+    max-width: 520px;
     margin: 0 auto;
     display: grid;
     gap: 8px;
@@ -104,7 +105,8 @@
     height: 58px;
     padding: 0 8px 0 0;
     overflow: hidden;
-    border-radius: var(--r-md);
+    /* tondi come l'isola delle sezioni, su cui si appoggiano */
+    border-radius: 22px;
     animation: rise 0.24s var(--ease);
   }
 

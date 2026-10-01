@@ -52,7 +52,12 @@
      fondo dello schermo — il messaggio con l'annulla, il recupero che scorre,
      l'ultima riga di una pagina — deve stare sopra questa riga, e la misura
      sta qui una volta sola invece che sommata a mano in ogni componente. */
-  --tab-bar: calc(62px + env(safe-area-inset-bottom));
+  /* le sezioni sono un'isola che galleggia: alta 64px, staccata dal fondo (e
+     dalla barra di sistema dell'iPhone). --tab-bar è tutto lo spazio che occupa
+     da sotto, così chi ci sta sopra si mette giusto sopra l'isola */
+  --island-gap: max(14px, env(safe-area-inset-bottom));
+  --island-side: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
+  --tab-bar: calc(64px + var(--island-gap));
   /* Lo spazio dove si posa un messaggio: 14px di stacco e due righe di testo.
      In fondo a ogni pagina resta libero, così con la pagina tutta scorsa il
      messaggio sta sotto i suoi ultimi tasti invece che sopra: «Scheda

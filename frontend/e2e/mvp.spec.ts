@@ -411,6 +411,26 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
 
   // Four sections, the history its own; the exercises say how each is going, and a row opens its stats.
   await expect(page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link')).toHaveText(['Allenati', 'Schede', 'Esercizi', 'Storico']);
+  // The sections float as an island: off the sides and the bottom, rounded, the section you are in on a pill;
+  // the banner of the workout in progress lines up with it.
+  const island = await page.getByRole('navigation', { name: 'Sezioni' }).evaluate((bar) => {
+    const box = bar.getBoundingClientRect();
+    const here = bar.querySelector('a[aria-current="page"]')!;
+    return {
+      left: box.left, right: innerWidth - box.right, bottom: innerHeight - box.bottom,
+      radius: parseFloat(getComputedStyle(bar).borderTopLeftRadius), height: box.height,
+      pill: getComputedStyle(here.querySelector('.ico')!.parentElement!).backgroundColor,
+    };
+  });
+  expect(island.left).toBeGreaterThanOrEqual(12);
+  expect(island.right).toBeGreaterThanOrEqual(12);
+  expect(island.bottom).toBeGreaterThanOrEqual(12);
+  expect(island.radius).toBeGreaterThanOrEqual(island.height / 2 - 1);
+  expect(island.pill).not.toBe('rgba(0, 0, 0, 0)');
+  const nowBox = (await page.getByRole('region', { name: 'In corso' }).boundingBox())!;
+  const barBox = (await page.getByRole('navigation', { name: 'Sezioni' }).boundingBox())!;
+  expect(Math.abs(nowBox.x - barBox.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(nowBox.width - barBox.width)).toBeLessThanOrEqual(1);
   await page.getByRole('link', { name: 'Esercizi' }).click();
   await expect(page.getByRole('link', { name: /^Squat/ })).toContainText('media 61,25 kg · max 62,5 kg · 1 sessione · l’ultima oggi');
   await expect(page.getByRole('link', { name: /^Panca piana/ })).not.toContainText('media');
