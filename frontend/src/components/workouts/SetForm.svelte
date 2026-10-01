@@ -46,16 +46,19 @@
 
   $effect(() => {
     const typed = readSet(reps, kg);
-    if ('error' in typed) {
-      error = typed.error;
-      return;
-    }
+    // un numero a metà non è un errore: lo si dice lasciando il campo (`checked`)
+    if ('error' in typed) return;
     error = '';
     const now = `${typed.reps}|${typed.weightKg}`;
     if (now === sent) return;
     sent = now;
     saver.change(typed);
   });
+
+  function checked(): void {
+    const typed = readSet(reps, kg);
+    error = 'error' in typed ? typed.error : '';
+  }
 
   // la finestra da chiudere dopo aver tolto è questa, anche se nel frattempo ne è comparsa un'altra
   const finestra = ui.modal;
@@ -92,7 +95,8 @@
 </script>
 
 <p class="was">Scritta come {set.reps} × {formatKg(set.weightKg)}. <SaveStatus {saver} /></p>
-<div class="pair">
+<!-- lasciando un campo si dice cosa non va, se qualcosa non va -->
+<div class="steppers" onfocusout={checked}>
   <Stepper label="Ripetizioni" step={1} min={1} bind:value={reps} />
   <Stepper label="Peso" unit="kg" step={2.5} decimals bind:value={kg} />
 </div>
@@ -102,5 +106,5 @@
 <style>
   .was { margin: 0; font-size: 12.5px; color: var(--ink-3); }
 
-  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .steppers { display: grid; gap: 10px; }
 </style>

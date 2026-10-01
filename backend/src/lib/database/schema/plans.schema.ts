@@ -18,14 +18,16 @@ export const planDays = pgTable("plan_days", {
   position: integer("position").notNull(),
 }, (table) => [index("plan_days_plan").on(table.planId)]);
 
-/** What a day asks for: an exercise, how many sets and reps. An exercise in a plan cannot be deleted. */
+/**
+ * What a day asks for: an exercise and its sets, each with its own reps
+ * ("12", "8-10", "max"): as many sets as entries. An exercise in a plan cannot be deleted.
+ */
 export const planExercises = pgTable("plan_exercises", {
   id: serial("id").primaryKey(),
   planDayId: integer("plan_day_id").notNull().references(() => planDays.id, { onDelete: "cascade" }),
   exerciseId: integer("exercise_id").notNull().references(() => exercises.id, { onDelete: "restrict" }),
   position: integer("position").notNull(),
-  sets: integer("sets").notNull(),
-  reps: text("reps").notNull(),
+  reps: text("reps").array().notNull(),
   restSeconds: integer("rest_seconds"),
   notes: text("notes"),
 }, (table) => [index("plan_exercises_day").on(table.planDayId), index("plan_exercises_exercise").on(table.exerciseId)]);

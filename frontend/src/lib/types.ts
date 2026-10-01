@@ -23,10 +23,11 @@ export interface PlanExercise {
   exerciseId: number;
   exerciseName: string;
   position: number;
-  /** Serie previste, 1..20. */
-  sets: number;
-  /** Ripetizioni previste, testo libero: "8", "8-10", "max". */
-  reps: string;
+  /**
+   * Le ripetizioni di ogni serie prevista, una voce per serie (1..20), testo
+   * libero: "12", "8-10", "max". Quante serie sono, lo dice la lunghezza.
+   */
+  reps: string[];
   restSeconds: number | null;
   notes: string | null;
 }
@@ -48,8 +49,7 @@ export interface Plan {
 
 export interface PlanExerciseInput {
   exerciseId: number;
-  sets: number;
-  reps: string;
+  reps: string[];
   restSeconds: number | null;
   notes: string | null;
 }

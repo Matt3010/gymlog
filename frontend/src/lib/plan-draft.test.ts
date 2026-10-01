@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDay, draftOf, move, problemOf, toInput, type Draft } from './plan-draft';
+import { addDay, addSet, draftOf, move, problemOf, removeSet, toInput, type Draft } from './plan-draft';
 import type { Plan } from './types';
 
 const plan: Plan = {
@@ -7,7 +7,7 @@ const plan: Plan = {
   days: [
     {
       id: 10, name: 'A', position: 0,
-      exercises: [{ id: 100, exerciseId: 1, exerciseName: 'Squat', position: 0, sets: 5, reps: '5', restSeconds: 180, notes: null }],
+      exercises: [{ id: 100, exerciseId: 1, exerciseName: 'Squat', position: 0, reps: ['5', '5', '3'], restSeconds: 180, notes: null }],
     },
     { id: 11, name: 'B', position: 1, exercises: [] },
   ],
@@ -19,7 +19,7 @@ describe('a draft', () => {
     expect(draft).toMatchObject({
       name: 'Forza', notes: 'tre volte', archived: false,
       days: [
-        { name: 'A', exercises: [{ exerciseId: 1, exerciseName: 'Squat', sets: 5, reps: '5', restSeconds: 180, notes: '' }] },
+        { name: 'A', exercises: [{ exerciseId: 1, exerciseName: 'Squat', reps: ['5', '5', '3'], restSeconds: 180, notes: '' }] },
         { name: 'B', exercises: [] },
       ],
     });
@@ -36,12 +36,12 @@ describe('a draft', () => {
     draft.name = '  Forza 2 ';
     draft.notes = '  ';
     draft.days[0]!.name = ' A ';
-    draft.days[0]!.exercises[0]!.reps = ' 5-6 ';
+    draft.days[0]!.exercises[0]!.reps[1] = ' 5-6 ';
     draft.days[0]!.exercises[0]!.notes = ' lento ';
     expect(toInput(draft)).toEqual({
       name: 'Forza 2', notes: null, archived: false,
       days: [
-        { name: 'A', exercises: [{ exerciseId: 1, sets: 5, reps: '5-6', restSeconds: 180, notes: 'lento' }] },
+        { name: 'A', exercises: [{ exerciseId: 1, reps: ['5', '5-6', '3'], restSeconds: 180, notes: 'lento' }] },
         { name: 'B', exercises: [] },
       ],
     });
@@ -88,16 +88,45 @@ describe('what stops a draft from being saved', () => {
     expect(problemOf(draft)).toBe('Ogni giorno ha bisogno di un nome, come «A» o «Gambe».');
   });
 
-  it('is an exercise without reps, or with sets out of range', () => {
+  it('is a set without reps, naming which', () => {
     const draft = draftOf(plan);
-    draft.days[0]!.exercises[0]!.reps = '';
-    expect(problemOf(draft)).toBe('Nel giorno «A» l’esercizio «Squat» non ha ripetizioni. Scrivi quante, anche «max».');
-    draft.days[0]!.exercises[0]!.reps = '5';
-    draft.days[0]!.exercises[0]!.sets = 0;
+    draft.days[0]!.exercises[0]!.reps[1] = ' ';
+    expect(problemOf(draft)).toBe('Nel giorno «A» la serie 2 dell’esercizio «Squat» non ha ripetizioni. Scrivi quante, anche «max».');
+  });
+
+  it('is an exercise with no sets, or more than 20', () => {
+    const draft = draftOf(plan);
+    draft.days[0]!.exercises[0]!.reps = [];
     expect(problemOf(draft)).toBe('Nel giorno «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
-    draft.days[0]!.exercises[0]!.sets = 21;
+    draft.days[0]!.exercises[0]!.reps = Array.from({ length: 21 }, () => '5');
     expect(problemOf(draft)).toBe('Nel giorno «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
-    draft.days[0]!.exercises[0]!.sets = 20;
+    draft.days[0]!.exercises[0]!.reps = Array.from({ length: 20 }, () => '5');
     expect(problemOf(draft)).toBeNull();
+  });
+});
+
+describe('the sets of an exercise in a plan', () => {
+  it('grow by one copying the last, up to 20', () => {
+    const exercise = draftOf(plan).days[0]!.exercises[0]!;
+    addSet(exercise);
+    expect(exercise.reps).toEqual(['5', '5', '3', '3']);
+    exercise.reps = Array.from({ length: 20 }, () => '5');
+    addSet(exercise);
+    expect(exercise.reps).toHaveLength(20);
+  });
+
+  it('start from 10 when there is none', () => {
+    const exercise = { ...draftOf(plan).days[0]!.exercises[0]!, reps: [] };
+    addSet(exercise);
+    expect(exercise.reps).toEqual(['10']);
+  });
+
+  it('lose the one taken away, never the last one left', () => {
+    const exercise = draftOf(plan).days[0]!.exercises[0]!;
+    removeSet(exercise, 1);
+    expect(exercise.reps).toEqual(['5', '3']);
+    removeSet(exercise, 0);
+    removeSet(exercise, 0);
+    expect(exercise.reps).toEqual(['3']);
   });
 });

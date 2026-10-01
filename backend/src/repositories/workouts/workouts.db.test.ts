@@ -18,7 +18,7 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     const bench = await exercises.create(user.id, { name: "Panca", muscleGroup: null, notes: null });
     const plan = await createPlansRepository(handle.db).create(user.id, {
       name: "Forza", notes: null, archived: false,
-      days: [{ name: "A", exercises: [{ exerciseId: squat.id, sets: 5, reps: "5", restSeconds: 180, notes: null }] }],
+      days: [{ name: "A", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5", "5", "5"], restSeconds: 180, notes: null }] }],
     });
     const day = plan.days[0]!;
     return { user, squat, bench, plan, day, start: { planDayId: day.id, planName: plan.name, dayName: day.name } };

@@ -34,7 +34,7 @@
   }
 </script>
 
-<div class="stepper">
+<div class="stepper is-line">
   <span class="eyebrow">{label}</span>
   <div class="row">
     <button type="button" class="nudge" aria-label="{label}, meno {String(step).replace('.', ',')}" onclick={() => nudge(-1)}>
@@ -58,19 +58,28 @@
 </div>
 
 <style>
-  .stepper { display: grid; gap: 6px; min-width: 0; }
+  /* una riga per numero, larga quanto la card: il nome a sinistra, poi
+     meno, il valore e più, grandi per il pollice. In due affiancati, sei
+     tasti in 358px, il pollice prendeva quello accanto. */
+  .stepper.is-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
 
   .row {
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    grid-template-columns: 48px 104px 48px;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
 
   .nudge {
     display: grid;
     place-items: center;
-    height: 44px;
+    height: 48px;
     padding: 0;
     border: 1px solid var(--hairline);
     border-radius: var(--r-md);
@@ -85,7 +94,7 @@
   .value { position: relative; display: block; }
 
   .value input {
-    height: 44px;
+    height: 48px;
     padding: 0 10px;
     text-align: center;
     font-size: 17px;

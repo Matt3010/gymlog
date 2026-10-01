@@ -36,3 +36,16 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 /* I bottoni non stanno più qui: look e varianti vivono in Button.svelte, così
    chi ne usa uno sceglie un nome ("primary", "icon"...) invece di ricordarsi
    una classe. Qui restano solo campi ed etichette. */
+
+/*
+ * Sul telefono ogni campo si scrive a 16px almeno: Safari, su iPhone, ingrandisce
+ * la pagina quando metti il fuoco in un campo più piccolo, e non la rimette a
+ * posto — dopo l'accesso restava zoomata, tagliata a sinistra e senza la barra
+ * in fondo. Lo zoom resta permesso a chi lo vuole (niente `maximum-scale`):
+ * qui si toglie solo il motivo per cui scattava da solo. `!important` perché
+ * vale anche dentro i componenti che rimpiccioliscono i loro campi (le righe,
+ * la misura corta): sul telefono questa regola viene prima dell'aspetto.
+ */
+@media (pointer: coarse) {
+  input, textarea, select { font-size: max(16px, 1em) !important; }
+}

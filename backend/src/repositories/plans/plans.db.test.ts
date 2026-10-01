@@ -22,11 +22,11 @@ describe.skipIf(SERVER === undefined)("the plans repository", () => {
         {
           name: "A",
           exercises: [
-            { exerciseId: bench.id, sets: 4, reps: "8-10", restSeconds: 90, notes: "fermo al petto" },
-            { exerciseId: row.id, sets: 3, reps: "12", restSeconds: null, notes: null },
+            { exerciseId: bench.id, reps: ["8-10", "8-10", "8-10", "8-10"], restSeconds: 90, notes: "fermo al petto" },
+            { exerciseId: row.id, reps: ["12", "12", "12"], restSeconds: null, notes: null },
           ],
         },
-        { name: "B", exercises: [{ exerciseId: row.id, sets: 5, reps: "5", restSeconds: 120, notes: null }] },
+        { name: "B", exercises: [{ exerciseId: row.id, reps: ["5", "5", "5", "5", "5"], restSeconds: 120, notes: null }] },
       ],
     };
     return { user, bench, row, input };
@@ -44,17 +44,26 @@ describe.skipIf(SERVER === undefined)("the plans repository", () => {
         {
           id: expect.any(Number), name: "A", position: 0,
           exercises: [
-            { id: expect.any(Number), exerciseId: bench.id, exerciseName: "Panca piana", position: 0, sets: 4, reps: "8-10", restSeconds: 90, notes: "fermo al petto" },
-            { id: expect.any(Number), exerciseId: row.id, exerciseName: "Rematore", position: 1, sets: 3, reps: "12", restSeconds: null, notes: null },
+            { id: expect.any(Number), exerciseId: bench.id, exerciseName: "Panca piana", position: 0, reps: ["8-10", "8-10", "8-10", "8-10"], restSeconds: 90, notes: "fermo al petto" },
+            { id: expect.any(Number), exerciseId: row.id, exerciseName: "Rematore", position: 1, reps: ["12", "12", "12"], restSeconds: null, notes: null },
           ],
         },
         {
           id: expect.any(Number), name: "B", position: 1,
-          exercises: [{ id: expect.any(Number), exerciseId: row.id, exerciseName: "Rematore", position: 0, sets: 5, reps: "5", restSeconds: 120, notes: null }],
+          exercises: [{ id: expect.any(Number), exerciseId: row.id, exerciseName: "Rematore", position: 0, reps: ["5", "5", "5", "5", "5"], restSeconds: 120, notes: null }],
         },
       ],
     });
     expect(await repo().find(user.id, plan.id)).toEqual(plan);
+  });
+
+  it("keeps different reps for each set, in order", async () => {
+    const { user, bench, input } = await setup();
+    const plan = await repo().create(user.id, {
+      ...input, days: [{ name: "A", exercises: [{ exerciseId: bench.id, reps: ["12", "10", "8", "max"], restSeconds: 90, notes: null }] }],
+    });
+    expect(plan.days[0]?.exercises[0]?.reps).toEqual(["12", "10", "8", "max"]);
+    expect((await repo().find(user.id, plan.id))?.days[0]?.exercises[0]?.reps).toEqual(["12", "10", "8", "max"]);
   });
 
   it("keeps a plan without days, and a day without exercises", async () => {
@@ -87,14 +96,14 @@ describe.skipIf(SERVER === undefined)("the plans repository", () => {
     const plan = await repo().create(user.id, input);
     const next: PlanInput = {
       name: "Scheda inverno", notes: null, archived: true,
-      days: [{ name: "Unico", exercises: [{ exerciseId: bench.id, sets: 2, reps: "max", restSeconds: 60, notes: null }] }],
+      days: [{ name: "Unico", exercises: [{ exerciseId: bench.id, reps: ["max", "max"], restSeconds: 60, notes: null }] }],
     };
     const replaced = await repo().replace(user.id, plan.id, next);
     expect(replaced).toMatchObject({ id: plan.id, name: "Scheda inverno", notes: null, archived: true });
     expect(replaced?.days).toEqual([
       {
         id: expect.any(Number), name: "Unico", position: 0,
-        exercises: [{ id: expect.any(Number), exerciseId: bench.id, exerciseName: "Panca piana", position: 0, sets: 2, reps: "max", restSeconds: 60, notes: null }],
+        exercises: [{ id: expect.any(Number), exerciseId: bench.id, exerciseName: "Panca piana", position: 0, reps: ["max", "max"], restSeconds: 60, notes: null }],
       },
     ]);
     expect(await repo().find(user.id, plan.id)).toEqual(replaced);

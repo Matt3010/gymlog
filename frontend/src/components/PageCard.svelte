@@ -63,8 +63,8 @@
     align-content: start;
     gap: 10px;
     min-width: 0;
-    /* lo spazio sotto è suo, non della colonna */
-    margin: 0 0 14px;
+    /* lo spazio fra le card lo dà la colonna (PageShell) */
+    margin: 0;
     padding: var(--card-pad);
     border: 1px solid var(--hairline);
     border-radius: var(--r-lg);

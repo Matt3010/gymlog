@@ -12,7 +12,7 @@ const RECENT = 'GET /workouts?limit=6&offset=0';
 const day = (id: number, name: string, exercises: number) => ({
   id, name, position: 0,
   exercises: Array.from({ length: exercises }, (_, i) => ({
-    id: id * 10 + i, exerciseId: i + 1, exerciseName: `E${i}`, position: i, sets: 3, reps: '8', restSeconds: 90, notes: null,
+    id: id * 10 + i, exerciseId: i + 1, exerciseName: `E${i}`, position: i, reps: ['8', '8', '8'], restSeconds: 90, notes: null,
   })),
 });
 

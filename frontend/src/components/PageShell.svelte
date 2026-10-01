@@ -130,8 +130,15 @@
     color: var(--ink-3);
   }
 
+  /* I blocchi della pagina — le card, un invito, un avviso, una fila di
+     tasti — uno sotto l'altro, sempre alla stessa distanza: la dà la
+     colonna, non il margine di ognuno, così anche quello che non è una card
+     (l'invito a installare) non si appiccica alla card sotto. */
   .cards {
     max-width: 640px;
     margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
   }
 </style>

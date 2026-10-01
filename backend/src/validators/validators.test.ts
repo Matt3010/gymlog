@@ -89,26 +89,33 @@ describe("an exercise", () => {
 });
 
 describe("a plan", () => {
-  const day = { name: "A", exercises: [{ exerciseId: 3, sets: 4, reps: " 8-10 ", restSeconds: 90, notes: null }] };
+  const day = { name: "A", exercises: [{ exerciseId: 3, reps: [" 8-10 ", " 8-10 ", " 8-10 ", " 8-10 "], restSeconds: 90, notes: null }] };
   const plan = { name: "Scheda", notes: null, archived: false, days: [day] };
 
   it("has a name, notes, whether archived, and days of exercises", () => {
     expect(parsePlan(plan)).toEqual({
       name: "Scheda", notes: null, archived: false,
-      days: [{ name: "A", exercises: [{ exerciseId: 3, sets: 4, reps: "8-10", restSeconds: 90, notes: null }] }],
+      days: [{ name: "A", exercises: [{ exerciseId: 3, reps: ["8-10", "8-10", "8-10", "8-10"], restSeconds: 90, notes: null }] }],
     });
   });
 
   it("takes a missing rest and notes as nothing, and a missing archived as active", () => {
-    expect(parsePlan({ name: "Scheda", days: [{ name: "A", exercises: [{ exerciseId: 3, sets: 4, reps: "8" }] }] })).toEqual({
+    expect(parsePlan({ name: "Scheda", days: [{ name: "A", exercises: [{ exerciseId: 3, reps: ["8", "8", "8", "8"] }] }] })).toEqual({
       name: "Scheda", notes: null, archived: false,
-      days: [{ name: "A", exercises: [{ exerciseId: 3, sets: 4, reps: "8", restSeconds: null, notes: null }] }],
+      days: [{ name: "A", exercises: [{ exerciseId: 3, reps: ["8", "8", "8", "8"], restSeconds: null, notes: null }] }],
     });
   });
 
   it("keeps the notes of the plan and of each exercise, and a rest left empty", () => {
     const written = { ...plan, notes: "3 volte", days: [{ name: "A", exercises: [{ ...day.exercises[0], notes: "lento", restSeconds: null }] }] };
     expect(parsePlan(written)).toMatchObject({ notes: "3 volte", days: [{ exercises: [{ notes: "lento", restSeconds: null }] }] });
+  });
+
+  it("takes different reps for each set, trimmed, one to twenty sets", () => {
+    const pyramid = { ...plan, days: [{ name: "A", exercises: [{ exerciseId: 3, reps: [" 12 ", "10", "8-10", "max"] }] }] };
+    expect(parsePlan(pyramid).days[0]!.exercises[0]!.reps).toEqual(["12", "10", "8-10", "max"]);
+    const twenty = { ...plan, days: [{ name: "A", exercises: [{ exerciseId: 3, reps: Array.from({ length: 20 }, () => "x".repeat(20)) }] }] };
+    expect(parsePlan(twenty).days[0]!.exercises[0]!.reps).toHaveLength(20);
   });
 
   it("takes up to fourteen days of thirty exercises", () => {
@@ -125,10 +132,12 @@ describe("a plan", () => {
     [{ ...plan, days: [{ exercises: [] }] }, "Nome: manca o è troppo lungo."],
     [{ ...plan, archived: "no" }, "Archiviata: valore non valido."],
     [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], exerciseId: 0 }] }] }, "Esercizio: numero tra 1 e 2147483647 (intero)."],
-    [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], sets: 21 }] }] }, "Serie: numero tra 1 e 20 (intero)."],
-    [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], sets: 2.5 }] }] }, "Serie: numero tra 1 e 20 (intero)."],
-    [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], reps: "" }] }] }, "Ripetizioni: manca o è troppo lungo."],
-    [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], reps: "x".repeat(21) }] }] }, "Ripetizioni: manca o è troppo lungo."],
+    [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], reps: [] }] }] }, "Serie: da 1 a 20."],
+    [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], reps: Array.from({ length: 21 }, () => "8") }] }] }, "Serie: da 1 a 20."],
+    [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], reps: "10" }] }] }, "Serie: da 1 a 20."],
+    [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], reps: ["10", ""] }] }] }, "Ripetizioni: manca o è troppo lungo."],
+    [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], reps: ["x".repeat(21)] }] }] }, "Ripetizioni: manca o è troppo lungo."],
+    [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], reps: [10] }] }] }, "Ripetizioni: manca o è troppo lungo."],
     [{ ...plan, days: [{ name: "A", exercises: [{ ...day.exercises[0], restSeconds: 3601 }] }] }, "Recupero: numero tra 0 e 3600 (intero)."],
   ])("is refused: %#", (body, message) => {
     expect(() => parsePlan(body)).toThrow(message);

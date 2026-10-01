@@ -8,8 +8,8 @@ import { type Call, fakeApi, silentApi } from '../../test/fake-api';
 import Host from '../../test/Host.svelte';
 import WorkoutPage from './WorkoutPage.svelte';
 
-const target = (id: number, exerciseId: number, exerciseName: string, sets: number, reps: string, restSeconds: number | null) => ({
-  id, exerciseId, exerciseName, position: 0, sets, reps, restSeconds, notes: null,
+const target = (id: number, exerciseId: number, exerciseName: string, reps: string[], restSeconds: number | null) => ({
+  id, exerciseId, exerciseName, position: 0, reps, restSeconds, notes: null,
 });
 
 const set = (id: number, exerciseId: number, exerciseName: string, reps: number, weightKg: number): WorkoutSet => ({
@@ -20,7 +20,7 @@ const set = (id: number, exerciseId: number, exerciseName: string, reps: number,
 const DETAIL: WorkoutDetail = {
   id: 7, planDayId: 11, planName: 'Forza', dayName: 'A',
   startedAt: '2026-10-01T17:00:00.000Z', finishedAt: null, notes: null,
-  plan: [target(1, 1, 'Squat', 3, '8-10', 90), target(2, 2, 'Panca piana', 3, '10', null)],
+  plan: [target(1, 1, 'Squat', ['10', '8-10', '6'], 90), target(2, 2, 'Panca piana', ['10', '10', '10'], null)],
   sets: [set(100, 1, 'Squat', 8, 60)],
   previous: {
     1: { workoutId: 3, startedAt: '2026-09-20T17:00:00.000Z', sets: [{ reps: 8, weightKg: 60 }, { reps: 8, weightKg: 60 }, { reps: 6, weightKg: 62.5 }], note: 'ginocchio un po’ dentro' },
@@ -60,7 +60,7 @@ describe('a workout in progress', () => {
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     expect(await screen.findByRole('heading', { name: 'Forza · A' })).toBeInTheDocument();
     expect(screen.getByText(/in corso/)).toBeInTheDocument();
-    expect(screen.getByText('Scheda').parentElement).toHaveTextContent('3 × 8-10 · recupero 1:30');
+    expect(screen.getByText('Scheda').parentElement).toHaveTextContent('10 · 8-10 · 6 · recupero 1:30');
     expect(screen.getByText('L’ultima volta').parentElement).toHaveTextContent('dom 20 set · 8 × 60 kg, 8 × 60 kg, 6 × 62,5 kg');
     expect(screen.getByRole('button', { name: /^Squat/ })).toHaveTextContent('1/3');
     expect(screen.getByRole('button', { name: /^Panca piana/ })).toHaveTextContent('0/3');
@@ -90,6 +90,8 @@ describe('a workout in progress', () => {
     expect(await screen.findByRole('button', { name: 'Segna la serie 3' })).toBeInTheDocument();
     expect(doneSets()).toEqual(['8 × 60 kg', '7 × 62,5 kg']);
     expect(screen.getByRole('button', { name: /^Squat/ })).toHaveTextContent('2/3');
+    // the next set starts from what the plan asks for it
+    expect(reps()).toHaveValue('6');
   });
 
   it('takes kg typed with the comma', async () => {
@@ -101,6 +103,40 @@ describe('a workout in progress', () => {
     await user.type(kg(), '61,25');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
     expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 61.25 } }]);
+  });
+
+  it('takes a weight typed a key at a time with the comma, saying nothing on the way', async () => {
+    const api = server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    await screen.findByRole('button', { name: 'Segna la serie 2' });
+    await user.clear(kg());
+    for (const key of ['2', '2', ',', '5']) {
+      await user.type(kg(), key);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    }
+    expect(kg()).toHaveValue('22,5');
+    await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 22.5 } }]);
+  });
+
+  it('takes a weight ending in a separator as the whole number', async () => {
+    const api = server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    await screen.findByRole('button', { name: 'Segna la serie 2' });
+    await user.clear(kg());
+    await user.type(kg(), '22,');
+    await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 22 } }]);
+  });
+
+  it('puts reps and weight on two rows, each with big buttons', async () => {
+    server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    await screen.findByRole('button', { name: 'Segna la serie 2' });
+    expect(document.querySelector('.pair')).toBeNull();
+    expect(document.querySelectorAll('.add .stepper.is-line')).toHaveLength(2);
   });
 
   it('proposes the plan’s reps for a first set, and asks for the weight before sending', async () => {
@@ -138,8 +174,13 @@ describe('a workout in progress', () => {
     await user.click(await screen.findByRole('button', { name: /8 × 60 kg/ }));
     const sheet = within(screen.getByRole('dialog'));
     await user.clear(sheet.getByLabelText('Ripetizioni', { selector: 'input' }));
-    expect(await sheet.findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent('Le ripetizioni vanno da 1 a 100.');
+    // nothing said while the field is being written, only when it is left
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    expect(sheet.queryByRole('alert')).not.toBeInTheDocument();
+    await user.tab();
+    expect(sheet.getByRole('alert')).toHaveTextContent('Le ripetizioni vanno da 1 a 100.');
     expect(api.changes()).toEqual([]);
+    await user.click(sheet.getByLabelText('Ripetizioni', { selector: 'input' }));
     await user.type(sheet.getByLabelText('Ripetizioni', { selector: 'input' }), '7');
     await user.click(sheet.getByRole('button', { name: 'Chiudi' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -216,7 +257,11 @@ describe('a workout in progress', () => {
     const api = server().on('DELETE /workouts/7', { ok: true });
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Elimina' }));
+    const remove = await screen.findByRole('button', { name: 'Elimina l’allenamento' });
+    expect(remove.closest('header')).not.toBeNull();
+    // and not at the bottom, by Termina
+    expect(screen.getByRole('button', { name: 'Termina' }).closest('header')).toBeNull();
+    await user.click(remove);
     const question = within(await screen.findByRole('alertdialog', { name: 'Eliminare questo allenamento?' }));
     expect(question.getByText('Si porta via le sue serie, e le statistiche non le contano più.')).toBeInTheDocument();
     expect(api.changes()).toEqual([]);

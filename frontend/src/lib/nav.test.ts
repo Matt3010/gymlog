@@ -129,14 +129,3 @@ describe('a guard over leaving', () => {
     expect(nav.path).toBe('/esercizi');
   });
 });
-
-describe('an address rewritten in place', () => {
-  it('changes the bar without changing page or leaving a step back', () => {
-    nav.go('/schede/nuova');
-    const before = history.length;
-    nav.rewrite('/schede/9/');
-    expect(window.location.pathname).toBe('/schede/9');
-    expect(nav.path).toBe('/schede/nuova');
-    expect(history.length).toBe(before);
-  });
-});

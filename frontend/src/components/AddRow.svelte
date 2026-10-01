@@ -20,6 +20,7 @@
     before,
     after,
     flat = false,
+    label,
   }: {
     id?: string;
     placeholder: string;
@@ -34,6 +35,11 @@
     after?: Snippet;
     /** Piatta, come le righe sopra di lei dentro una card (vedi `Row`). */
     flat?: boolean;
+    /**
+     * La parola sul tasto, «Crea»: con lei il tasto si legge, invece del
+     * solo +. Creare è un'azione, e un'azione si dice.
+     */
+    label?: string;
   } = $props();
 
   /*
@@ -74,9 +80,13 @@
 
     {#snippet trail()}
       {@render after?.()}
-      <Button look="icon" type="submit" extra="add-go" {title}>
-        <Icon name="plus" />
-      </Button>
+      {#if label}
+        <Button look="ghost" size="sm" type="submit" extra="add-go" {title}>{label}</Button>
+      {:else}
+        <Button look="icon" type="submit" extra="add-go" {title}>
+          <Icon name="plus" />
+        </Button>
+      {/if}
     {/snippet}
   </Row>
 </form>

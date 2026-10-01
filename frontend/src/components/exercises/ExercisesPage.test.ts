@@ -117,7 +117,10 @@ describe('the exercises', () => {
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Modifica Squat' }));
-    await user.click(sheet().getByRole('button', { name: 'Elimina' }));
+    const remove = sheet().getByRole('button', { name: 'Elimina l’esercizio «Squat»' });
+    // at the top right of its window, next to the close
+    expect(remove.closest('header')).not.toBeNull();
+    await user.click(remove);
     const question = within(await screen.findByRole('alertdialog', { name: 'Eliminare l’esercizio «Squat»?' }));
     expect(api.changes()).toEqual([]);
     await user.click(question.getByRole('button', { name: 'Elimina' }));
@@ -133,7 +136,7 @@ describe('the exercises', () => {
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Modifica Squat' }));
-    await user.click(sheet().getByRole('button', { name: 'Elimina' }));
+    await user.click(sheet().getByRole('button', { name: 'Elimina l’esercizio «Squat»' }));
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Elimina' }));
     expect(await sheet().findByRole('alert')).toHaveTextContent('Non si può eliminare: è usato in una scheda o in un allenamento.');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -175,6 +178,16 @@ describe('the exercises', () => {
     expect(names()).toEqual(['Squat', 'Trazioni']);
     expect(screen.getByPlaceholderText('Nuovo esercizio')).toHaveValue('');
     expect(toast.message).toBe('Esercizio aggiunto.');
+  });
+
+  it('are created with a labelled «Crea» button too', async () => {
+    const api = fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [SQUAT]).on('POST /exercises', { id: 4, name: 'Trazioni', muscleGroup: null, notes: null });
+    render(Host, { page: ExercisesPage });
+    const user = userEvent.setup();
+    await screen.findByRole('button', { name: 'Modifica Squat' });
+    await user.type(screen.getByPlaceholderText('Nuovo esercizio'), 'Trazioni');
+    await user.click(screen.getByRole('button', { name: 'Crea' }));
+    expect(api.changes()).toEqual([{ route: 'POST /exercises', body: { name: 'Trazioni', muscleGroup: null, notes: null } }]);
   });
 
   it('say why the new one from the row was refused, and keep the name', async () => {

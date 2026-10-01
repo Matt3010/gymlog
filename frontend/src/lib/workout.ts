@@ -1,4 +1,4 @@
-import { formatKg, parseKg } from './format';
+import { formatKg, formatRest, parseKg } from './format';
 import type { DoneSet, PlanExercise, PreviousSets, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types';
 
 /**
@@ -45,14 +45,24 @@ export function targetReps(reps: string): number | null {
 }
 
 /**
- * La prossima serie, già scritta: chi si allena di solito ripete quella di
- * prima, o riparte da dove era arrivato l'ultima volta. Il peso non si
- * inventa: la prima volta in assoluto resta da scrivere.
+ * La prossima serie, già scritta. Le ripetizioni sono quelle che la scheda
+ * chiede per quella serie, quando dice un numero («8-10» → 8); se no si
+ * ripete quella di prima, o si riparte da dove si era arrivati l'ultima
+ * volta. Il peso è quello dell'ultima serie, o della prima dell'ultima
+ * volta: non si inventa, e la prima volta in assoluto resta da scrivere.
  */
 export function prefill(block: Block): { reps: number | null; weightKg: number | null } {
   const last = block.sets.at(-1) ?? block.previous?.sets[0];
-  if (last) return { reps: last.reps, weightKg: last.weightKg };
-  return { reps: block.target ? targetReps(block.target.reps) : null, weightKg: null };
+  const planned = block.target?.reps[block.sets.length];
+  const reps = (planned === undefined ? null : targetReps(planned)) ?? last?.reps ?? null;
+  return { reps, weightKg: last?.weightKg ?? null };
+}
+
+/** «12 · 10 · 8 · recupero 1:30 · lento»: quello che chiede la scheda, serie per serie. */
+export function describeTarget(target: PlanExercise): string {
+  return [...target.reps, target.restSeconds ? `recupero ${formatRest(target.restSeconds)}` : '', target.notes ?? '']
+    .filter(Boolean)
+    .join(' · ');
 }
 
 /**

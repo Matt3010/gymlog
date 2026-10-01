@@ -58,6 +58,35 @@ async function expectFlatRows(page: Page): Promise<void> {
   expect(nested, 'rows drawn as cards inside a card').toEqual([]);
 }
 
+/**
+ * No field makes an iPhone zoom in: on a touch screen every visible input
+ * and textarea is written at 16px or more (Safari zooms below that).
+ */
+async function expectNoZoomOnFocus(page: Page): Promise<void> {
+  expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), 'a touch screen').toBe(true);
+  const small = await page.locator('input:visible, textarea:visible').evaluateAll((fields) =>
+    fields
+      .map((field) => ({ name: field.getAttribute('aria-label') ?? field.getAttribute('placeholder') ?? field.getAttribute('name'), size: parseFloat(getComputedStyle(field).fontSize) }))
+      .filter((field) => field.size < 16),
+  );
+  expect(small, 'fields that make iOS zoom in').toEqual([]);
+}
+
+/** The blocks of a page, stacked: every two in a row are as far apart as two cards. */
+async function expectEvenStack(page: Page): Promise<void> {
+  const gaps = await page.locator('.cards').first().evaluate((stack) => {
+    const blocks = [...stack.children].filter((child) => getComputedStyle(child).display !== 'none' && child.getBoundingClientRect().height > 0);
+    return blocks.slice(1).map((block, at) => Math.round(block.getBoundingClientRect().top - blocks[at]!.getBoundingClientRect().bottom));
+  });
+  expect(new Set(gaps), 'gaps between the blocks of the page').toEqual(new Set([14]));
+}
+
+/** An action that adds to a list, or a new block in a card, is set apart by the hairline. */
+async function expectDivided(locator: Locator): Promise<void> {
+  const top = await locator.evaluate((element) => getComputedStyle(element).borderTopWidth);
+  expect(top, `${await locator.textContent()} is set apart`).toBe('1px');
+}
+
 const tile = (page: Page, name: string) => page.locator('dt', { hasText: new RegExp(`^${name}$`) }).locator('xpath=following-sibling::dd[1]');
 
 test('from the first exercise to the stats of a lift', async ({ page }) => {
@@ -66,6 +95,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
 
   await page.goto(base());
+  await expectNoZoomOnFocus(page);
   await page.getByLabel('Utente').fill(process.env.E2E_USER!);
   await page.getByLabel('Password', { exact: true }).fill(process.env.E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Entra' }).click();
@@ -81,29 +111,46 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   }));
   expect(page0).toEqual({ scroll: 0, html: 'none', body: 'none' });
 
+  // The invitation to install, when the browser offers it, keeps the same gap as the cards.
+  await page.evaluate(() =>
+    window.dispatchEvent(Object.assign(new Event('beforeinstallprompt', { cancelable: true }), { prompt: async () => undefined, userChoice: Promise.resolve({ outcome: 'dismissed' }) })),
+  );
+  await expect(page.getByRole('button', { name: 'Installa' })).toBeVisible();
+  await expectEvenStack(page);
+  await page.getByRole('button', { name: 'Non ora' }).click();
+
   // Two exercises.
   await page.getByRole('link', { name: 'Esercizi' }).click();
   await expect(page.getByRole('button', { name: 'Nuovo' })).toHaveCount(0);
   for (const name of ['Squat', 'Panca piana']) {
     await page.getByPlaceholder('Nuovo esercizio').fill(name);
-    await page.getByPlaceholder('Nuovo esercizio').press('Enter');
+    if (name === 'Squat') await page.getByPlaceholder('Nuovo esercizio').press('Enter');
+    else await page.getByRole('button', { name: 'Crea', exact: true }).click();
     await expect(page.getByPlaceholder('Nuovo esercizio')).toHaveValue('');
   }
   await expect(page.locator('.row .name')).toHaveText(['Panca piana', 'Squat']);
   await expectFlatRows(page);
+  await expectNoZoomOnFocus(page);
 
   // A plan: day A with Squat 3 × 8-10 and Panca, day B with Panca.
   await page.getByRole('link', { name: 'Schede' }).click();
   await page.getByRole('link', { name: 'Nuova' }).click();
   await page.getByPlaceholder('Forza, autunno').fill('Forza');
+  // a new plan is created on request; then it becomes the editor, which saves itself
+  await expect(page.getByRole('button', { name: 'Aggiungi esercizio' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Crea la scheda' }).click();
+  await expect(page).toHaveURL(/\/schede\/\d+$/);
   await page.getByRole('button', { name: 'Aggiungi esercizio' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Squat' }).click();
-  await page.getByLabel('Ripetizioni').first().fill('8-10');
+  for (const n of [1, 2, 3]) await page.getByLabel(`Serie ${n}, ripetizioni`).first().fill('8-10');
   await page.getByRole('button', { name: 'Aggiungi esercizio' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Panca piana' }).click();
   await page.getByRole('button', { name: 'Aggiungi giorno' }).click();
   await page.getByRole('button', { name: 'Aggiungi esercizio' }).nth(1).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Panca piana' }).click();
+  await expectNoZoomOnFocus(page);
+  for (const add of await page.locator('.add').all()) await expectDivided(add);
+  await expectEvenStack(page);
   // No save button: the plan saves itself, and gets its own address once created.
   await expect(page.getByRole('button', { name: /Salva/ })).toHaveCount(0);
   await expect(page.getByRole('status', { name: 'Salvataggio' })).toHaveText('Salvata');
@@ -111,7 +158,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
 
   // At the end of the editor its buttons are clear of the tab bar.
   await scrollToEnd(page);
-  await expectClearOfTabBar(page, page.getByRole('button', { name: 'Aggiungi giorno' }), page.getByRole('button', { name: 'Elimina scheda' }));
+  await expectClearOfTabBar(page, page.getByRole('button', { name: 'Aggiungi giorno' }));
 
   // A change made just before leaving is not lost.
   await page.getByPlaceholder('Forza, autunno').fill('Forza!');
@@ -127,7 +174,10 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.getByLabel('Ripetizioni', { exact: true })).toHaveValue('8');
   await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('');
   await page.getByLabel('Peso', { exact: true }).fill('60');
+  await expectNoZoomOnFocus(page);
+  await expectDivided(page.locator('.card .add').first());
   await page.getByRole('button', { name: 'Segna la serie 1' }).click();
+  await expectDivided(page.locator('.card .sets').first());
   await expect(page.getByRole('button', { name: 'Segna la serie 2' })).toBeVisible();
   await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('60');
   await page.getByRole('button', { name: 'Peso, più 2,5' }).click();
@@ -141,7 +191,8 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   const rest = page.getByRole('timer', { name: 'Recupero' });
   await expect(rest).toContainText(/Recupero 1:(30|29|28)/);
   await scrollToEnd(page);
-  const workoutButtons = [page.getByRole('button', { name: 'Elimina' }), page.getByRole('button', { name: 'Termina' })];
+  await expect(page.locator('header').getByRole('button', { name: 'Elimina l’allenamento' })).toBeVisible();
+  const workoutButtons = [page.getByRole('button', { name: 'Termina' })];
   await expectClearOfTabBar(page, rest, ...workoutButtons);
   await expectUncovered(page, rest, ...workoutButtons);
 
@@ -149,7 +200,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.locator('#toast')).toHaveText('Allenamento terminato.');
   await expect(rest).toBeHidden();
   await scrollToEnd(page);
-  const finishedButtons = [page.getByRole('button', { name: 'Elimina' }), page.getByRole('button', { name: 'Riapri' })];
+  const finishedButtons = [page.getByRole('button', { name: 'Riapri' })];
   await expectClearOfTabBar(page, ...finishedButtons);
   await expect(page.locator('#toast')).toBeVisible();
   await expectToastClearOf(page, ...finishedButtons);

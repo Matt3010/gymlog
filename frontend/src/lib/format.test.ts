@@ -15,6 +15,20 @@ describe('a weight', () => {
     expect(parseKg('100')).toBe(100);
   });
 
+  it('is read while being typed: a separator at the end counts for nothing', () => {
+    expect(parseKg('22,')).toBe(22);
+    expect(parseKg('22.')).toBe(22);
+    expect(parseKg('22,5')).toBe(22.5);
+    expect(parseKg('0,5')).toBe(0.5);
+    expect(parseKg(',5')).toBe(0.5);
+  });
+
+  it('is nothing with two separators or a separator alone', () => {
+    expect(parseKg('2,2,5')).toBeNull();
+    expect(parseKg('2.2,5')).toBeNull();
+    expect(parseKg(',')).toBeNull();
+  });
+
   it('is nothing when it is not a number', () => {
     expect(parseKg('')).toBeNull();
     expect(parseKg('abc')).toBeNull();

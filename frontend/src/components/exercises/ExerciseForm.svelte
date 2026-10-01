@@ -71,7 +71,8 @@
 
   tasti(() => [
     {
-      label: 'Elimina',
+      label: `Elimina l’esercizio «${exercise.name}»`,
+      place: 'head' as const,
       look: 'danger' as const,
       icon: 'trash' as const,
       disabled: working,

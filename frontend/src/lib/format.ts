@@ -9,11 +9,14 @@ export const formatNumber = (value: number): string => number.format(value);
 
 /**
  * Un peso scritto da chi si allena: con la virgola o col punto, come viene.
- * Quello che non è un numero, o è sotto zero, non è un peso.
+ * Mentre si scrive «22,» vale 22: il separatore in fondo aspetta i decimali,
+ * e un numero a metà non è un errore. Quello che non è un numero — due
+ * separatori, il separatore da solo, una lettera — o è sotto zero, non è un peso.
  */
 export function parseKg(text: string): number | null {
-  const value = Number(text.trim().replace(',', '.'));
-  return text.trim() === '' || !Number.isFinite(value) || value < 0 ? null : value;
+  const clean = text.trim();
+  if (!/^\d*[.,]?\d*$/.test(clean) || !/\d/.test(clean)) return null;
+  return Number(clean.replace(',', '.').replace(/\.$/, ''));
 }
 
 /** «1:30»: il recupero come lo mostra un cronometro. */

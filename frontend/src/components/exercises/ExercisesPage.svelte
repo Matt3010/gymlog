@@ -116,7 +116,7 @@
           {/each}
         </ul>
       {/if}
-      <AddRow flat placeholder="Nuovo esercizio" title="Aggiungi" bind:value={nuovo} onadd={quickAdd} />
+      <AddRow flat label="Crea" placeholder="Nuovo esercizio" title="Crea l’esercizio" bind:value={nuovo} onadd={quickAdd} />
       {#if addError}<Alert message={addError} />{/if}
     </PageCard>
   {/if}

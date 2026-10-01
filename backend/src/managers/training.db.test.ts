@@ -31,7 +31,7 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
     const bench = await s.exercises.create(user.id, { name: "Panca", muscleGroup: "Petto", notes: null });
     const input: PlanInput = {
       name: "Forza", notes: null, archived: false,
-      days: [{ name: "A", exercises: [{ exerciseId: squat.id, sets: 5, reps: "5", restSeconds: 180, notes: null }] }],
+      days: [{ name: "A", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5", "5", "5"], restSeconds: 180, notes: null }] }],
     };
     return { user, squat, bench, input, ...s };
   }

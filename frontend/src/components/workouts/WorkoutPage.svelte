@@ -9,7 +9,7 @@
   import { toast } from '../../lib/toast.svelte';
   import { ui } from '../../lib/ui.svelte';
   import type { Exercise, WorkoutDetail, WorkoutSet } from '../../lib/types';
-  import { blocksOf, describeSets, prefill, readSet, type Block } from '../../lib/workout';
+  import { blocksOf, describeSets, describeTarget, prefill, readSet, type Block } from '../../lib/workout';
   import Alert from '../Alert.svelte';
   import Button from '../Button.svelte';
   import Icon from '../Icon.svelte';
@@ -63,7 +63,7 @@
         notes = loaded.notes ?? '';
         // si apre il primo esercizio con delle serie ancora da fare
         const all = blocksOf(loaded);
-        const next = all.find((block) => block.sets.length < (block.target?.sets ?? 1)) ?? all[0];
+        const next = all.find((block) => block.sets.length < (block.target?.reps.length ?? 1)) ?? all[0];
         if (next && loaded.finishedAt === null) untrack(() => open(next));
       },
       (failure: Error) => (error = failure.message),
@@ -90,6 +90,9 @@
       const done = await workoutsApi.addSet(id, { exerciseId: block.exerciseId, ...typed });
       detail?.sets.push(done);
       added = added.filter((one) => one.id !== block.exerciseId);
+      // la prossima serie si propone da capo: quello che chiede la scheda per lei
+      const now = blocksOf(detail!, added).find((one) => one.exerciseId === block.exerciseId);
+      if (now) reps = String(prefill(now).reps ?? reps);
       if (block.target?.restSeconds) rest.start(block.target.restSeconds);
     } catch (failure) {
       error = (failure as Error).message;
@@ -177,6 +180,20 @@
 </script>
 
 <PageShell {title} {back}>
+  {#snippet tools()}
+    {#if detail}
+      <Button
+        look="icon"
+        tone="danger"
+        title="Elimina l’allenamento"
+        aria-label="Elimina l’allenamento"
+        disabled={working}
+        onclick={(event: MouseEvent) => askRemove(event.currentTarget as HTMLElement)}
+      >
+        <Icon name="trash" />
+      </Button>
+    {/if}
+  {/snippet}
   {#snippet meta()}
     {#if detail}
       <p class="meta">
@@ -194,8 +211,8 @@
       <PageCard>
         <button type="button" class="head" aria-expanded={isOpen} onclick={() => (isOpen ? (active = null) : open(block))}>
           <span class="name">{block.name}</span>
-          <span class="count" class:done={block.target !== null && block.sets.length >= block.target.sets}>
-            {block.target ? `${block.sets.length}/${block.target.sets}` : block.sets.length === 1 ? '1 serie' : `${block.sets.length} serie`}
+          <span class="count" class:done={block.target !== null && block.sets.length >= block.target.reps.length}>
+            {block.target ? `${block.sets.length}/${block.target.reps.length}` : block.sets.length === 1 ? '1 serie' : `${block.sets.length} serie`}
           </span>
           <Icon name={isOpen ? 'collapse' : 'expand'} />
         </button>
@@ -204,7 +221,7 @@
           {#if block.target}
             <p class="line">
               <span class="eyebrow">Scheda</span>
-              {block.target.sets} × {block.target.reps}{block.target.restSeconds ? ` · recupero ${formatRest(block.target.restSeconds)}` : ''}{block.target.notes ? ` · ${block.target.notes}` : ''}
+              {describeTarget(block.target)}
             </p>
           {/if}
           {#if block.previous}
@@ -231,11 +248,11 @@
         {/if}
 
         {#if isOpen || block.sets.length > 0 || detail.exerciseNotes[block.exerciseId]}
-          <ExerciseNote workoutId={id} exerciseId={block.exerciseId} note={detail.exerciseNotes[block.exerciseId] ?? ''} />
+          <div class="note"><ExerciseNote workoutId={id} exerciseId={block.exerciseId} note={detail.exerciseNotes[block.exerciseId] ?? ''} /></div>
         {/if}
         {#if isOpen && !finished}
           <div class="add">
-            <div class="pair">
+            <div class="steppers">
               <Stepper label="Ripetizioni" step={1} min={1} bind:value={reps} />
               <Stepper label="Peso" unit="kg" step={2.5} decimals bind:value={kg} />
             </div>
@@ -267,9 +284,6 @@
     {#if error && active === null}<Alert message={error} />{/if}
 
     <div class="actions">
-      <Button look="danger" disabled={working} onclick={(event: MouseEvent) => askRemove(event.currentTarget as HTMLElement)}>
-        <Icon name="trash" /> Elimina
-      </Button>
       {#if finished}
         <Button look="ghost" disabled={working} onclick={() => void setFinished(false)}>
           <Icon name="reopen" /> Riapri
@@ -349,6 +363,12 @@
     list-style: none;
   }
 
+  /* dentro la card di un esercizio ogni parte — le serie fatte, la nota, la
+     prossima serie — è separata dal tratto, come le righe di un elenco */
+  .sets, .note { padding-top: 8px; border-top: 1px solid var(--hairline-soft); }
+
+  .note { display: grid; gap: 8px; }
+
   .set {
     display: flex;
     align-items: center;
@@ -389,12 +409,12 @@
     border-top: 1px solid var(--hairline-soft);
   }
 
-  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .steppers { display: grid; gap: 10px; }
 
   /* il tasto che si preme dopo ogni serie: largo e alto quanto un pollice */
   .add :global(.btn.log) { padding: 13px 18px; font-size: 14.5px; }
 
-  .more { display: block; margin: 0 0 14px; }
+  .more { display: block; margin: 0; }
 
   .actions {
     display: flex;

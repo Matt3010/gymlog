@@ -3,8 +3,8 @@ import { type Executor, exercises, planDays, planExercises, plans } from "../../
 
 export interface PlanExerciseInput {
   readonly exerciseId: number;
-  readonly sets: number;
-  readonly reps: string;
+  /** One entry per set: the reps it asks for. */
+  readonly reps: string[];
   readonly restSeconds: number | null;
   readonly notes: string | null;
 }
@@ -78,7 +78,6 @@ async function daysOf(db: Executor, planIds: readonly number[]): Promise<Map<num
       exerciseId: planExercises.exerciseId,
       exerciseName: exercises.name,
       position: planExercises.position,
-      sets: planExercises.sets,
       reps: planExercises.reps,
       restSeconds: planExercises.restSeconds,
       notes: planExercises.notes,

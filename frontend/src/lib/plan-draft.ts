@@ -11,8 +11,8 @@ export interface DraftExercise {
   key: number;
   exerciseId: number;
   exerciseName: string;
-  sets: number;
-  reps: string;
+  /** Una voce per serie. */
+  reps: string[];
   restSeconds: number | null;
   notes: string;
 }
@@ -48,8 +48,7 @@ export function draftOf(plan: Plan | null): Draft {
         key: newKey(),
         exerciseId: exercise.exerciseId,
         exerciseName: exercise.exerciseName,
-        sets: exercise.sets,
-        reps: exercise.reps,
+        reps: [...exercise.reps],
         restSeconds: exercise.restSeconds,
         notes: exercise.notes ?? '',
       })),
@@ -68,8 +67,7 @@ export function toInput(draft: Draft): PlanInput {
       name: day.name.trim(),
       exercises: day.exercises.map((exercise) => ({
         exerciseId: exercise.exerciseId,
-        sets: exercise.sets,
-        reps: exercise.reps.trim(),
+        reps: exercise.reps.map((one) => one.trim()),
         restSeconds: exercise.restSeconds,
         notes: orNull(exercise.notes),
       })),
@@ -99,13 +97,26 @@ export function problemOf(draft: Draft): string | null {
   for (const day of draft.days) {
     if (day.name.trim() === '') return 'Ogni giorno ha bisogno di un nome, come «A» o «Gambe».';
     for (const exercise of day.exercises) {
-      if (exercise.reps.trim() === '') {
-        return `Nel giorno «${day.name.trim()}» l’esercizio «${exercise.exerciseName}» non ha ripetizioni. Scrivi quante, anche «max».`;
+      const empty = exercise.reps.findIndex((one) => one.trim() === '');
+      if (empty >= 0) {
+        return `Nel giorno «${day.name.trim()}» la serie ${empty + 1} dell’esercizio «${exercise.exerciseName}» non ha ripetizioni. Scrivi quante, anche «max».`;
       }
-      if (!(exercise.sets >= 1 && exercise.sets <= 20)) {
+      if (!(exercise.reps.length >= 1 && exercise.reps.length <= 20)) {
         return `Nel giorno «${day.name.trim()}» le serie dell’esercizio «${exercise.exerciseName}» vanno da 1 a 20.`;
       }
     }
   }
   return null;
+}
+
+/** Una serie in più, uguale all'ultima: di solito la prossima chiede quanto quella prima. Fino a 20. */
+export function addSet(exercise: DraftExercise): void {
+  if (exercise.reps.length >= 20) return;
+  exercise.reps.push(exercise.reps.at(-1) ?? '10');
+}
+
+/** Toglie quella serie; l'ultima rimasta resta, perché un esercizio senza serie non si fa. */
+export function removeSet(exercise: DraftExercise, index: number): void {
+  if (exercise.reps.length <= 1) return;
+  exercise.reps.splice(index, 1);
 }

@@ -1,15 +1,22 @@
 import type { PlanExerciseInput, PlanInput } from "../../repositories";
-import { bool, id, InputError, list, number, object, optionalNumber, optionalText, text } from "../common";
+import { type Body, bool, id, InputError, list, object, optionalNumber, optionalText, text } from "../common";
 
 const MAX_DAYS = 14;
 const MAX_EXERCISES_PER_DAY = 30;
+const MAX_SETS = 20;
+
+/** The reps of each set: one to twenty sets, each a short text ("12", "8-10", "max"). */
+function setsReps(body: Body): string[] {
+  const reps = body.reps;
+  if (!Array.isArray(reps) || reps.length === 0 || reps.length > MAX_SETS) throw new InputError(`Serie: da 1 a ${MAX_SETS}.`);
+  return reps.map((value) => text({ reps: value }, "reps", 20));
+}
 
 function parsePlanExercise(value: unknown): PlanExerciseInput {
   const body = object(value);
   return {
     exerciseId: id(body, "exerciseId"),
-    sets: number(body, "sets", 1, 20, true),
-    reps: text(body, "reps", 20),
+    reps: setsReps(body),
     restSeconds: optionalNumber(body, "restSeconds", 0, 3600, true),
     notes: optionalText(body, "notes"),
   };

@@ -21,8 +21,7 @@ interface ExerciseInput { name: string; muscleGroup: string | null; notes: strin
 
 interface PlanExercise {
   id: number; exerciseId: number; exerciseName: string; position: number;
-  sets: number;              // serie previste, 1..20
-  reps: string;              // ripetizioni previste, testo libero: "8", "8-10", "max"
+  reps: string[];            // una voce per serie (1..20), testo libero: ["12", "10", "8-10", "max"]
   restSeconds: number | null;
   notes: string | null;
 }
@@ -31,7 +30,7 @@ interface Plan { id: number; name: string; notes: string | null; archived: boole
 // Una scheda si salva tutta insieme: giorni ed esercizi vengono sostituiti.
 interface PlanInput {
   name: string; notes: string | null; archived: boolean;
-  days: { name: string; exercises: { exerciseId: number; sets: number; reps: string; restSeconds: number | null; notes: string | null }[] }[];
+  days: { name: string; exercises: { exerciseId: number; reps: string[]; restSeconds: number | null; notes: string | null }[] }[];
 }
 
 interface Workout {
@@ -102,5 +101,5 @@ Utenti: nome di 3–30 caratteri fra lettere, numeri, `.` `_` `-`, salvato e cer
 password di almeno 10 caratteri.
 
 Limiti: nomi 1–100 caratteri, note fino a 1000, `reps` di una serie 1–100 (intero),
-`weightKg` 0–1000, `sets` previste 1–20, `restSeconds` 0–3600, al più 14 giorni per scheda
+`weightKg` 0–1000, serie previste 1–20 (ognuna 1–20 caratteri), `restSeconds` 0–3600, al più 14 giorni per scheda
 e 30 esercizi per giorno.

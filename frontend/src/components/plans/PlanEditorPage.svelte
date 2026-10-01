@@ -3,7 +3,7 @@
   import { Autosave } from '../../lib/autosave.svelte';
   import { plansApi } from '../../lib/endpoints';
   import { nav } from '../../lib/nav.svelte';
-  import { addDay, draftOf, move, newKey, problemOf, toInput, type Draft, type DraftDay } from '../../lib/plan-draft';
+  import { addDay, addSet, draftOf, move, newKey, problemOf, removeSet, toInput, type Draft, type DraftDay } from '../../lib/plan-draft';
   import { planPath, PLANS_PATH } from '../../lib/routing';
   import { toast } from '../../lib/toast.svelte';
   import type { Exercise, PlanInput } from '../../lib/types';
@@ -21,27 +21,38 @@
 
   /**
    * Una scheda da scrivere: il nome, i giorni, e in ogni giorno gli esercizi
-   * in ordine con serie, ripetizioni e recupero. Si salva da sé mentre la
-   * scrivi, tutta insieme (`Autosave`): nessun tasto «Salva». Quella nuova
-   * nasce appena ha un nome, e l'indirizzo diventa il suo senza rifare la
-   * pagina. Quello che il server rifiuterebbe si dice prima, e non parte.
+   * in ordine con serie, ripetizioni e recupero.
+   *
+   * Una scheda nuova si crea su richiesta: nome, note e «Crea la scheda».
+   * Creata, la pagina diventa la sua, e da lì si salva da sé mentre la
+   * scrivi, tutta insieme (`Autosave`): nessun tasto «Salva». Quello che il
+   * server rifiuterebbe si dice prima, e non parte.
    */
   let { id }: { id: number | null } = $props();
 
   let draft = $state<Draft | null>(null);
   let error = $state('');
   let working = $state(false);
-  // svelte-ignore state_referenced_locally
-  let planId = $state(id);
   /** L'ultima versione mandata, o quella aperta: uguale, non si rimanda. */
   let sent = '';
 
-  const saver = new Autosave<PlanInput>(async (input) => {
-    if (planId !== null) return plansApi.save(planId, input);
-    const created = await plansApi.create(input);
-    planId = created.id;
-    nav.rewrite(planPath(created.id));
-  });
+  /* una scheda nuova: solo il nome e le note, finché non la si crea */
+  let newName = $state('');
+  let newNotes = $state('');
+
+  async function create(): Promise<void> {
+    working = true;
+    error = '';
+    try {
+      const created = await plansApi.create(toInput({ ...draftOf(null), name: newName, notes: newNotes }));
+      nav.go(planPath(created.id), { replace: true });
+    } catch (failure) {
+      error = (failure as Error).message;
+      working = false;
+    }
+  }
+
+  const saver = new Autosave<PlanInput>((input) => plansApi.save(id!, input));
   // lasciando la pagina parte quello che aspettava
   onDestroy(() => void saver.flush());
 
@@ -51,13 +62,10 @@
   }
 
   $effect(() => {
-    if (id === null) opened(draftOf(null));
-    else plansApi.get(id).then((plan) => opened(draftOf(plan)), (failure: Error) => (error = failure.message));
+    if (id !== null) plansApi.get(id).then((plan) => opened(draftOf(plan)), (failure: Error) => (error = failure.message));
   });
 
   const problem = $derived(draft ? problemOf(draft) : null);
-  /* il nome che manca a una scheda appena cominciata non è un errore: si aspetta che arrivi */
-  const shownProblem = $derived(problem && !(planId === null && draft?.name.trim() === '') ? problem : null);
 
   $effect(() => {
     if (!draft) return;
@@ -75,7 +83,7 @@
       props: {
         exclude: day.exercises.map((one) => one.exerciseId),
         onpick: (exercise: Exercise) =>
-          day.exercises.push({ key: newKey(), exerciseId: exercise.id, exerciseName: exercise.name, sets: 3, reps: '10', restSeconds: 90, notes: '' }),
+          day.exercises.push({ key: newKey(), exerciseId: exercise.id, exerciseName: exercise.name, reps: ['10', '10', '10'], restSeconds: 90, notes: '' }),
       },
     });
   }
@@ -97,10 +105,10 @@
   }
 
   async function remove(): Promise<void> {
-    if (planId === null) return;
+    if (id === null) return;
     working = true;
     try {
-      await plansApi.remove(planId);
+      await plansApi.remove(id);
       toast.show('Scheda eliminata. Gli allenamenti fatti restano nello storico.');
       nav.go(PLANS_PATH, { replace: true });
     } catch (failure) {
@@ -114,9 +122,40 @@
   const back = { href: PLANS_PATH, label: 'Schede' };
 </script>
 
-<PageShell title={planId === null ? 'Nuova scheda' : (draft?.name || 'Scheda')} {back}>
-  {#snippet meta()}<SaveStatus {saver} />{/snippet}
-  {#if !draft && !error}
+<PageShell title={id === null ? 'Nuova scheda' : (draft?.name || 'Scheda')} {back}>
+  {#snippet meta()}{#if id !== null}<SaveStatus {saver} />{/if}{/snippet}
+  {#snippet tools()}
+    {#if id !== null && draft}
+      <Button
+        look="icon"
+        tone="danger"
+        title="Elimina la scheda"
+        aria-label="Elimina la scheda «{draft.name.trim() || 'senza nome'}»"
+        disabled={working}
+        onclick={(event: MouseEvent) => askRemove(event.currentTarget as HTMLElement)}
+      >
+        <Icon name="trash" />
+      </Button>
+    {/if}
+  {/snippet}
+  {#if id === null}
+    <PageCard>
+      <label class="field">
+        <span class="eyebrow">Nome</span>
+        <TextField bind:value={newName} placeholder="Forza, autunno" maxlength={100} />
+      </label>
+      <label class="field">
+        <span class="eyebrow">Note</span>
+        <TextField kind="multiline" bind:value={newNotes} maxlength={1000} placeholder="Quante volte a settimana, cosa curare" />
+      </label>
+      {#if error}<Alert message={error} />{/if}
+      <span class="create">
+        <Button look="primary" disabled={working || newName.trim() === ''} onclick={() => void create()}>
+          <Icon name="plus" /> Crea la scheda
+        </Button>
+      </span>
+    </PageCard>
+  {:else if !draft && !error}
     <PageCard><PanelSkeleton /></PageCard>
   {:else if draft}
     <PageCard>
@@ -172,20 +211,24 @@
                 </Button>
               </span>
             </div>
+            <!-- le serie una per una, ognuna con le sue ripetizioni: «12, 10, 8» -->
+            <ol class="sets">
+              {#each exercise.reps as _, at (at)}
+                <li class="set">
+                  <span class="set-name">Serie {at + 1}</span>
+                  <TextField bind:value={exercise.reps[at]} label="Serie {at + 1}, ripetizioni" placeholder="8-10" maxlength={20} />
+                  <Button look="icon" size="sm" tone="danger" title="Togli la serie {at + 1}" aria-label="Togli la serie {at + 1}" disabled={exercise.reps.length === 1} onclick={() => removeSet(exercise, at)}>
+                    <Icon name="close" />
+                  </Button>
+                </li>
+              {/each}
+            </ol>
+            <span class="add-set">
+              <Button look="link" disabled={exercise.reps.length >= 20} aria-label="Aggiungi una serie a {exercise.exerciseName}" onclick={() => addSet(exercise)}>
+                <Icon name="plus" /> Serie
+              </Button>
+            </span>
             <div class="numbers">
-              <label class="field">
-                <span class="eyebrow">Serie</span>
-                <input
-                  type="text"
-                  inputmode="numeric"
-                  value={String(exercise.sets)}
-                  oninput={(event) => (exercise.sets = whole(event.currentTarget.value) ?? 0)}
-                />
-              </label>
-              <label class="field">
-                <span class="eyebrow">Ripetizioni</span>
-                <TextField bind:value={exercise.reps} placeholder="8-10" maxlength={20} />
-              </label>
               <label class="field">
                 <span class="eyebrow">Recupero (s)</span>
                 <input
@@ -214,17 +257,10 @@
       </Button>
     </div>
 
-    {#if shownProblem}<Alert message={shownProblem} />{/if}
+    {#if problem}<Alert message={problem} />{/if}
     {#if saver.status === 'error'}<Alert message={saver.error} />{/if}
     {#if error}<Alert message={error} />{/if}
 
-    {#if planId !== null}
-      <div class="actions">
-        <Button look="danger" disabled={working} onclick={(event: MouseEvent) => askRemove(event.currentTarget as HTMLElement)}>
-          <Icon name="trash" /> Elimina scheda
-        </Button>
-      </div>
-    {/if}
   {:else if error}
     <Alert message={error} />
   {/if}
@@ -232,6 +268,8 @@
 
 
 <style>
+  .create { justify-self: end; }
+
   .day-head {
     display: flex;
     align-items: flex-end;
@@ -260,23 +298,34 @@
 
   .numbers {
     display: grid;
-    grid-template-columns: 0.7fr 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }
 
-  .numbers input { text-align: center; font-variant-numeric: tabular-nums; }
+  .sets { display: grid; margin: 0; padding: 0; list-style: none; }
 
-  .bottom { margin: 0 0 14px; }
-
-  .actions {
-    display: flex;
-    justify-content: flex-end;
+  /* una serie per riga, piatta, separata dal tratto come le righe di ogni elenco */
+  .set {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) auto;
     align-items: center;
-    gap: 10px;
-    margin-top: 14px;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--hairline-soft);
   }
 
-  .actions :global(.btn.primary) { padding: 12px 20px; }
+  .set-name { font-size: 12.5px; color: var(--ink-2); }
 
-  .add { justify-self: start; }
+  .set :global(.text-field) { text-align: center; font-variant-numeric: tabular-nums; }
+
+  .add-set { justify-self: start; }
+
+  .numbers input { text-align: center; font-variant-numeric: tabular-nums; }
+
+  .bottom { margin: 0; }
+
+
+
+  /* l'azione che aggiunge chiude l'elenco, separata dal tratto come una riga */
+  .add { display: block; padding-top: 10px; border-top: 1px solid var(--hairline-soft); }
 </style>

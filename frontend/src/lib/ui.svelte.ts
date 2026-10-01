@@ -69,6 +69,12 @@ export interface ModalAction {
   icon?: IconName;
   disabled?: boolean;
   /**
+   * In testa, accanto alla chiusura, come icona sola (`label` la dice a chi
+   * non vede): è il posto di «Elimina», che porta via la cosa che la
+   * finestra mostra. Senza, il tasto sta in fondo.
+   */
+  place?: 'head';
+  /**
    * Cosa fa, e da quale tasto è partita.
    *
    * L'elemento serve a chi deve chiedere conferma: la domanda si apre

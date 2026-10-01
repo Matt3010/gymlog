@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanExercise, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types';
-import { blocksOf, describeSets, inProgress, prefill, readSet, targetReps } from './workout';
+import { blocksOf, describeSets, describeTarget, inProgress, prefill, readSet, targetReps } from './workout';
 
 const target = (exerciseId: number, exerciseName: string, extra: Partial<PlanExercise> = {}): PlanExercise => ({
-  id: exerciseId * 10, exerciseId, exerciseName, position: 0, sets: 3, reps: '8-10', restSeconds: 90, notes: null, ...extra,
+  id: exerciseId * 10, exerciseId, exerciseName, position: 0, reps: ['8-10', '8-10', '8-10'], restSeconds: 90, notes: null, ...extra,
 });
 
 let nextSet = 1;
@@ -19,7 +19,7 @@ const detail = (extra: Partial<WorkoutDetail> = {}): WorkoutDetail => ({
 describe('the blocks of a workout', () => {
   it('follow the plan day, each with its target, its sets and the last time', () => {
     const squat = target(1, 'Squat');
-    const bench = target(2, 'Panca', { sets: 4 });
+    const bench = target(2, 'Panca', { reps: ['10', '10', '8', '6'] });
     const done = [set(1, 'Squat', 8, 100), set(2, 'Panca', 10, 60), set(1, 'Squat', 8, 102.5)];
     const previous = { '1': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 97.5 }], note: null } };
     const blocks = blocksOf(detail({ plan: [squat, bench], sets: done, previous }));
@@ -71,25 +71,43 @@ describe('the reps a plan asks for', () => {
 });
 
 describe('the next set, proposed', () => {
-  const block = { exerciseId: 1, name: 'Squat', target: target(1, 'Squat', { reps: '6-8' }), sets: [] as WorkoutSet[], previous: null };
+  const block = { exerciseId: 1, name: 'Squat', target: target(1, 'Squat', { reps: ['12', '10', '8-9', 'max'] }), sets: [] as WorkoutSet[], previous: null };
+  const previous = { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 95 }, { reps: 6, weightKg: 100 }], note: null };
 
-  it('repeats the last set of this workout', () => {
-    expect(prefill({ ...block, sets: [set(1, 'Squat', 8, 100), set(1, 'Squat', 7, 105)] })).toEqual({ reps: 7, weightKg: 105 });
+  it('takes the reps the plan asks for that set, and the weight of the last set', () => {
+    expect(prefill(block)).toEqual({ reps: 12, weightKg: null });
+    expect(prefill({ ...block, sets: [set(1, 'Squat', 12, 100)] })).toEqual({ reps: 10, weightKg: 100 });
+    expect(prefill({ ...block, sets: [set(1, 'Squat', 12, 100), set(1, 'Squat', 10, 105)] })).toEqual({ reps: 8, weightKg: 105 });
   });
 
-  it('prefers today over last time, once a set is done', () => {
-    const previous = { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 95 }], note: null };
-    expect(prefill({ ...block, previous, sets: [set(1, 'Squat', 6, 100)] })).toEqual({ reps: 6, weightKg: 100 });
+  it('takes the weight of last time before a set is done today', () => {
+    expect(prefill({ ...block, previous })).toEqual({ reps: 12, weightKg: 95 });
   });
 
-  it('starts from the first set of last time', () => {
-    const previous = { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 95 }, { reps: 6, weightKg: 100 }], note: null };
-    expect(prefill({ ...block, previous })).toEqual({ reps: 8, weightKg: 95 });
+  it('repeats the last set when the plan says no number for that one', () => {
+    const three = [set(1, 'Squat', 12, 100), set(1, 'Squat', 10, 100), set(1, 'Squat', 9, 102.5)];
+    expect(prefill({ ...block, sets: three })).toEqual({ reps: 9, weightKg: 102.5 });
   });
 
-  it('starts from what the plan asks, without a weight, the first time ever', () => {
-    expect(prefill(block)).toEqual({ reps: 6, weightKg: null });
+  it('repeats the last set beyond what the plan asks', () => {
+    const many = [12, 10, 8, 7, 6].map((reps) => set(1, 'Squat', reps, 100));
+    expect(prefill({ ...block, sets: many })).toEqual({ reps: 6, weightKg: 100 });
+  });
+
+  it('without a plan repeats today, then last time', () => {
     expect(prefill({ ...block, target: null })).toEqual({ reps: null, weightKg: null });
+    expect(prefill({ ...block, target: null, previous })).toEqual({ reps: 8, weightKg: 95 });
+    expect(prefill({ ...block, target: null, previous, sets: [set(1, 'Squat', 5, 110)] })).toEqual({ reps: 5, weightKg: 110 });
+  });
+});
+
+describe('what the plan asks, said', () => {
+  it('is each set’s reps, then the rest', () => {
+    expect(describeTarget(target(1, 'Squat', { reps: ['12', '10', '8'], restSeconds: 90 }))).toBe('12 · 10 · 8 · recupero 1:30');
+  });
+
+  it('without a rest is the reps alone, with the notes after', () => {
+    expect(describeTarget(target(1, 'Squat', { reps: ['max'], restSeconds: null, notes: 'lento' }))).toBe('max · lento');
   });
 });
 

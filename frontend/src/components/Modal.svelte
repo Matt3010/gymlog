@@ -60,6 +60,8 @@
   });
 
   const azioni = $derived(dettati ? dettati() : (request.actions ?? []));
+  const inTesta = $derived(azioni.filter((azione) => azione.place === 'head'));
+  const inFondo = $derived(azioni.filter((azione) => azione.place !== 'head'));
 
   /*
    * Il fuoco entra quando si apre.
@@ -112,7 +114,7 @@
 
   /** Un tasto che risponde «no» chiude e basta; gli altri lo dicono loro. */
   async function press(at: number, anchor: HTMLElement): Promise<void> {
-    const azione = azioni[at];
+    const azione = inFondo[at] ?? inTesta[at - inFondo.length];
     if (!azione) return;
 
     const resta = await azione.onpick(anchor);
@@ -141,6 +143,19 @@
     <h2>{request.title}</h2>
     <!-- chiudere di qui chiede, se dentro c'è qualcosa di non salvato; la
          domanda si attacca a questo tasto (`data-chiudi`) -->
+    {#each inTesta as azione, at (azione.label)}
+      <Button
+        look="icon"
+        tone={azione.tone}
+        title={azione.label}
+        aria-label={azione.label}
+        disabled={azione.disabled}
+        extra="head-action"
+        onclick={(event: MouseEvent) => void press(inFondo.length + at, event.currentTarget as HTMLElement)}
+      >
+        <Icon name={azione.icon ?? 'trash'} />
+      </Button>
+    {/each}
     <Button look="icon" title="Chiudi" data-chiudi onclick={() => ui.lascia(request)}>
       <Icon name="close" />
     </Button>
@@ -154,9 +169,9 @@
     {/if}
   </div>
 
-  {#if azioni.length}
+  {#if inFondo.length}
     <div class="modal-foot">
-      {#each azioni as azione, at (azione.label)}
+      {#each inFondo as azione, at (azione.label)}
         <Button
           look={azione.look ?? 'ghost'}
           tone={azione.tone}
@@ -201,6 +216,9 @@
     gap: 8px;
     flex: none;
   }
+
+  /* «Elimina» in testa sta accanto alla chiusura, a destra */
+  header :global(.head-action) { margin-left: auto; margin-right: -6px; }
 
   h2 {
     margin: 0;
