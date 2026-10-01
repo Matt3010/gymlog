@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
+  import { Autosave } from '../../lib/autosave.svelte';
   import { workoutsApi } from '../../lib/endpoints';
   import { formatClock, formatDay, formatDuration, formatKg, formatRest } from '../../lib/format';
   import { nav } from '../../lib/nav.svelte';
@@ -14,6 +15,7 @@
   import Icon from '../Icon.svelte';
   import PageCard from '../PageCard.svelte';
   import PageShell from '../PageShell.svelte';
+  import SaveStatus from '../SaveStatus.svelte';
   import PanelSkeleton from '../PanelSkeleton.svelte';
   import Stepper from '../Stepper.svelte';
   import TextField from '../TextField.svelte';
@@ -107,13 +109,13 @@
     if (block) open(block);
   }
 
-  async function saveNotes(): Promise<void> {
-    if (!detail || (detail.notes ?? '') === notes.trim()) return;
-    try {
-      detail = await workoutsApi.update(id, { notes: notes.trim() === '' ? null : notes.trim() });
-    } catch (failure) {
-      error = (failure as Error).message;
-    }
+  /* la nota dell'allenamento si salva lasciando il campo, come ogni altra */
+  const noteSaver = new Autosave<string | null>(async (text) => (detail = await workoutsApi.update(id, { notes: text })), 0);
+
+  function saveNotes(): Promise<void> {
+    if (!detail || (detail.notes ?? '') === notes.trim()) return Promise.resolve();
+    noteSaver.change(notes.trim() === '' ? null : notes.trim());
+    return noteSaver.flush();
   }
 
   async function setFinished(value: boolean): Promise<void> {
@@ -256,9 +258,10 @@
 
     <PageCard>
       <label class="field">
-        <span class="eyebrow">Note</span>
+        <span class="eyebrow">Note <SaveStatus saver={noteSaver} /></span>
         <TextField kind="multiline" bind:value={notes} maxlength={1000} placeholder="Come è andata, cosa cambiare" onblur={() => void saveNotes()} />
       </label>
+      {#if noteSaver.status === 'error'}<Alert message={noteSaver.error} />{/if}
     </PageCard>
 
     {#if error && active === null}<Alert message={error} />{/if}

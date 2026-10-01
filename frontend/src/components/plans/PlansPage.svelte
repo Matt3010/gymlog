@@ -27,7 +27,7 @@
 
 {#snippet row(plan: Plan)}
   <li>
-    <Row>
+    <Row flat>
       <a class="go" href={planPath(plan.id)}>
         <span class="name">{plan.name}</span>
         <span class="days">
@@ -70,7 +70,7 @@
 </PageShell>
 
 <style>
-  .rows { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .rows { display: grid; margin: 0; padding: 0; list-style: none; }
 
   /* il collegamento prende tutta la riga che gli dà Row */
   .go {

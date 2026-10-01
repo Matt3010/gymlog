@@ -11,7 +11,7 @@
 </script>
 
 <li>
-  <Row>
+  <Row flat>
     <a class="go" href={workoutPath(workout.id)}>
       <span class="day">{formatDay(workout.startedAt)}</span>
       <span class="what">{what}{workout.finishedAt === null ? ' · in corso' : ''}</span>

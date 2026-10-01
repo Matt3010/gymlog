@@ -19,6 +19,7 @@
     onadd,
     before,
     after,
+    flat = false,
   }: {
     id?: string;
     placeholder: string;
@@ -31,6 +32,8 @@
     /** Cosa sta prima e dopo il campo: l'emoji di una categoria, il suo colore. */
     before?: Snippet;
     after?: Snippet;
+    /** Piatta, come le righe sopra di lei dentro una card (vedi `Row`). */
+    flat?: boolean;
   } = $props();
 
   /*
@@ -57,8 +60,8 @@
 <!-- il modulo non disegna niente: tutta la geometria è quella della riga, e i
      pezzi stanno nelle stesse fessure delle righe qui sopra -->
 <form class="shell" onsubmit={submit}>
-  <Row dashed {id} class={value.trim() ? 'is-ready' : ''}>
-    {#snippet lead()}{@render before?.()}{/snippet}
+  <Row dashed {flat} {id} class={value.trim() ? 'is-ready' : ''}>
+    {#snippet lead()}{#if flat && !before}<span class="plus"><Icon name="plus" /></span>{/if}{@render before?.()}{/snippet}
 
     <TextField
       name="name"
@@ -87,4 +90,8 @@
     background: var(--accent);
     color: var(--on-accent);
   }
+
+  .plus { display: grid; place-items: center; width: 28px; color: var(--ink-3); }
+
+  .plus :global(.ico) { width: 16px; height: 16px; }
 </style>

@@ -3,7 +3,7 @@
   import { formatDay, formatKg } from '../../lib/format';
   import { exercisePath } from '../../lib/routing';
   import type { Exercise, ExerciseOverview } from '../../lib/types';
-  import { perNome, perTesto, Vista } from '../../lib/vista.svelte';
+  import { perNome, Vista } from '../../lib/vista.svelte';
   import AddRow from '../AddRow.svelte';
   import Alert from '../Alert.svelte';
   import Button from '../Button.svelte';
@@ -14,7 +14,6 @@
   import PanelSkeleton from '../PanelSkeleton.svelte';
   import Row from '../Row.svelte';
   import TextField from '../TextField.svelte';
-  import ViewControls from '../ViewControls.svelte';
   import { toast } from '../../lib/toast.svelte';
   import { ui } from '../../lib/ui.svelte';
   import ExerciseForm from './ExerciseForm.svelte';
@@ -42,21 +41,13 @@
     `media ${formatKg(row.avgWeight)} · max ${formatKg(row.maxWeight)} · ${row.sessions === 1 ? '1 sessione' : `${row.sessions} sessioni`} · l’ultima ${formatDay(row.lastAt).toLowerCase()}`;
 
   /*
-   * Si cerca per nome o per gruppo, e si mette in fila per l'uno o per
-   * l'altro: la vista è quella di restaurant-index, e si ricorda come
-   * l'hai lasciata. Senza gruppo si va in fondo, quando si ordina per gruppo.
+   * Si cerca per nome o per gruppo, con la vista di restaurant-index; l'ordine
+   * è uno solo, per nome, e uno nuovo va al suo posto. Niente comando per
+   * cambiarlo: in un elenco così corto non serviva.
    */
   const vista = new Vista<Exercise>({
     chiave: 'esercizi',
-    criteri: [
-      { id: 'nome', label: 'Nome', per: perNome },
-      {
-        id: 'gruppo',
-        label: 'Gruppo muscolare',
-        per: (a, b) => perTesto(a.muscleGroup ?? '', b.muscleGroup ?? '') || perNome(a, b),
-        inFondo: (exercise) => !exercise.muscleGroup,
-      },
-    ],
+    criteri: [{ id: 'nome', label: 'Nome', per: perNome }],
     testoDi: (exercise) => [exercise.name, exercise.muscleGroup ?? ''],
   });
   const shown = $derived(vista.applica(exercises ?? []));
@@ -102,13 +93,12 @@
       {:else}
         <div class="find">
           <TextField kind="search" bind:value={vista.cerca} placeholder="Cerca per nome o gruppo" label="Cerca un esercizio" />
-          <ViewControls {vista} />
         </div>
         <ul class="rows">
           {#each shown as exercise (exercise.id)}
             {@const row = numbers.get(exercise.id)}
             <li>
-              <Row>
+              <Row flat>
                 <a class="open" href={exercisePath(exercise.id)}>
                   <span class="name">{exercise.name}</span>
                   {#if exercise.muscleGroup}<span class="group">{exercise.muscleGroup}</span>{/if}
@@ -126,7 +116,7 @@
           {/each}
         </ul>
       {/if}
-      <AddRow placeholder="Un esercizio nuovo, per nome" title="Aggiungi" bind:value={nuovo} onadd={quickAdd} />
+      <AddRow flat placeholder="Nuovo esercizio" title="Aggiungi" bind:value={nuovo} onadd={quickAdd} />
       {#if addError}<Alert message={addError} />{/if}
     </PageCard>
   {/if}
@@ -140,7 +130,6 @@
 
   .rows {
     display: grid;
-    gap: 6px;
     margin: 0;
     padding: 0;
     list-style: none;

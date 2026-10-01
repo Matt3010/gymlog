@@ -19,6 +19,7 @@
     under,
     active = false,
     dashed = false,
+    flat = false,
     class: extra = '',
     ...rest
   }: {
@@ -30,6 +31,12 @@
     active?: boolean;
     /** La riga con cui si aggiunge: un posto vuoto da riempire. */
     dashed?: boolean;
+    /**
+     * Piatta, per stare dentro una card: niente fondo, bordo né ombra suoi,
+     * solo il tratto sottile che la separa dalla prossima. Una card dentro
+     * una card è un livello di troppo: la sezione è la card, le righe no.
+     */
+    flat?: boolean;
     /** Una classe in più da fuori: si aggiunge a "row", non la sostituisce. */
     class?: string;
     [key: string]: unknown;
@@ -40,6 +47,7 @@
   class="row {extra}"
   class:is-on={active}
   class:is-dashed={dashed}
+  class:is-flat={flat}
   class:has-under={under}
   {...rest}
 >
@@ -155,4 +163,24 @@
   @media (hover: none) {
     .row :global(input) { padding-top: 10px; padding-bottom: 10px; }
   }
+
+  /* piatta, dentro una card: il tratto la separa, la pressione la accende */
+  .row.is-flat,
+  .row.is-flat.is-dashed {
+    padding: 4px 0;
+    border: 0;
+    border-bottom: 1px solid var(--hairline-soft);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .row.is-flat:hover { background: transparent; }
+
+  .row.is-flat:active { background: var(--sunken); }
+
+  /* la riga che aggiunge chiude l'elenco: sotto non serve un tratto */
+  .row.is-flat.is-dashed { border-bottom: 0; }
+
+  .row.is-flat.is-dashed:focus-within { border: 0; box-shadow: none; }
 </style>

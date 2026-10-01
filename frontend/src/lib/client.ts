@@ -1,4 +1,5 @@
 import { createClient } from './api';
+import { settled } from './autosave.svelte';
 import { Session } from './session.svelte';
 
 /*
@@ -7,7 +8,11 @@ import { Session } from './session.svelte';
  * l'app torna alla porta da sé.
  */
 export const api = createClient({
-  fetch: (url, init) => fetch(url, init),
+  // una lettura aspetta i salvataggi in viaggio: si legge quello che si è appena scritto
+  fetch: async (url, init) => {
+    if ((init?.method ?? 'GET') === 'GET') await settled();
+    return fetch(url, init);
+  },
   onSignedOut: () => session.signedOut(),
 });
 

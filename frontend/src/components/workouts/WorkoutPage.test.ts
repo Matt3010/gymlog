@@ -122,11 +122,29 @@ describe('a workout in progress', () => {
     await user.click(await screen.findByRole('button', { name: /8 × 60 kg/ }));
     const sheet = within(screen.getByRole('dialog', { name: 'Serie 1 di Squat' }));
     expect(sheet.getByText('Scritta come 8 × 60 kg.')).toBeInTheDocument();
+    expect(sheet.queryByRole('button', { name: 'Salva' })).not.toBeInTheDocument();
     await user.click(sheet.getByRole('button', { name: 'Ripetizioni, più 1' }));
-    await user.click(sheet.getByRole('button', { name: 'Salva' }));
-    expect(api.changes()).toEqual([{ route: 'PATCH /sets/100', body: { reps: 9, weightKg: 60 } }]);
+    await user.click(sheet.getByRole('button', { name: 'Ripetizioni, più 1' }));
+    // saved as it changes, after a pause: only the last value
+    await vi.waitFor(() => expect(api.changes()).toEqual([{ route: 'PATCH /sets/100', body: { reps: 10, weightKg: 60 } }]), { timeout: 3000 });
+    expect(doneSets()).toEqual(['10 × 60 kg']);
+    expect(sheet.getByRole('status', { name: 'Salvataggio' })).toHaveTextContent('Salvata');
+  });
+
+  it('closed right after a correction still sends it, and says nothing for a bad value', async () => {
+    const api = server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /8 × 60 kg/ }));
+    const sheet = within(screen.getByRole('dialog'));
+    await user.clear(sheet.getByLabelText('Ripetizioni', { selector: 'input' }));
+    expect(await sheet.findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent('Le ripetizioni vanno da 1 a 100.');
+    expect(api.changes()).toEqual([]);
+    await user.type(sheet.getByLabelText('Ripetizioni', { selector: 'input' }), '7');
+    await user.click(sheet.getByRole('button', { name: 'Chiudi' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(doneSets()).toEqual(['9 × 60 kg']);
+    expect(api.changes()).toEqual([{ route: 'PATCH /sets/100', body: { reps: 7, weightKg: 60 } }]);
+    await vi.waitFor(() => expect(doneSets()).toEqual(['7 × 60 kg']));
   });
 
   it('takes a set away from its row, after saying yes', async () => {
@@ -176,6 +194,7 @@ describe('a workout in progress', () => {
     await user.type(notes, '  stanco  ');
     await user.tab();
     expect(api.changes()).toEqual([{ route: 'PATCH /workouts/7', body: { notes: 'stanco' } }]);
+    expect(await within(notes.closest('.card') as HTMLElement).findByRole('status', { name: 'Salvataggio' })).toHaveTextContent('Salvata');
   });
 
   it('ends with Termina, closing the form, and opens again with Riapri', async () => {
@@ -354,7 +373,7 @@ describe('a note on an exercise', () => {
     await user.type(note('Squat'), '  più lento  ');
     await user.tab();
     expect(api.changes()).toEqual([{ route: 'PUT /workouts/7/exercises/1/note', body: { note: 'più lento' } }]);
-    expect(await screen.findByText('Salvata')).toBeInTheDocument();
+    expect(await within(note('Squat').closest('.card') as HTMLElement).findByRole('status', { name: 'Salvataggio' })).toHaveTextContent('Salvata');
   });
 
   it('emptied is removed', async () => {

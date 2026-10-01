@@ -44,6 +44,16 @@ class Nav {
    */
   #prima: ((vai: () => void) => boolean) | undefined;
 
+  /**
+   * Riscrive l'indirizzo nella barra senza cambiare pagina e senza lasciare
+   * un passo indietro: una scheda nuova, appena creata, prende il suo id
+   * mentre la stai ancora scrivendo, e rifare la pagina ti toglierebbe il
+   * campo da sotto le dita.
+   */
+  rewrite(path: string): void {
+    history.replaceState({}, '', canonical(path));
+  }
+
   custodisci(prima: (vai: () => void) => boolean): void {
     this.#prima = prima;
   }

@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { nav } from '../../lib/nav.svelte';
 import { toast } from '../../lib/toast.svelte';
 import type { Exercise, Plan } from '../../lib/types';
@@ -25,6 +25,13 @@ const FORZA: Plan = {
   ],
 };
 
+/** The changes to plans the server got, as sent. */
+const planChanges = (api: ReturnType<typeof fakeApi>) => api.changes().filter((change) => change.route.includes('/plans'));
+/** Waits for the pause after typing, and for what the server got. */
+const settled = (check: () => void) => vi.waitFor(check, { timeout: 3000 });
+const status = () => screen.getByRole('status', { name: 'Salvataggio' });
+const pause = () => new Promise((resolve) => setTimeout(resolve, 800));
+
 describe('the plans', () => {
   it('in use are listed first, the archived apart, each with its days and exercises', async () => {
     fakeApi().on('GET /plans', [FORZA, { ...FORZA, id: 6, name: 'Estate', archived: true, days: [] }]);
@@ -48,7 +55,8 @@ describe('a new plan', () => {
     const api = fakeApi()
       .on('GET /exercises', [PANCA, SQUAT])
       .on('POST /exercises', REMATORE)
-      .on('POST /plans', { ...FORZA, id: 9 });
+      .on('POST /plans', { ...FORZA, id: 9 })
+      .on('PUT /plans/9', (call: Call) => ({ ...FORZA, id: 9, ...(call.body as object) }));
     render(Host, { page: PlanEditorPage, params: { id: null } });
     const user = userEvent.setup();
     await user.type(screen.getByPlaceholderText('Forza, autunno'), ' Forza ');
@@ -74,15 +82,20 @@ describe('a new plan', () => {
     const addButtons = screen.getAllByRole('button', { name: 'Aggiungi esercizio' });
     await user.click(addButtons[1]!);
     const dayB = within(screen.getByRole('dialog', { name: 'Aggiungi al giorno B' }));
-    await user.type(dayB.getByPlaceholderText('Un esercizio nuovo, per nome'), 'Rematore');
+    await user.type(dayB.getByPlaceholderText('Nuovo esercizio'), 'Rematore');
     await user.click(dayB.getByRole('button', { name: 'Crea e aggiungi' }));
     await user.type(screen.getAllByLabelText('Note')[3]!, 'lento');
 
-    await user.click(screen.getByRole('button', { name: 'Salva la scheda' }));
-    expect(api.changes()).toEqual([
-      { route: 'POST /exercises', body: { name: 'Rematore', muscleGroup: null, notes: null } },
+    // created once, as soon as it has a name, then kept up to date as it changes
+    await settled(() => expect(planChanges(api).at(-1)?.body).toMatchObject({ days: [{}, { exercises: [{ notes: 'lento' }] }] }));
+    expect(planChanges(api).filter((change) => change.route === 'POST /plans')).toHaveLength(1);
+    expect(planChanges(api)[0]).toMatchObject({ route: 'POST /plans', body: { name: 'Forza' } });
+    expect(planChanges(api).slice(1).every((change) => change.route === 'PUT /plans/9')).toBe(true);
+    expect(api.changes().find((change) => change.route === 'POST /exercises')).toEqual({ route: 'POST /exercises', body: { name: 'Rematore', muscleGroup: null, notes: null } });
+    // the latest sent, by POST or by a PUT after it, is the whole plan as written
+    expect(planChanges(api).at(-1)).toEqual(
       {
-        route: 'POST /plans',
+        route: planChanges(api).length === 1 ? 'POST /plans' : 'PUT /plans/9',
         body: {
           name: 'Forza', notes: '3 volte', archived: false,
           days: [
@@ -97,21 +110,38 @@ describe('a new plan', () => {
           ],
         },
       },
-    ]);
-    expect(nav.path).toBe('/schede/9');
-    expect(toast.message).toBe('Scheda salvata.');
+    );
+    // the address becomes the plan's, without leaving the page being written
+    expect(window.location.pathname).toBe('/schede/9');
+    expect(screen.getByPlaceholderText('Forza, autunno')).toHaveValue(' Forza ');
+    expect(status()).toHaveTextContent('Salvata');
+    expect(screen.queryByRole('button', { name: /Salva/ })).not.toBeInTheDocument();
   });
 
-  it('without a name is not sent, and says what is missing', async () => {
+  it('once created is changed with PUT, never created again', async () => {
+    const api = fakeApi().on('POST /plans', { ...FORZA, id: 9 }).on('PUT /plans/9', FORZA);
+    render(Host, { page: PlanEditorPage, params: { id: null } });
+    const user = userEvent.setup();
+    const name = screen.getByPlaceholderText('Forza, autunno');
+    await user.type(name, 'Forza');
+    await settled(() => expect(status()).toHaveTextContent('Salvata'));
+    await user.type(name, ' 2');
+    await settled(() => expect(planChanges(api)).toHaveLength(2));
+    expect(planChanges(api).map((change) => change.route)).toEqual(['POST /plans', 'PUT /plans/9']);
+    expect(planChanges(api)[1]?.body).toMatchObject({ name: 'Forza 2' });
+  });
+
+  it('without a name is not sent yet, and asks for nothing', async () => {
     const api = fakeApi();
     render(Host, { page: PlanEditorPage, params: { id: null } });
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Salva la scheda' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('La scheda ha bisogno di un nome.');
+    await userEvent.setup().type(screen.getByPlaceholderText('Quante volte a settimana, cosa curare'), '3 volte');
+    await pause();
     expect(api.changes()).toEqual([]);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('with sets out of range is not sent, and names the exercise', async () => {
-    const api = fakeApi().on('GET /exercises', [SQUAT]);
+    const api = fakeApi().on('GET /exercises', [SQUAT]).on('POST /plans', { ...FORZA, id: 9 }).on('PUT /plans/9', FORZA);
     render(Host, { page: PlanEditorPage, params: { id: null } });
     const user = userEvent.setup();
     await user.type(screen.getByPlaceholderText('Forza, autunno'), 'Forza');
@@ -119,9 +149,9 @@ describe('a new plan', () => {
     await user.click(await screen.findByRole('button', { name: 'Squat Gambe' }));
     await user.clear(screen.getByLabelText('Serie'));
     await user.type(screen.getByLabelText('Serie'), '21');
-    await user.click(screen.getByRole('button', { name: 'Salva la scheda' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Nel giorno «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
-    expect(api.changes()).toEqual([]);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nel giorno «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
+    await pause();
+    expect(planChanges(api).some((change) => JSON.stringify(change.body).includes('"sets":21'))).toBe(false);
   });
 });
 
@@ -149,8 +179,8 @@ describe('a saved plan', () => {
     await user.click(screen.getAllByRole('button', { name: 'Sposta su' })[3]!);
     await user.click(screen.getAllByRole('button', { name: 'Togli l’esercizio' })[2]!);
     await user.click(screen.getByRole('checkbox', { name: /Archiviata/ }));
-    await user.click(screen.getByRole('button', { name: 'Salva la scheda' }));
-    expect(api.changes()).toEqual([{
+    await settled(() => expect(planChanges(api).at(-1)?.body).toMatchObject({ archived: true }));
+    expect(planChanges(api).at(-1)).toEqual({
       route: 'PUT /plans/5',
       body: {
         name: 'Forza', notes: '3 volte', archived: true,
@@ -159,9 +189,24 @@ describe('a saved plan', () => {
           { name: 'A', exercises: [{ exerciseId: 2, sets: 3, reps: '8', restSeconds: 90, notes: null }] },
         ],
       },
-    }]);
-    expect(nav.path).toBe('/');
-    expect(toast.message).toBe('Scheda salvata.');
+    });
+    expect(status()).toHaveTextContent('Salvata');
+  });
+
+  it('opened is not sent back as it was', async () => {
+    const api = fakeApi().on('GET /plans/5', FORZA);
+    render(Host, { page: PlanEditorPage, params: { id: 5 } });
+    await screen.findByRole('heading', { name: 'Forza' });
+    await pause();
+    expect(api.changes()).toEqual([]);
+  });
+
+  it('left right after a change still sends it', async () => {
+    const api = fakeApi().on('GET /plans/5', FORZA).on('PUT /plans/5', FORZA);
+    const { unmount } = render(Host, { page: PlanEditorPage, params: { id: 5 } });
+    await userEvent.setup().type(await screen.findByPlaceholderText('Forza, autunno'), '!');
+    unmount();
+    expect(planChanges(api)).toEqual([{ route: 'PUT /plans/5', body: expect.objectContaining({ name: 'Forza!' }) }]);
   });
 
   it('loses a day with its exercises', async () => {
@@ -170,7 +215,7 @@ describe('a saved plan', () => {
     const user = userEvent.setup();
     await screen.findByRole('heading', { name: 'Forza' });
     await user.click(screen.getAllByRole('button', { name: 'Togli il giorno' })[0]!);
-    await user.click(screen.getByRole('button', { name: 'Salva la scheda' }));
+    await settled(() => expect(api.changes()).toHaveLength(1));
     expect((api.changes()[0]?.body as { days: { name: string }[] }).days.map((day) => day.name)).toEqual(['B']);
   });
 
@@ -189,11 +234,19 @@ describe('a saved plan', () => {
     expect(toast.message).toBe('Scheda eliminata. Gli allenamenti fatti restano nello storico.');
   });
 
-  it('says why it cannot be saved', async () => {
-    fakeApi().on('GET /plans/5', FORZA).on('PUT /plans/5', { status: 400, body: { error: 'Uno degli esercizi non esiste più. Ricarica la pagina.' } });
+  it('says why it cannot be saved, keeps what is written, and tries again with the next change', async () => {
+    const api = fakeApi().on('GET /plans/5', FORZA).on('PUT /plans/5', { status: 400, body: { error: 'Uno degli esercizi non esiste più. Ricarica la pagina.' } });
     render(Host, { page: PlanEditorPage, params: { id: 5 } });
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Salva la scheda' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Uno degli esercizi non esiste più. Ricarica la pagina.');
+    const user = userEvent.setup();
+    const name = await screen.findByPlaceholderText('Forza, autunno');
+    await user.type(name, '!');
+    expect(await screen.findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent('Uno degli esercizi non esiste più. Ricarica la pagina.');
+    expect(name).toHaveValue('Forza!');
+    api.on('PUT /plans/5', FORZA);
+    await user.type(name, '?');
+    await settled(() => expect(status()).toHaveTextContent('Salvata'));
+    expect(planChanges(api)).toHaveLength(2);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
 

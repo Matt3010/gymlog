@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { toast } from '../../lib/toast.svelte';
 import type { Exercise } from '../../lib/types';
 import { fakeApi, silentApi } from '../../test/fake-api';
@@ -49,7 +49,7 @@ describe('the exercises', () => {
     fakeApi().on('GET /stats/exercises', []).on('GET /exercises', []);
     render(Host, { page: ExercisesPage });
     expect(await screen.findByText('Nessun esercizio, per ora.')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Un esercizio nuovo, per nome')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Nuovo esercizio')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Nuovo|Aggiungi un esercizio/ })).not.toBeInTheDocument();
   });
 
@@ -58,7 +58,7 @@ describe('the exercises', () => {
     render(Host, { page: ExercisesPage });
     await screen.findByRole('button', { name: 'Modifica Squat' });
     expect(screen.queryByRole('button', { name: 'Nuovo' })).not.toBeInTheDocument();
-    expect(screen.getAllByPlaceholderText('Un esercizio nuovo, per nome')).toHaveLength(1);
+    expect(screen.getAllByPlaceholderText('Nuovo esercizio')).toHaveLength(1);
   });
 
   it('keep their name when corrected: an empty one is refused before asking the server', async () => {
@@ -67,7 +67,7 @@ describe('the exercises', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Modifica Squat' }));
     await user.clear(sheet().getByPlaceholderText('Panca piana'));
-    await user.click(sheet().getByRole('button', { name: 'Salva' }));
+    await user.tab();
     expect(sheet().getByRole('alert')).toHaveTextContent('L’esercizio ha bisogno di un nome.');
     expect(api.changes()).toEqual([]);
   });
@@ -95,11 +95,21 @@ describe('the exercises', () => {
     expect(sheet().getByPlaceholderText('Presa, sedile, come si esegue')).toHaveValue('presa media');
     await user.clear(name);
     await user.type(name, 'Panca inclinata');
+    // each field is saved when you leave it, with what the others say now
+    await user.tab();
+    await vi.waitFor(() => expect(api.changes()).toHaveLength(1));
+    expect(api.changes()[0]).toEqual({ route: 'PATCH /exercises/2', body: { name: 'Panca inclinata', muscleGroup: null, notes: 'presa media' } });
     await user.type(sheet().getByPlaceholderText('Petto'), 'Petto');
-    await user.click(sheet().getByRole('button', { name: 'Salva' }));
-    expect(api.changes()).toEqual([{ route: 'PATCH /exercises/2', body: { name: 'Panca inclinata', muscleGroup: 'Petto', notes: 'presa media' } }]);
+    await user.tab();
+    await vi.waitFor(() => expect(api.changes()).toHaveLength(2));
+    expect(api.changes()[1]).toEqual({ route: 'PATCH /exercises/2', body: { name: 'Panca inclinata', muscleGroup: 'Petto', notes: 'presa media' } });
+    expect(sheet().getByRole('status', { name: 'Salvataggio' })).toHaveTextContent('Salvata');
+    expect(sheet().queryByRole('button', { name: 'Salva' })).not.toBeInTheDocument();
     expect(names()).toEqual(['Panca inclinata', 'Squat']);
-    expect(toast.message).toBe('Esercizio salvato.');
+    // leaving a field unchanged sends nothing
+    await user.click(sheet().getByPlaceholderText('Presa, sedile, come si esegue'));
+    await user.tab();
+    expect(api.changes()).toHaveLength(2);
   });
 
   it('are deleted after saying yes to the question', async () => {
@@ -142,18 +152,17 @@ describe('the exercises', () => {
     expect(names()).toEqual(['Panca piana']);
   });
 
-  it('are put in order by muscle group, and turned around', async () => {
-    fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [PANCA, SQUAT, { id: 3, name: 'Curl', muscleGroup: 'Bicipiti', notes: null }]);
+  it('have a search and no sorting: names in order, a new one in its place', async () => {
+    fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [{ id: 3, name: 'Curl', muscleGroup: 'Bicipiti', notes: null }, PANCA, SQUAT])
+      .on('POST /exercises', { id: 4, name: 'Dip', muscleGroup: null, notes: null });
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();
     await screen.findByRole('button', { name: 'Modifica Squat' });
-    expect(names()).toEqual(['Curl', 'Panca piana', 'Squat']);
-    await user.click(screen.getByRole('button', { name: 'Per nome' }));
-    await user.click(await screen.findByRole('button', { name: 'Gruppo muscolare' }));
-    // without a group last, then by group
-    expect(names()).toEqual(['Curl', 'Squat', 'Panca piana']);
-    await user.click(screen.getByTitle('In ordine crescente, tocca per girarlo'));
-    expect(names()).toEqual(['Squat', 'Curl', 'Panca piana']);
+    expect(screen.queryByRole('button', { name: 'Per nome' })).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/In ordine/)).not.toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Cerca un esercizio' })).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText('Nuovo esercizio'), 'Dip{Enter}');
+    expect(names()).toEqual(['Curl', 'Dip', 'Panca piana', 'Squat']);
   });
 
   it('take a new one by name from the row at the bottom', async () => {
@@ -161,10 +170,10 @@ describe('the exercises', () => {
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();
     await screen.findByRole('button', { name: 'Modifica Squat' });
-    await user.type(screen.getByPlaceholderText('Un esercizio nuovo, per nome'), ' Trazioni {Enter}');
+    await user.type(screen.getByPlaceholderText('Nuovo esercizio'), ' Trazioni {Enter}');
     expect(api.changes()).toEqual([{ route: 'POST /exercises', body: { name: 'Trazioni', muscleGroup: null, notes: null } }]);
     expect(names()).toEqual(['Squat', 'Trazioni']);
-    expect(screen.getByPlaceholderText('Un esercizio nuovo, per nome')).toHaveValue('');
+    expect(screen.getByPlaceholderText('Nuovo esercizio')).toHaveValue('');
     expect(toast.message).toBe('Esercizio aggiunto.');
   });
 
@@ -173,9 +182,9 @@ describe('the exercises', () => {
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();
     await screen.findByRole('button', { name: 'Modifica Squat' });
-    await user.type(screen.getByPlaceholderText('Un esercizio nuovo, per nome'), 'squat{Enter}');
+    await user.type(screen.getByPlaceholderText('Nuovo esercizio'), 'squat{Enter}');
     expect(await screen.findByRole('alert')).toHaveTextContent('Esiste già un esercizio con questo nome.');
-    expect(screen.getByPlaceholderText('Un esercizio nuovo, per nome')).toHaveValue('squat');
+    expect(screen.getByPlaceholderText('Nuovo esercizio')).toHaveValue('squat');
   });
 
   it('close their window without saving', async () => {

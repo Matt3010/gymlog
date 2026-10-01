@@ -61,5 +61,5 @@
 </PageShell>
 
 <style>
-  .rows { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .rows { display: grid; margin: 0; padding: 0; list-style: none; }
 </style>

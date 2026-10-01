@@ -56,7 +56,7 @@
   }
 </script>
 
-<AddRow placeholder="Un esercizio nuovo, per nome" title="Crea e aggiungi" bind:value={nuovo} onadd={create} />
+<AddRow flat placeholder="Nuovo esercizio" title="Crea e aggiungi" bind:value={nuovo} onadd={create} />
 {#if error}<Alert message={error} />{/if}
 {#if all !== null}
   <SearchPicker

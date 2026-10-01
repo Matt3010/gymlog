@@ -13,6 +13,8 @@ import SearchTrigger from './SearchTrigger.svelte';
 import StaleNote from './StaleNote.svelte';
 import Tabs from './Tabs.svelte';
 import TimeField from './TimeField.svelte';
+import ViewControls from './ViewControls.svelte';
+import { Vista } from '../lib/vista.svelte';
 import { createRawSnippet } from 'svelte';
 
 /*
@@ -115,5 +117,13 @@ describe('the ported pieces not used yet', () => {
     expect(screen.getByText('passo nome')).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: /I giorni/ }));
     expect(screen.getByText('passo giorni')).toBeInTheDocument();
+  });
+
+  it('ViewControls says the order and turns it around', async () => {
+    const vista = new Vista<unknown>({ criteri: [{ id: 'nome', label: 'Nome' }, { id: 'gruppo', label: 'Gruppo' }] });
+    render(ViewControls, { vista });
+    expect(screen.getByRole('button', { name: 'Per nome' })).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByTitle('In ordine crescente, tocca per girarlo'));
+    expect(vista.verso).toBe('desc');
   });
 });

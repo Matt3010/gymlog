@@ -1,16 +1,19 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
+  import { Autosave } from '../../lib/autosave.svelte';
   import { plansApi } from '../../lib/endpoints';
   import { nav } from '../../lib/nav.svelte';
   import { addDay, draftOf, move, newKey, problemOf, toInput, type Draft, type DraftDay } from '../../lib/plan-draft';
   import { planPath, PLANS_PATH } from '../../lib/routing';
   import { toast } from '../../lib/toast.svelte';
-  import type { Exercise } from '../../lib/types';
+  import type { Exercise, PlanInput } from '../../lib/types';
   import Alert from '../Alert.svelte';
   import Button from '../Button.svelte';
   import Icon from '../Icon.svelte';
   import PageCard from '../PageCard.svelte';
   import PageShell from '../PageShell.svelte';
   import PanelSkeleton from '../PanelSkeleton.svelte';
+  import SaveStatus from '../SaveStatus.svelte';
   import Switch from '../Switch.svelte';
   import TextField from '../TextField.svelte';
   import { ui } from '../../lib/ui.svelte';
@@ -18,19 +21,50 @@
 
   /**
    * Una scheda da scrivere: il nome, i giorni, e in ogni giorno gli esercizi
-   * in ordine con serie, ripetizioni e recupero. Si salva tutta insieme;
-   * fino ad allora è una bozza (`lib/plan-draft.ts`), e i problemi si dicono
-   * prima di partire.
+   * in ordine con serie, ripetizioni e recupero. Si salva da sé mentre la
+   * scrivi, tutta insieme (`Autosave`): nessun tasto «Salva». Quella nuova
+   * nasce appena ha un nome, e l'indirizzo diventa il suo senza rifare la
+   * pagina. Quello che il server rifiuterebbe si dice prima, e non parte.
    */
   let { id }: { id: number | null } = $props();
 
   let draft = $state<Draft | null>(null);
   let error = $state('');
   let working = $state(false);
+  // svelte-ignore state_referenced_locally
+  let planId = $state(id);
+  /** L'ultima versione mandata, o quella aperta: uguale, non si rimanda. */
+  let sent = '';
+
+  const saver = new Autosave<PlanInput>(async (input) => {
+    if (planId !== null) return plansApi.save(planId, input);
+    const created = await plansApi.create(input);
+    planId = created.id;
+    nav.rewrite(planPath(created.id));
+  });
+  // lasciando la pagina parte quello che aspettava
+  onDestroy(() => void saver.flush());
+
+  function opened(next: Draft): void {
+    sent = JSON.stringify(toInput(next));
+    draft = next;
+  }
 
   $effect(() => {
-    if (id === null) draft = draftOf(null);
-    else plansApi.get(id).then((plan) => (draft = draftOf(plan)), (failure: Error) => (error = failure.message));
+    if (id === null) opened(draftOf(null));
+    else plansApi.get(id).then((plan) => opened(draftOf(plan)), (failure: Error) => (error = failure.message));
+  });
+
+  const problem = $derived(draft ? problemOf(draft) : null);
+  /* il nome che manca a una scheda appena cominciata non è un errore: si aspetta che arrivi */
+  const shownProblem = $derived(problem && !(planId === null && draft?.name.trim() === '') ? problem : null);
+
+  $effect(() => {
+    if (!draft) return;
+    const now = JSON.stringify(toInput(draft));
+    if (now === sent || problem) return;
+    sent = now;
+    saver.change(JSON.parse(now) as PlanInput);
   });
 
   /** Un esercizio da aggiungere a un giorno, scelto in una finestra. */
@@ -52,27 +86,6 @@
     return text.trim() === '' || !Number.isFinite(value) ? null : Math.trunc(value);
   };
 
-  async function save(): Promise<void> {
-    if (!draft) return;
-    const problem = problemOf(draft);
-    if (problem) {
-      error = problem;
-      return;
-    }
-    error = '';
-    working = true;
-    try {
-      const saved = id === null ? await plansApi.create(toInput(draft)) : await plansApi.save(id, toInput(draft));
-      toast.show('Scheda salvata.');
-      if (id === null) nav.go(planPath(saved.id), { replace: true });
-      else draft = draftOf(saved);
-    } catch (failure) {
-      error = (failure as Error).message;
-    } finally {
-      working = false;
-    }
-  }
-
   /** Prima si chiede, accanto al tasto: una scheda eliminata non torna. */
   function askRemove(anchor: HTMLElement): void {
     ui.askSure(anchor, {
@@ -84,10 +97,10 @@
   }
 
   async function remove(): Promise<void> {
-    if (id === null) return;
+    if (planId === null) return;
     working = true;
     try {
-      await plansApi.remove(id);
+      await plansApi.remove(planId);
       toast.show('Scheda eliminata. Gli allenamenti fatti restano nello storico.');
       nav.go(PLANS_PATH, { replace: true });
     } catch (failure) {
@@ -101,7 +114,8 @@
   const back = { href: PLANS_PATH, label: 'Schede' };
 </script>
 
-<PageShell title={id === null ? 'Nuova scheda' : (draft?.name || 'Scheda')} {back}>
+<PageShell title={planId === null ? 'Nuova scheda' : (draft?.name || 'Scheda')} {back}>
+  {#snippet meta()}<SaveStatus {saver} />{/snippet}
   {#if !draft && !error}
     <PageCard><PanelSkeleton /></PageCard>
   {:else if draft}
@@ -200,18 +214,17 @@
       </Button>
     </div>
 
+    {#if shownProblem}<Alert message={shownProblem} />{/if}
+    {#if saver.status === 'error'}<Alert message={saver.error} />{/if}
     {#if error}<Alert message={error} />{/if}
 
-    <div class="actions">
-      {#if id !== null}
+    {#if planId !== null}
+      <div class="actions">
         <Button look="danger" disabled={working} onclick={(event: MouseEvent) => askRemove(event.currentTarget as HTMLElement)}>
           <Icon name="trash" /> Elimina scheda
         </Button>
-      {/if}
-      <Button look="primary" disabled={working} onclick={() => void save()}>
-        {working ? 'Un attimo…' : 'Salva la scheda'}
-      </Button>
-    </div>
+      </div>
+    {/if}
   {:else if error}
     <Alert message={error} />
   {/if}

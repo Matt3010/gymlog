@@ -96,6 +96,7 @@
               <button type="button" class="day" disabled={starting} onclick={() => void start(day.id)}>
                 <span class="day-name">{day.name}</span>
                 <span class="day-count">{day.exercises.length === 1 ? '1 esercizio' : `${day.exercises.length} esercizi`}</span>
+                <Icon name="next" />
               </button>
             {/each}
           </div>
@@ -138,38 +139,36 @@
 
   .plan-name { font-weight: 600; }
 
-  .days {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 8px;
-  }
+  .days { display: grid; }
 
-  /* un giorno è un tasto grande: si preme col pollice, in piedi, fra due macchine */
+  /* un giorno è una riga della sezione, alta quanto un pollice: si preme in
+     piedi, fra due macchine. Piatta, perché la card è già la sezione. */
   .day {
-    display: grid;
-    gap: 2px;
-    min-height: 60px;
-    padding: 10px 12px;
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-md);
-    background: var(--sunken);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 6px 0;
+    border: 0;
+    border-bottom: 1px solid var(--hairline-soft);
+    border-radius: 0;
+    background: transparent;
     text-align: left;
-    transition: background 0.15s, border-color 0.15s, transform 0.12s var(--ease);
   }
 
-  .day:hover { background: var(--sunken-hover); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
-
-  .day:active { transform: scale(0.98); }
+  .day:active { background: var(--sunken); }
 
   .day:disabled { opacity: 0.6; pointer-events: none; }
 
   .day-name { font-size: 15px; font-weight: 620; letter-spacing: -0.01em; overflow-wrap: anywhere; }
 
-  .day-count { font-size: 11.5px; color: var(--ink-3); }
+  .day-count { flex: 1; font-size: 12.5px; color: var(--ink-3); }
+
+  .day :global(.ico) { width: 16px; height: 16px; color: var(--ink-3); }
 
   .free { justify-self: start; }
 
-  .rows { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .rows { display: grid; margin: 0; padding: 0; list-style: none; }
 
   .more { justify-self: start; font-size: 12.5px; color: var(--ink-2); }
 </style>
