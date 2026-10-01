@@ -232,18 +232,25 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   // Two exercises.
   await page.getByRole('link', { name: 'Esercizi' }).click();
   await expect(page.getByRole('button', { name: 'Nuovo' })).toHaveCount(0);
+  // one field at the top: it searches, and offers to create what is not there
+  const field = page.getByRole('searchbox', { name: 'Cerca o crea un esercizio' });
   for (const name of ['Squat', 'Panca piana']) {
-    await page.getByPlaceholder('Nuovo esercizio').fill(name);
-    if (name === 'Squat') await page.getByPlaceholder('Nuovo esercizio').press('Enter');
-    else await page.getByRole('button', { name: 'Crea', exact: true }).click();
-    await expect(page.getByPlaceholder('Nuovo esercizio')).toHaveValue('');
+    await field.fill(name);
+    if (name === 'Squat') await field.press('Enter');
+    else await page.getByRole('button', { name: `Crea «${name}»` }).click();
+    await expect(field).toHaveValue('');
   }
+  await field.fill('squat');
+  await expect(page.getByRole('button', { name: /^Crea/ })).toHaveCount(0);
+  await field.fill('');
   await expect(page.locator('.row .name')).toHaveText(['Panca piana', 'Squat']);
   await expectFlatRows(page);
-  await expectFullWidth(page.getByRole('button', { name: 'Crea', exact: true }));
-  // «Nuovo esercizio» is a field like the others, and «Crea» only works with a name
-  await expect(page.getByPlaceholder('Nuovo esercizio')).toHaveClass(/text-field/);
-  await expect(page.getByRole('button', { name: 'Crea', exact: true })).toBeDisabled();
+  // «Crea» appears only with a new name, under the field, as wide as the card
+  await expect(page.getByRole('button', { name: /^Crea/ })).toHaveCount(0);
+  await field.fill('Stacco');
+  await expectFullWidth(page.getByRole('button', { name: 'Crea «Stacco»' }));
+  await expectPrimaryOnlyInCards(page);
+  await field.fill('');
   await expectRoundPress(page.locator('.row.is-flat').first());
   await expectCentredOn(page.locator('.row .open').first(), page.getByRole('button', { name: 'Modifica Panca piana' }));
   await expectAligned(page);

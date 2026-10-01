@@ -4,7 +4,6 @@
   import { exercisePath } from '../../lib/routing';
   import type { Exercise, ExerciseOverview } from '../../lib/types';
   import { perNome, Vista } from '../../lib/vista.svelte';
-  import AddRow from '../AddRow.svelte';
   import Alert from '../Alert.svelte';
   import Button from '../Button.svelte';
   import EmptyState from '../EmptyState.svelte';
@@ -52,16 +51,28 @@
   });
   const shown = $derived(vista.applica(exercises ?? []));
 
-  let nuovo = $state('');
   let addError = $state('');
 
-  /** Uno nuovo dal suo nome, dalla riga in fondo: il resto si scrive dopo, se serve. */
-  async function quickAdd(name: string): Promise<void> {
+  /*
+   * Un campo solo, in cima: cerca, e se nessun esercizio ha esattamente quel
+   * nome propone di crearlo. Così si vede subito se c'è già, e con tanti
+   * esercizi non si scende in fondo all'elenco per aggiungerne uno.
+   */
+  const offer = $derived.by(() => {
+    const name = vista.cerca.trim();
+    if (!name || !exercises) return '';
+    return exercises.some((one) => one.name.toLowerCase() === name.toLowerCase()) ? '' : name;
+  });
+
+  /** Uno nuovo dal suo nome: il resto si scrive dopo, se serve. */
+  async function create(): Promise<void> {
+    const name = offer;
+    if (!name) return;
     addError = '';
     try {
       saved(await exercisesApi.create({ name, muscleGroup: null, notes: null }));
       toast.show('Esercizio aggiunto.');
-      nuovo = '';
+      vista.cerca = '';
     } catch (failure) {
       addError = (failure as Error).message;
     }
@@ -75,7 +86,7 @@
     exercises = (exercises ?? []).filter((one) => one.id !== id);
   }
 
-  /** Un esercizio da correggere, in una finestra. Uno nuovo si aggiunge dalla riga in fondo, e basta il nome. */
+  /** Un esercizio da correggere, in una finestra. Uno nuovo si crea dal campo in cima, e basta il nome. */
   function open(exercise: Exercise): void {
     ui.openModal({ title: 'Esercizio', view: ExerciseForm, props: { exercise, onsaved: saved, ondeleted: deleted } });
   }
@@ -88,12 +99,16 @@
     {#if !error}<Loader />{/if}
   {:else}
     <PageCard>
+      <form class="find" onsubmit={(event) => { event.preventDefault(); void create(); }}>
+        <TextField kind="search" bind:value={vista.cerca} placeholder="Cerca o crea un esercizio" label="Cerca o crea un esercizio" />
+        {#if offer}
+          <Button look="primary" type="submit"><Icon name="plus" /> Crea «{offer}»</Button>
+        {/if}
+      </form>
+      {#if addError}<Alert message={addError} />{/if}
       {#if exercises.length === 0}
-        <EmptyState title="Nessun esercizio, per ora." line="Scrivi qui sotto quelli che fai, poi li metti nelle schede e ne segui i pesi." />
+        <EmptyState title="Nessun esercizio, per ora." line="Scrivi qui sopra il nome di quelli che fai, poi li metti nelle schede e ne segui i pesi." />
       {:else}
-        <div class="find">
-          <TextField kind="search" bind:value={vista.cerca} placeholder="Cerca per nome o gruppo" label="Cerca un esercizio" />
-        </div>
         <ul class="rows">
           {#each shown as exercise (exercise.id)}
             {@const row = numbers.get(exercise.id)}
@@ -113,21 +128,20 @@
               </Row>
             </li>
           {:else}
-            <li class="none">Nessun esercizio risponde a «{vista.cerca.trim()}».</li>
+            {#if !offer}<li class="none">Nessun esercizio risponde a «{vista.cerca.trim()}».</li>{/if}
           {/each}
         </ul>
       {/if}
-      <AddRow flat label="Crea" placeholder="Nuovo esercizio" title="Crea l’esercizio" bind:value={nuovo} onadd={quickAdd} />
-      {#if addError}<Alert message={addError} />{/if}
     </PageCard>
   {/if}
 </PageShell>
 
 
 <style>
-  .find { display: flex; align-items: center; gap: 8px; }
+  /* il campo, e sotto, quando serve, «Crea»: largo quanto la card sul telefono */
+  .find { display: grid; gap: 10px; margin: 0; }
 
-  .find :global(.text-field) { flex: 1; min-width: 0; }
+  .find :global(.text-field) { min-width: 0; }
 
   .rows {
     display: grid;

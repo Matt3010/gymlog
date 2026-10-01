@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { toast } from '../../lib/toast.svelte';
 import type { Exercise } from '../../lib/types';
-import { fakeApi, silentApi } from '../../test/fake-api';
+import { type Call, fakeApi, silentApi } from '../../test/fake-api';
 import Host from '../../test/Host.svelte';
 import ExercisesPage from './ExercisesPage.svelte';
 
@@ -47,20 +47,24 @@ describe('the exercises', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('invite to add the first one by name, from the only place that adds', async () => {
+  it('invite to add the first one by name, from the one field at the top', async () => {
     fakeApi().on('GET /stats/exercises', []).on('GET /exercises', []);
     render(Host, { page: ExercisesPage });
     expect(await screen.findByText('Nessun esercizio, per ora.')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Nuovo esercizio')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Nuovo|Aggiungi un esercizio/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Crea/ })).not.toBeInTheDocument();
   });
 
-  it('have one way to add, the row at the bottom, and none in the header', async () => {
+  it('have one field at the top, to search and to create, and nothing else that adds', async () => {
     fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [SQUAT]);
     render(Host, { page: ExercisesPage });
     await screen.findByRole('button', { name: 'Modifica Squat' });
+    expect(screen.getAllByRole('searchbox')).toHaveLength(1);
+    expect(screen.queryByPlaceholderText('Nuovo esercizio')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Nuovo' })).not.toBeInTheDocument();
-    expect(screen.getAllByPlaceholderText('Nuovo esercizio')).toHaveLength(1);
+    // the field comes before the list
+    const list = screen.getByRole('link', { name: /^Squat/ });
+    expect(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }).compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('keep their name when corrected: an empty one is refused before asking the server', async () => {
@@ -152,72 +156,65 @@ describe('the exercises', () => {
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();
     await screen.findByRole('button', { name: 'Modifica Squat' });
-    await user.type(screen.getByRole('searchbox', { name: 'Cerca un esercizio' }), 'gambe');
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }), 'gambe');
     expect(names()).toEqual(['Affondi', 'Squat']);
-    await user.clear(screen.getByRole('searchbox', { name: 'Cerca un esercizio' }));
-    await user.type(screen.getByRole('searchbox', { name: 'Cerca un esercizio' }), 'panca');
+    await user.clear(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }));
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }), 'panca');
     expect(names()).toEqual(['Panca piana']);
   });
 
-  it('have a search and no sorting: names in order, a new one in its place', async () => {
-    fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [{ id: 3, name: 'Curl', muscleGroup: 'Bicipiti', notes: null }, PANCA, SQUAT])
-      .on('POST /exercises', { id: 4, name: 'Dip', muscleGroup: null, notes: null });
+  it('offer to create what is typed when no exercise has exactly that name, right under the field', async () => {
+    fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [PANCA, SQUAT]);
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();
     await screen.findByRole('button', { name: 'Modifica Squat' });
-    expect(screen.queryByRole('button', { name: 'Per nome' })).not.toBeInTheDocument();
-    expect(screen.queryByTitle(/In ordine/)).not.toBeInTheDocument();
-    expect(screen.getByRole('searchbox', { name: 'Cerca un esercizio' })).toBeInTheDocument();
-    await user.type(screen.getByPlaceholderText('Nuovo esercizio'), 'Dip{Enter}');
-    expect(names()).toEqual(['Curl', 'Dip', 'Panca piana', 'Squat']);
-  });
-
-  it('take a new one by name from the row at the bottom', async () => {
-    const api = fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [SQUAT]).on('POST /exercises', { id: 4, name: 'Trazioni', muscleGroup: null, notes: null });
-    render(Host, { page: ExercisesPage });
-    const user = userEvent.setup();
-    await screen.findByRole('button', { name: 'Modifica Squat' });
-    await user.type(screen.getByPlaceholderText('Nuovo esercizio'), ' Trazioni {Enter}');
-    expect(api.changes()).toEqual([{ route: 'POST /exercises', body: { name: 'Trazioni', muscleGroup: null, notes: null } }]);
-    expect(names()).toEqual(['Squat', 'Trazioni']);
-    expect(screen.getByPlaceholderText('Nuovo esercizio')).toHaveValue('');
-    expect(toast.message).toBe('Esercizio aggiunto.');
-  });
-
-  it('are created from a field like any other, «Crea» working only with a name', async () => {
-    fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [SQUAT]);
-    render(Host, { page: ExercisesPage });
-    const user = userEvent.setup();
-    const field = await screen.findByPlaceholderText('Nuovo esercizio');
-    expect(field).toHaveClass('text-field');
-    expect(field.closest('.row')).toBeNull();
-    const create = screen.getByRole('button', { name: 'Crea' });
-    expect(create).toBeDisabled();
-    await user.type(field, '  ');
-    expect(create).toBeDisabled();
-    await user.type(field, 'Dip');
-    expect(create).toBeEnabled();
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }), '  ');
+    expect(screen.queryByRole('button', { name: /^Crea/ })).not.toBeInTheDocument();
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }), 'Panca');
+    // a part of a name is not that name: it can still be created
+    const create = screen.getByRole('button', { name: 'Crea «Panca»' });
     expect(create).toHaveClass('primary');
+    expect(names()).toEqual(['Panca piana']);
+    await user.clear(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }));
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }), 'SQUAT ');
+    // the same name, any case: it is already there, nothing to create
+    expect(screen.queryByRole('button', { name: /^Crea/ })).not.toBeInTheDocument();
+    expect(names()).toEqual(['Squat']);
   });
 
-  it('are created with a labelled «Crea» button too', async () => {
-    const api = fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [SQUAT]).on('POST /exercises', { id: 4, name: 'Trazioni', muscleGroup: null, notes: null });
+  it('are created with «Crea», or Enter, in their place, and the field empties', async () => {
+    const api = fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [{ id: 3, name: 'Curl', muscleGroup: 'Bicipiti', notes: null }, SQUAT])
+      .on('POST /exercises', (call: Call) => ({ id: 9, name: (call.body as { name: string }).name, muscleGroup: null, notes: null }));
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();
     await screen.findByRole('button', { name: 'Modifica Squat' });
-    await user.type(screen.getByPlaceholderText('Nuovo esercizio'), 'Trazioni');
-    await user.click(screen.getByRole('button', { name: 'Crea' }));
-    expect(api.changes()).toEqual([{ route: 'POST /exercises', body: { name: 'Trazioni', muscleGroup: null, notes: null } }]);
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }), ' Dip ');
+    await user.click(screen.getByRole('button', { name: 'Crea «Dip»' }));
+    expect(api.changes()).toEqual([{ route: 'POST /exercises', body: { name: 'Dip', muscleGroup: null, notes: null } }]);
+    expect(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' })).toHaveValue('');
+    expect(names()).toEqual(['Curl', 'Dip', 'Squat']);
+    expect(toast.message).toBe('Esercizio aggiunto.');
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }), 'Trazioni{Enter}');
+    expect(api.changes().at(-1)).toEqual({ route: 'POST /exercises', body: { name: 'Trazioni', muscleGroup: null, notes: null } });
   });
 
-  it('say why the new one from the row was refused, and keep the name', async () => {
+  it('do not create one that exists, even with Enter', async () => {
+    const api = fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [SQUAT]);
+    render(Host, { page: ExercisesPage });
+    const user = userEvent.setup();
+    await screen.findByRole('button', { name: 'Modifica Squat' });
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }), 'squat{Enter}');
+    expect(api.changes()).toEqual([]);
+  });
+
+  it('say why a new one was refused, and keep what was typed', async () => {
     fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [SQUAT]).on('POST /exercises', { status: 409, body: { error: 'Esiste già un esercizio con questo nome.' } });
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();
     await screen.findByRole('button', { name: 'Modifica Squat' });
-    await user.type(screen.getByPlaceholderText('Nuovo esercizio'), 'squat{Enter}');
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' }), 'Squat bulgaro{Enter}');
     expect(await screen.findByRole('alert')).toHaveTextContent('Esiste già un esercizio con questo nome.');
-    expect(screen.getByPlaceholderText('Nuovo esercizio')).toHaveValue('squat');
+    expect(screen.getByRole('searchbox', { name: 'Cerca o crea un esercizio' })).toHaveValue('Squat bulgaro');
   });
 
   it('close their window without saving', async () => {
