@@ -266,7 +266,7 @@
     {/each}
 
     <div class="bottom">
-      <Button look="primary" onclick={() => draft && addDay(draft)}>
+      <Button look="ghost" onclick={() => draft && addDay(draft)}>
         <Icon name="plus" /> Aggiungi giorno
       </Button>
     </div>

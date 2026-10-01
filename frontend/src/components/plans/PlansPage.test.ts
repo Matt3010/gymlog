@@ -275,16 +275,17 @@ describe('a saved plan', () => {
     expect(screen.getAllByLabelText('Note').map((input) => (input as HTMLInputElement).value)).toEqual(['3 volte', '', '', 'lento']);
   });
 
-  it('adds sets, exercises and days with primary buttons', async () => {
+  it('adds sets and exercises with primary buttons, days with a secondary one under them', async () => {
     fakeApi().on('GET /plans/5', FORZA);
     render(Host, { page: PlanEditorPage, params: { id: 5 } });
     await screen.findByRole('heading', { name: 'Forza' });
     const adds = [
       ...screen.getAllByRole('button', { name: /^Aggiungi una serie a / }),
       ...screen.getAllByRole('button', { name: 'Aggiungi esercizio' }),
-      screen.getByRole('button', { name: 'Aggiungi giorno' }),
     ];
     for (const button of adds) expect(button).toHaveClass('primary');
+    // right under «Aggiungi esercizio»: two dark buttons in a row would compete
+    expect(screen.getByRole('button', { name: 'Aggiungi giorno' })).toHaveClass('ghost');
   });
 
   it('is saved whole with PUT after moving, removing and archiving', async () => {
