@@ -248,6 +248,15 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expectNoZoomOnFocus(page);
   for (const add of await page.locator('.add').all()) await expectDivided(add);
   for (const name of ['Aggiungi esercizio', 'Aggiungi giorno', 'Aggiungi una serie a Squat']) await expectFullWidth(page.getByRole('button', { name }).first());
+  // Room in the editor: "Recupero" stands apart from "+ Serie", and each exercise from the one before.
+  const addSet = await page.getByRole('button', { name: 'Aggiungi una serie a Squat' }).boundingBox();
+  const restLabel = await page.getByText('Recupero (s)').first().boundingBox();
+  expect(restLabel!.y - (addSet!.y + addSet!.height)).toBeGreaterThanOrEqual(20);
+  const gapAbove = await page.getByText('Panca piana', { exact: true }).first().evaluate((name) => {
+    const block = name.closest('.exercise')!;
+    return name.getBoundingClientRect().top - block.getBoundingClientRect().top;
+  });
+  expect(gapAbove).toBeGreaterThanOrEqual(18);
   await page.getByRole('button', { name: 'Elimina la scheda «Forza»' }).click();
   await expectRoomySheet(page);
   await page.getByRole('alertdialog').getByRole('button', { name: 'Annulla' }).click();

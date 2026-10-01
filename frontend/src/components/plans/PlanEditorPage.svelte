@@ -296,10 +296,11 @@
 
   .tools { display: flex; align-items: center; gap: 2px; flex: none; }
 
+  /* ogni esercizio è un blocco a sé: aria sopra e sotto, il tratto in mezzo */
   .exercise {
     display: grid;
     gap: 8px;
-    padding: 10px 0 2px;
+    padding: 20px 0 16px;
     border-top: 1px solid var(--hairline-soft);
   }
 
@@ -334,7 +335,8 @@
 
   .set :global(.text-field) { text-align: center; font-variant-numeric: tabular-nums; }
 
-  .add-set { display: block; }
+  /* «+ Serie» chiude le serie: «Recupero» sotto è un'altra cosa, e lo dice lo spazio */
+  .add-set { display: block; margin-bottom: 14px; }
 
   @media (min-width: 601px) { .add-set { justify-self: start; } }
 
