@@ -13,7 +13,7 @@
   import InstallHint from '../InstallHint.svelte';
   import PageCard from '../PageCard.svelte';
   import PageShell from '../PageShell.svelte';
-  import PanelSkeleton from '../PanelSkeleton.svelte';
+  import Loader from '../Loader.svelte';
   import WorkoutRow from '../workouts/WorkoutRow.svelte';
 
   /**
@@ -64,7 +64,7 @@
   {#if error}<Alert message={error} />{/if}
 
   {#if plans === null || recent === null}
-    {#if !error}<PageCard><PanelSkeleton /></PageCard>{/if}
+    {#if !error}<Loader />{/if}
   {:else}
     {#if open}
       <PageCard>
@@ -166,7 +166,9 @@
 
   .day :global(.ico) { width: 16px; height: 16px; color: var(--ink-3); }
 
-  .free { justify-self: start; }
+  .free { display: block; }
+
+  @media (min-width: 601px) { .free { justify-self: start; } }
 
   .rows { display: grid; margin: 0; padding: 0; list-style: none; }
 

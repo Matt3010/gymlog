@@ -13,7 +13,7 @@ const set = (exerciseId: number, exerciseName: string, reps: number, weightKg: n
 
 const detail = (extra: Partial<WorkoutDetail> = {}): WorkoutDetail => ({
   id: 1, planDayId: 5, planName: 'Forza', dayName: 'A', startedAt: '2026-10-01T17:00:00.000Z', finishedAt: null, notes: null,
-  plan: [], sets: [], previous: {}, exerciseNotes: {}, ...extra,
+  plan: [], sets: [], previous: {}, exerciseNotes: {}, previousNote: null, ...extra,
 });
 
 describe('the blocks of a workout', () => {

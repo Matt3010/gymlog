@@ -27,7 +27,7 @@ function workout(id: number, change: Partial<WorkoutSummary> = {}): WorkoutSumma
 }
 
 const started = (id: number): WorkoutDetail => ({
-  id, planDayId: null, planName: null, dayName: null, startedAt: new Date().toISOString(), finishedAt: null, notes: null, plan: [], sets: [], previous: {}, exerciseNotes: {},
+  id, planDayId: null, planName: null, dayName: null, startedAt: new Date().toISOString(), finishedAt: null, notes: null, plan: [], sets: [], previous: {}, exerciseNotes: {}, previousNote: null,
 });
 
 describe('home', () => {
@@ -99,7 +99,10 @@ describe('home', () => {
     fakeApi().on('GET /plans', () => new Promise(() => undefined) as never).on(RECENT, []);
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
     render(HomePage);
-    expect(document.querySelector('.skeleton')).toBeInTheDocument();
+    // a loader, not a skeleton; and only after a short wait, so a fast load does not flash
+    expect(screen.queryByRole('status', { name: 'Caricamento…' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('status', { name: 'Caricamento…' })).toBeInTheDocument();
+    expect(document.querySelector('.skeleton')).toBeNull();
     expect(screen.queryByText('Inizia un allenamento')).not.toBeInTheDocument();
   });
 

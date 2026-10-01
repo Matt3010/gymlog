@@ -78,13 +78,58 @@ async function expectEvenStack(page: Page): Promise<void> {
     const blocks = [...stack.children].filter((child) => getComputedStyle(child).display !== 'none' && child.getBoundingClientRect().height > 0);
     return blocks.slice(1).map((block, at) => Math.round(block.getBoundingClientRect().top - blocks[at]!.getBoundingClientRect().bottom));
   });
-  expect(new Set(gaps), 'gaps between the blocks of the page').toEqual(new Set([14]));
+  expect(gaps.filter((gap) => gap !== 14), 'gaps between the blocks of the page other than 14px').toEqual([]);
 }
 
 /** An action that adds to a list, or a new block in a card, is set apart by the hairline. */
 async function expectDivided(locator: Locator): Promise<void> {
   const top = await locator.evaluate((element) => getComputedStyle(element).borderTopWidth);
   expect(top, `${await locator.textContent()} is set apart`).toBe('1px');
+}
+
+/** On the phone an action button takes the whole width of the card (or form, or page) it is in. */
+async function expectFullWidth(button: Locator): Promise<void> {
+  const [own, room] = await button.evaluate((element) => {
+    const box = element.closest('.card, .route, .cards')!;
+    const style = getComputedStyle(box);
+    return [element.getBoundingClientRect().width, box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)];
+  });
+  expect(Math.round(own), `${await button.textContent()} is as wide as its card`).toBe(Math.round(room));
+}
+
+/** A question on the phone is a sheet at the bottom: off the screen's sides, room for the home bar, two halves. */
+async function expectRoomySheet(page: Page): Promise<void> {
+  const sheet = page.getByRole('alertdialog');
+  const box = await sheet.evaluate((element) => ({ bottom: parseFloat(getComputedStyle(element).paddingBottom), width: window.innerWidth }));
+  expect(box.bottom, 'room under the buttons').toBeGreaterThanOrEqual(14);
+  const buttons = await sheet.getByRole('button').evaluateAll((all) => all.map((one) => one.getBoundingClientRect()).map(({ left, right, width }) => ({ left, right, width })));
+  expect(buttons).toHaveLength(2);
+  for (const button of buttons) {
+    expect(button.left, 'off the left side').toBeGreaterThanOrEqual(16);
+    expect(box.width - button.right, 'off the right side').toBeGreaterThanOrEqual(16);
+  }
+  expect(Math.round(buttons[0]!.width), 'two halves').toBe(Math.round(buttons[1]!.width));
+}
+
+/**
+ * Inside a card only the card pads: every block in it, every row and the
+ * start of each row's text sit on the card's content edge, under its title.
+ */
+async function expectAligned(page: Page): Promise<void> {
+  const off = await page.locator('.card:visible').evaluateAll((cards) =>
+    cards.flatMap((card) => {
+      const left = card.getBoundingClientRect().left + parseFloat(getComputedStyle(card).paddingLeft) + parseFloat(getComputedStyle(card).borderLeftWidth);
+      const inside = [
+        ...[...card.children].filter((child) => getComputedStyle(child).position !== 'absolute'),
+        ...card.querySelectorAll('.row, .row .go, .row .open, button.day, .empty, .empty > *'),
+      ];
+      return inside
+        .filter((element) => element.getBoundingClientRect().width > 0)
+        .filter((element) => Math.abs(element.getBoundingClientRect().left - left) > 1)
+        .map((element) => `${element.className.toString().split(' ')[0]}: ${(element.textContent ?? '').trim().slice(0, 24)} (${Math.round(element.getBoundingClientRect().left - left)}px)`);
+    }),
+  );
+  expect(off, 'things inside a card off its content edge').toEqual([]);
 }
 
 const tile = (page: Page, name: string) => page.locator('dt', { hasText: new RegExp(`^${name}$`) }).locator('xpath=following-sibling::dd[1]');
@@ -96,6 +141,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
 
   await page.goto(base());
   await expectNoZoomOnFocus(page);
+  await expectFullWidth(page.getByRole('button', { name: 'Entra' }));
   await page.getByLabel('Utente').fill(process.env.E2E_USER!);
   await page.getByLabel('Password', { exact: true }).fill(process.env.E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Entra' }).click();
@@ -118,6 +164,15 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Installa' })).toBeVisible();
   await expectEvenStack(page);
   await page.getByRole('button', { name: 'Non ora' }).click();
+  await expectFullWidth(page.getByRole('button', { name: 'Allenamento libero' }));
+  await expectAligned(page);
+
+  // No plan yet: one way to write one, aligned like everything else.
+  await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Schede' }).click();
+  await expect(page.getByRole('link', { name: 'Scrivi una scheda' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Nuova' })).toHaveCount(0);
+  await expectFullWidth(page.getByRole('link', { name: 'Scrivi una scheda' }));
+  await expectAligned(page);
 
   // Two exercises.
   await page.getByRole('link', { name: 'Esercizi' }).click();
@@ -130,14 +185,17 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   }
   await expect(page.locator('.row .name')).toHaveText(['Panca piana', 'Squat']);
   await expectFlatRows(page);
+  await expectFullWidth(page.getByRole('button', { name: 'Crea', exact: true }));
+  await expectAligned(page);
   await expectNoZoomOnFocus(page);
 
   // A plan: day A with Squat 3 × 8-10 and Panca, day B with Panca.
   await page.getByRole('link', { name: 'Schede' }).click();
-  await page.getByRole('link', { name: 'Nuova' }).click();
+  await page.getByRole('link', { name: 'Scrivi una scheda' }).click();
   await page.getByPlaceholder('Forza, autunno').fill('Forza');
   // a new plan is created on request; then it becomes the editor, which saves itself
   await expect(page.getByRole('button', { name: 'Aggiungi esercizio' })).toHaveCount(0);
+  await expectFullWidth(page.getByRole('button', { name: 'Crea la scheda' }));
   await page.getByRole('button', { name: 'Crea la scheda' }).click();
   await expect(page).toHaveURL(/\/schede\/\d+$/);
   await page.getByRole('button', { name: 'Aggiungi esercizio' }).click();
@@ -150,6 +208,11 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByRole('dialog').getByRole('button', { name: 'Panca piana' }).click();
   await expectNoZoomOnFocus(page);
   for (const add of await page.locator('.add').all()) await expectDivided(add);
+  for (const name of ['Aggiungi esercizio', 'Aggiungi giorno', 'Aggiungi una serie a Squat']) await expectFullWidth(page.getByRole('button', { name }).first());
+  await page.getByRole('button', { name: 'Elimina la scheda «Forza»' }).click();
+  await expectRoomySheet(page);
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Annulla' }).click();
+  await expectAligned(page);
   await expectEvenStack(page);
   // No save button: the plan saves itself, and gets its own address once created.
   await expect(page.getByRole('button', { name: /Salva/ })).toHaveCount(0);
@@ -176,8 +239,10 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByLabel('Peso', { exact: true }).fill('60');
   await expectNoZoomOnFocus(page);
   await expectDivided(page.locator('.card .add').first());
+  for (const name of ['Segna la serie 1', 'Aggiungi un esercizio', 'Termina']) await expectFullWidth(page.getByRole('button', { name }));
   await page.getByRole('button', { name: 'Segna la serie 1' }).click();
   await expectDivided(page.locator('.card .sets').first());
+  await expectAligned(page);
   await expect(page.getByRole('button', { name: 'Segna la serie 2' })).toBeVisible();
   await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('60');
   await page.getByRole('button', { name: 'Peso, più 2,5' }).click();
@@ -201,6 +266,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(rest).toBeHidden();
   await scrollToEnd(page);
   const finishedButtons = [page.getByRole('button', { name: 'Riapri' })];
+  await expectFullWidth(finishedButtons[0]!);
   await expectClearOfTabBar(page, ...finishedButtons);
   await expect(page.locator('#toast')).toBeVisible();
   await expectToastClearOf(page, ...finishedButtons);
@@ -243,6 +309,8 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Storico' })).toBeVisible();
   await expect(page.locator('.row')).toHaveCount(2);
   await expectFlatRows(page);
+  await expectAligned(page);
+  await expectEvenStack(page);
   await page.waitForTimeout(500);
   expect(asked).toHaveLength(1);
 
@@ -269,6 +337,7 @@ test('a new person creates an account and is in at once', async ({ page }) => {
   await expect(page.locator('.stop-pin')).toHaveCount(0);
   await page.getByRole('button', { name: 'Crea un account' }).click();
   await expect(page.getByRole('heading', { name: 'Crea il tuo account' })).toBeVisible();
+  await expectFullWidth(page.getByRole('button', { name: 'Crea l’account' }));
   await page.getByLabel('Utente').fill('Nuova.Persona');
   await page.getByLabel('Password', { exact: true }).fill('password lunga');
   await page.getByLabel('Ripeti la password').fill('password lunghe');

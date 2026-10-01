@@ -96,6 +96,35 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     expect(await repo().find(user.id, workout.id)).toEqual(workout);
   });
 
+  it("finds the note of the last earlier workout of the same plan day, by its names", async () => {
+    const { user, start } = await setup();
+    const other = await setup();
+    const at = (day: number) => new Date(`2026-09-${String(day).padStart(2, "0")}T17:00:00Z`);
+    const older = await repo().create(user.id, start, at(1));
+    const last = await repo().create(user.id, start, at(3));
+    const silent = await repo().create(user.id, start, at(4));
+    const free = await repo().create(user.id, null, at(5));
+    const otherDay = await repo().create(user.id, { ...start, dayName: "B" }, at(6));
+    const current = await repo().create(user.id, start, at(8));
+    const later = await repo().create(user.id, start, at(9));
+    const theirs = await repo().create(other.user.id, other.start, at(7));
+    await repo().update(user.id, older.id, { notes: "vecchia" });
+    await repo().update(user.id, last.id, { notes: "spalla ok, aumentare" });
+    await repo().update(user.id, free.id, { notes: "libero" });
+    await repo().update(user.id, otherDay.id, { notes: "giorno B" });
+    await repo().update(user.id, later.id, { notes: "dopo" });
+    await repo().update(other.user.id, theirs.id, { notes: "di un altro" });
+    void silent;
+
+    expect(await repo().previousNote(user.id, current.id)).toEqual({ workoutId: last.id, startedAt: "2026-09-03T17:00:00.000Z", note: "spalla ok, aumentare" });
+    // A free workout looks at free workouts.
+    const freeNow = await repo().create(user.id, null, at(10));
+    expect(await repo().previousNote(user.id, freeNow.id)).toEqual({ workoutId: free.id, startedAt: "2026-09-05T17:00:00.000Z", note: "libero" });
+    // Nothing before: nothing.
+    expect(await repo().previousNote(user.id, older.id)).toBeNull();
+    expect(await repo().previousNote(other.user.id, current.id)).toBeNull();
+  });
+
   it("keeps one note per exercise in a workout, changed or taken away", async () => {
     const { user, squat, bench } = await setup();
     const workout = await repo().create(user.id, null);

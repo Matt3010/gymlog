@@ -75,9 +75,12 @@ describe('the stats of an exercise', () => {
 });
 
 describe('while it loads, the page', () => {
-  it('shows its shape', () => {
+  it('shows its shape', async () => {
     silentApi();
     render(ExerciseStatsPage, { id: 1 });
-    expect(document.querySelector('.skeleton')).toBeInTheDocument();
+    // a loader, not a skeleton; and only after a short wait, so a fast load does not flash
+    expect(screen.queryByRole('status', { name: 'Caricamento…' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('status', { name: 'Caricamento…' })).toBeInTheDocument();
+    expect(document.querySelector('.skeleton')).toBeNull();
   });
 });

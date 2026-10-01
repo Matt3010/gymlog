@@ -30,6 +30,13 @@ export interface WorkoutSet extends SetInput {
   readonly createdAt: string;
 }
 
+/** The note of an earlier workout, with when it was. */
+export interface PreviousNote {
+  readonly workoutId: number;
+  readonly startedAt: string;
+  readonly note: string;
+}
+
 export interface PreviousSets {
   readonly workoutId: number;
   readonly startedAt: string;
@@ -73,6 +80,11 @@ export interface WorkoutsRepository {
   setExerciseNote(workoutId: number, exerciseId: number, note: string | null): Promise<void>;
   /** By exercise id. */
   exerciseNotes(workoutId: number): Promise<Map<number, string>>;
+  /**
+   * The note of the last earlier workout of the same plan day, matched by the
+   * names copied at start (a free workout matches free workouts), or null.
+   */
+  previousNote(userId: number, workoutId: number): Promise<PreviousNote | null>;
   updateSet(userId: number, setId: number, change: { reps: number; weightKg: number }): Promise<WorkoutSet | undefined>;
   deleteSet(userId: number, setId: number): Promise<boolean>;
 }
@@ -213,6 +225,22 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
       const rows = await db.select({ exerciseId: workoutExerciseNotes.exerciseId, note: workoutExerciseNotes.note })
         .from(workoutExerciseNotes).where(eq(workoutExerciseNotes.workoutId, workoutId));
       return new Map(rows.map((row) => [row.exerciseId, row.note]));
+    },
+
+    async previousNote(userId, workoutId) {
+      const { rows } = await db.execute<{ id: number; started_at: string; notes: string }>(sql`
+        select w.id, w.started_at, w.notes
+        from workouts w
+        join workouts c on c.id = ${workoutId} and c.user_id = ${userId}
+        where w.user_id = ${userId}
+          and w.started_at < c.started_at
+          and w.notes is not null
+          and w.plan_name is not distinct from c.plan_name
+          and w.day_name is not distinct from c.day_name
+        order by w.started_at desc, w.id desc
+        limit 1`);
+      const row = rows[0];
+      return row === undefined ? null : { workoutId: row.id, startedAt: new Date(row.started_at).toISOString(), note: row.notes };
     },
 
     async addSet(workoutId, input) {

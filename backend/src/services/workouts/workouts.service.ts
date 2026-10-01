@@ -1,7 +1,7 @@
 import { found, foundIf } from "../../errors";
 import type { Executor } from "../../lib";
 import {
-  createWorkoutsRepository, type PreviousSets, type SetInput, type Workout, type WorkoutChange, type WorkoutSet, type WorkoutStart,
+  createWorkoutsRepository, type PreviousNote, type PreviousSets, type SetInput, type Workout, type WorkoutChange, type WorkoutSet, type WorkoutStart,
   type WorkoutSummary,
 } from "../../repositories";
 
@@ -21,6 +21,8 @@ export interface WorkoutsService {
   setExerciseNote(workoutId: number, exerciseId: number, note: string | null): Promise<void>;
   /** By exercise id. */
   exerciseNotes(workoutId: number): Promise<Record<string, string>>;
+  /** The note of the last earlier workout of the same plan day. */
+  previousNote(userId: number, workoutId: number): Promise<PreviousNote | null>;
   updateSet(userId: number, setId: number, change: { reps: number; weightKg: number }): Promise<WorkoutSet>;
   deleteSet(userId: number, setId: number): Promise<void>;
 }
@@ -38,6 +40,7 @@ export function createWorkoutsService(db: Executor): WorkoutsService {
     addSet: (workoutId, input) => workouts.addSet(workoutId, input),
     setExerciseNote: (workoutId, exerciseId, note) => workouts.setExerciseNote(workoutId, exerciseId, note),
     exerciseNotes: async (workoutId) => Object.fromEntries(await workouts.exerciseNotes(workoutId)),
+    previousNote: (userId, workoutId) => workouts.previousNote(userId, workoutId),
     updateSet: async (userId, setId, change) => found(await workouts.updateSet(userId, setId, change)),
     deleteSet: async (userId, setId) => foundIf(await workouts.deleteSet(userId, setId)),
   };

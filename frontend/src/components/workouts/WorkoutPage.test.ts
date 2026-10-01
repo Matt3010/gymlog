@@ -26,6 +26,7 @@ const DETAIL: WorkoutDetail = {
     1: { workoutId: 3, startedAt: '2026-09-20T17:00:00.000Z', sets: [{ reps: 8, weightKg: 60 }, { reps: 8, weightKg: 60 }, { reps: 6, weightKg: 62.5 }], note: 'ginocchio un po’ dentro' },
   },
   exerciseNotes: { 1: 'scendere più lento' },
+  previousNote: { workoutId: 3, startedAt: '2026-09-20T17:00:00.000Z', note: 'poco riposo fra le serie' },
 };
 
 /** The server keeping the workout: sets added, changed, removed; the end set and taken back. */
@@ -386,10 +387,13 @@ describe('the rest after a set', () => {
 });
 
 describe('while it loads, the page', () => {
-  it('shows its shape', () => {
+  it('shows its shape', async () => {
     silentApi();
     render(Host, { page: WorkoutPage, params: { id: 7 } });
-    expect(document.querySelector('.skeleton')).toBeInTheDocument();
+    // a loader, not a skeleton; and only after a short wait, so a fast load does not flash
+    expect(screen.queryByRole('status', { name: 'Caricamento…' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('status', { name: 'Caricamento…' })).toBeInTheDocument();
+    expect(document.querySelector('.skeleton')).toBeNull();
   });
 });
 
@@ -448,5 +452,67 @@ describe('a note on an exercise', () => {
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     await screen.findByText('L’ultima volta');
     expect(document.querySelector('.last-note')).toBeNull();
+  });
+});
+
+describe('what was written last time', () => {
+  const workoutNote = () => screen.getByPlaceholderText('Come è andata, cosa cambiare');
+  const card = (field: HTMLElement) => within(field.closest('.card') as HTMLElement);
+
+  it('of the whole workout is shown above its note, with the day', async () => {
+    server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const field = await screen.findByPlaceholderText('Come è andata, cosa cambiare');
+    expect(card(field).getByText('L’ultima volta · dom 20 set')).toBeInTheDocument();
+    expect(card(field).getByText('«poco riposo fra le serie»')).toBeInTheDocument();
+  });
+
+  it('is not shown, nor reusable, when there was none', async () => {
+    server({ ...DETAIL, previousNote: null });
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const field = await screen.findByPlaceholderText('Come è andata, cosa cambiare');
+    expect(card(field).queryByText(/L’ultima volta/)).not.toBeInTheDocument();
+    expect(card(field).queryByRole('button', { name: /Riusa/ })).not.toBeInTheDocument();
+  });
+
+  it('is copied into an empty note with «Riusa», ready to be changed, and saved', async () => {
+    const api = server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    const field = await screen.findByPlaceholderText('Come è andata, cosa cambiare');
+    await user.click(card(field).getByRole('button', { name: 'Riusa la nota dell’ultima volta' }));
+    expect(field).toHaveValue('poco riposo fra le serie');
+    expect(field).toHaveFocus();
+    expect((field as HTMLTextAreaElement).selectionStart).toBe('poco riposo fra le serie'.length);
+    await vi.waitFor(() => expect(api.changes()).toEqual([{ route: 'PATCH /workouts/7', body: { notes: 'poco riposo fra le serie' } }]));
+    // now the same as last time: nothing more to reuse
+    expect(card(field).queryByRole('button', { name: /Riusa/ })).not.toBeInTheDocument();
+    await user.type(field, ', meglio');
+    await user.tab();
+    await vi.waitFor(() => expect(api.changes().at(-1)).toEqual({ route: 'PATCH /workouts/7', body: { notes: 'poco riposo fra le serie, meglio' } }));
+  });
+
+  it('asks before replacing what is written today, and keeps it on «Annulla»', async () => {
+    const api = server().on('PUT /workouts/7/exercises/1/note', (call: Call) => ({ exerciseId: 1, note: (call.body as { note: string }).note }));
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    await screen.findByText('«ginocchio un po’ dentro»');
+    const exerciseNote = screen.getAllByLabelText('Nota', { selector: 'textarea' })[0]!;
+    await user.click(card(exerciseNote).getByRole('button', { name: 'Riusa la nota dell’ultima volta' }));
+    const question = within(await screen.findByRole('alertdialog', { name: 'Sostituire la nota di oggi?' }));
+    await user.click(question.getByRole('button', { name: 'Annulla' }));
+    expect(exerciseNote).toHaveValue('scendere più lento');
+    expect(api.changes()).toEqual([]);
+    await user.click(card(exerciseNote).getByRole('button', { name: 'Riusa la nota dell’ultima volta' }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Sostituisci' }));
+    expect(exerciseNote).toHaveValue('ginocchio un po’ dentro');
+    await vi.waitFor(() => expect(api.changes()).toEqual([{ route: 'PUT /workouts/7/exercises/1/note', body: { note: 'ginocchio un po’ dentro' } }]));
+  });
+
+  it('has no «Riusa» when today’s note is already the same', async () => {
+    server({ ...DETAIL, exerciseNotes: { 1: 'ginocchio un po’ dentro' }, notes: 'poco riposo fra le serie' });
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    await screen.findByText('«ginocchio un po’ dentro»');
+    expect(screen.queryByRole('button', { name: /Riusa/ })).not.toBeInTheDocument();
   });
 });

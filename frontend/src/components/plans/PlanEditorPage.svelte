@@ -12,7 +12,7 @@
   import Icon from '../Icon.svelte';
   import PageCard from '../PageCard.svelte';
   import PageShell from '../PageShell.svelte';
-  import PanelSkeleton from '../PanelSkeleton.svelte';
+  import Loader from '../Loader.svelte';
   import SaveStatus from '../SaveStatus.svelte';
   import Switch from '../Switch.svelte';
   import TextField from '../TextField.svelte';
@@ -156,7 +156,7 @@
       </span>
     </PageCard>
   {:else if !draft && !error}
-    <PageCard><PanelSkeleton /></PageCard>
+    <Loader />
   {:else if draft}
     <PageCard>
       <label class="field">
@@ -224,7 +224,7 @@
               {/each}
             </ol>
             <span class="add-set">
-              <Button look="link" disabled={exercise.reps.length >= 20} aria-label="Aggiungi una serie a {exercise.exerciseName}" onclick={() => addSet(exercise)}>
+              <Button look="ghost" disabled={exercise.reps.length >= 20} aria-label="Aggiungi una serie a {exercise.exerciseName}" onclick={() => addSet(exercise)}>
                 <Icon name="plus" /> Serie
               </Button>
             </span>
@@ -244,7 +244,7 @@
         {/each}
 
         <span class="add">
-          <Button look="ghost" size="sm" onclick={() => pickFor(day)}>
+          <Button look="ghost" onclick={() => pickFor(day)}>
             <Icon name="plus" /> Aggiungi esercizio
           </Button>
         </span>
@@ -268,7 +268,9 @@
 
 
 <style>
-  .create { justify-self: end; }
+  .create { display: block; }
+
+  @media (min-width: 601px) { .create { justify-self: end; } }
 
   .day-head {
     display: flex;
@@ -318,7 +320,9 @@
 
   .set :global(.text-field) { text-align: center; font-variant-numeric: tabular-nums; }
 
-  .add-set { justify-self: start; }
+  .add-set { display: block; }
+
+  @media (min-width: 601px) { .add-set { justify-self: start; } }
 
   .numbers input { text-align: center; font-variant-numeric: tabular-nums; }
 

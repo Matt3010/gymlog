@@ -45,6 +45,9 @@ interface WorkoutDetail extends Workout {
   sets: WorkoutSet[];                          // in ordine di inserimento
   previous: Record<string, PreviousSets>;      // per exerciseId: l'ultima sessione precedente con quell'esercizio, con la sua nota
   exerciseNotes: Record<string, string>;       // per exerciseId: la nota scritta su quell'esercizio in questo allenamento
+  previousNote: { workoutId: number; startedAt: string; note: string } | null;
+                                               // la nota generale dell'ultimo allenamento dello stesso giorno della scheda
+                                               // (per nome di scheda e giorno; un allenamento libero guarda quelli liberi)
 }
 
 // Statistiche di un gruppo di serie (una sessione, o tutte)

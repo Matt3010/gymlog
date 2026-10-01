@@ -24,10 +24,11 @@
 </div>
 
 <style>
+  /* dentro una card lo spazio intorno lo dà la card: qui niente di suo */
   .empty {
     display: grid;
-    gap: 8px;
-    padding: 10px 8px 6px;
+    gap: 6px;
+    padding: 0;
   }
 
   .empty-title {
@@ -44,5 +45,7 @@
     color: var(--ink-3);
   }
 
-  .empty :global(.btn) { justify-self: start; margin-top: 2px; }
+  .empty :global(.btn) { margin-top: 4px; }
+
+  @media (min-width: 601px) { .empty :global(.btn) { justify-self: start; } }
 </style>

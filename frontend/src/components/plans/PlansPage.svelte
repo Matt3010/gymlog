@@ -9,7 +9,7 @@
   import Icon from '../Icon.svelte';
   import PageCard from '../PageCard.svelte';
   import PageShell from '../PageShell.svelte';
-  import PanelSkeleton from '../PanelSkeleton.svelte';
+  import Loader from '../Loader.svelte';
 
   /** Le schede: quelle in uso in cima, le archiviate sotto, a parte. */
   let plans = $state<Plan[] | null>(null);
@@ -40,15 +40,18 @@
 
 <PageShell title="Schede" count={active.length}>
   {#snippet tools()}
-    <Button look="primary" size="sm" href={planPath(null)}>
-      <Icon name="plus" /> Nuova
-    </Button>
+    <!-- senza schede in uso il modo di scriverne una è quello dell'elenco vuoto: due sarebbero uno di troppo -->
+    {#if active.length > 0}
+      <Button look="primary" size="sm" href={planPath(null)}>
+        <Icon name="plus" /> Nuova
+      </Button>
+    {/if}
   {/snippet}
 
   {#if error}<Alert message={error} />{/if}
 
   {#if plans === null}
-    {#if !error}<PageCard><PanelSkeleton /></PageCard>{/if}
+    {#if !error}<Loader />{/if}
   {:else}
     <PageCard>
       {#if active.length === 0}
@@ -61,7 +64,7 @@
     </PageCard>
 
     {#if archived.length > 0}
-      <PageCard dashed>
+      <PageCard>
         <span class="eyebrow">Archiviate</span>
         <ul class="rows">{#each archived as plan (plan.id)}{@render row(plan)}{/each}</ul>
       </PageCard>
@@ -79,7 +82,7 @@
     display: grid;
     gap: 2px;
     min-height: 52px;
-    padding: 4px 4px;
+    padding: 4px 0;
     border-radius: var(--r-sm);
     color: inherit;
     text-decoration: none;

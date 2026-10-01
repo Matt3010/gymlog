@@ -36,7 +36,7 @@
 
 <div class="stepper is-line">
   <span class="eyebrow">{label}</span>
-  <div class="row">
+  <div class="controls">
     <button type="button" class="nudge" aria-label="{label}, meno {String(step).replace('.', ',')}" onclick={() => nudge(-1)}>
       <Icon name="minus" />
     </button>
@@ -69,7 +69,7 @@
     min-width: 0;
   }
 
-  .row {
+  .controls {
     display: grid;
     grid-template-columns: 48px 104px 48px;
     align-items: center;

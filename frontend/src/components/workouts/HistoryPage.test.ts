@@ -61,9 +61,12 @@ describe('the history', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Il server non si raggiunge adesso. Riprova fra poco.');
   });
 
-  it('shows the shape of the page while it loads', () => {
+  it('shows the shape of the page while it loads', async () => {
     silentApi();
     render(HistoryPage);
-    expect(document.querySelector('.skeleton')).toBeInTheDocument();
+    // a loader, not a skeleton; and only after a short wait, so a fast load does not flash
+    expect(screen.queryByRole('status', { name: 'Caricamento…' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('status', { name: 'Caricamento…' })).toBeInTheDocument();
+    expect(document.querySelector('.skeleton')).toBeNull();
   });
 });

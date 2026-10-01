@@ -66,7 +66,7 @@
 <!-- il modulo non disegna niente: tutta la geometria è quella della riga, e i
      pezzi stanno nelle stesse fessure delle righe qui sopra -->
 <form class="shell" onsubmit={submit}>
-  <Row dashed {flat} {id} class={value.trim() ? 'is-ready' : ''}>
+  <Row dashed {flat} {id} class={`${value.trim() ? 'is-ready' : ''} ${label ? 'has-label' : ''}`}>
     {#snippet lead()}{#if flat && !before}<span class="plus"><Icon name="plus" /></span>{/if}{@render before?.()}{/snippet}
 
     <TextField
@@ -104,4 +104,13 @@
   .plus { display: grid; place-items: center; width: 28px; color: var(--ink-3); }
 
   .plus :global(.ico) { width: 16px; height: 16px; }
+
+  /* con la parola, sul telefono il tasto va sotto il campo, largo quanto la riga */
+  @media (max-width: 600px) {
+    :global(.row.has-label .line) { flex-wrap: wrap; row-gap: 8px; }
+
+    :global(.row.has-label .trail) { flex-basis: 100%; }
+
+    :global(.row.has-label .add-go) { width: 100%; }
+  }
 </style>

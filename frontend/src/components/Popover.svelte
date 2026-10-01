@@ -161,8 +161,8 @@
       max-height: min(70dvh, 560px);
       border-bottom: 0;
       border-radius: var(--r-lg) var(--r-lg) 0 0;
-      padding: var(--card-pad);
-      padding-bottom: calc(var(--card-pad) + env(safe-area-inset-bottom));
+      padding: var(--card-pad) max(16px, env(safe-area-inset-right)) calc(var(--card-pad) + env(safe-area-inset-bottom))
+        max(16px, env(safe-area-inset-left));
       animation: sheet-in-mobile 0.26s var(--ease);
     }
   }

@@ -7,7 +7,7 @@
   import EmptyState from '../EmptyState.svelte';
   import PageCard from '../PageCard.svelte';
   import PageShell from '../PageShell.svelte';
-  import PanelSkeleton from '../PanelSkeleton.svelte';
+  import Loader from '../Loader.svelte';
   import Table from '../Table.svelte';
   import type { Column } from '../../lib/table';
 
@@ -44,7 +44,7 @@
   {#if error}<Alert message={error} />{/if}
 
   {#if !stats}
-    {#if !error}<PageCard><PanelSkeleton /></PageCard>{/if}
+    {#if !error}<Loader />{/if}
   {:else}
     {#if stats.overall.sessions === 0}
       <PageCard>

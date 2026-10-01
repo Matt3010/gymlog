@@ -7,6 +7,7 @@ import CopyLine from './CopyLine.svelte';
 import DateField from './DateField.svelte';
 import Hint from './Hint.svelte';
 import Lazy from './Lazy.svelte';
+import PanelSkeleton from './PanelSkeleton.svelte';
 import Pager from './Pager.svelte';
 import PickField from './PickField.svelte';
 import SearchTrigger from './SearchTrigger.svelte';
@@ -125,5 +126,10 @@ describe('the ported pieces not used yet', () => {
     expect(screen.getByRole('button', { name: 'Per nome' })).toBeInTheDocument();
     await userEvent.setup().click(screen.getByTitle('In ordine crescente, tocca per girarlo'));
     expect(vista.verso).toBe('desc');
+  });
+
+  it('PanelSkeleton draws the empty shape of a panel', () => {
+    render(PanelSkeleton);
+    expect(document.querySelectorAll('.skeleton').length).toBeGreaterThan(0);
   });
 });

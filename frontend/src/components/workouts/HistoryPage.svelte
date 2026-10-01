@@ -7,7 +7,7 @@
   import EmptyState from '../EmptyState.svelte';
   import PageCard from '../PageCard.svelte';
   import PageShell from '../PageShell.svelte';
-  import PanelSkeleton from '../PanelSkeleton.svelte';
+  import Loader from '../Loader.svelte';
   import WorkoutRow from './WorkoutRow.svelte';
 
   /** Tutti gli allenamenti, dal più recente, venti alla volta. */
@@ -41,7 +41,7 @@
 
 <PageShell title="Storico">
   {#if workouts === null}
-    {#if !error}<PageCard><PanelSkeleton /></PageCard>{/if}
+    {#if !error}<Loader />{/if}
   {:else}
     <PageCard>
       {#if workouts.length === 0}

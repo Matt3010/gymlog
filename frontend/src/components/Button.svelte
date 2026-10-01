@@ -300,4 +300,15 @@
 
   .danger-solid:hover { filter: brightness(1.1); }
   .danger-solid:active { transform: translateY(1px); }
+
+  /*
+   * Sul telefono un tasto con delle parole è largo quanto la card in cui sta:
+   * si preme col pollice, in piedi, e un bersaglio stretto in un angolo si
+   * manca. Restano piccoli i tasti-icona nelle righe (frecce, ✕, cestino,
+   * matita) e quelli `sm`, che stanno in fila con altre cose — una testata,
+   * una domanda, un invito.
+   */
+  @media (max-width: 600px) {
+    .btn:not(.icon):not(.round):not(.glass):not(.link):not(.is-sm) { width: 100%; }
+  }
 </style>

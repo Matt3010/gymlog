@@ -11,7 +11,7 @@
   import Icon from '../Icon.svelte';
   import PageCard from '../PageCard.svelte';
   import PageShell from '../PageShell.svelte';
-  import PanelSkeleton from '../PanelSkeleton.svelte';
+  import Loader from '../Loader.svelte';
   import Row from '../Row.svelte';
   import TextField from '../TextField.svelte';
   import { toast } from '../../lib/toast.svelte';
@@ -85,7 +85,7 @@
   {#if error}<Alert message={error} />{/if}
 
   {#if exercises === null}
-    {#if !error}<PageCard><PanelSkeleton /></PageCard>{/if}
+    {#if !error}<Loader />{/if}
   {:else}
     <PageCard>
       {#if exercises.length === 0}
@@ -142,7 +142,7 @@
     display: grid;
     gap: 1px;
     min-height: 40px;
-    padding: 4px 6px;
+    padding: 4px 0;
     border: 0;
     border-radius: var(--r-sm);
     background: transparent;

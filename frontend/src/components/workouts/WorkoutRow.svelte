@@ -32,7 +32,7 @@
     grid-template-areas: "what day" "numbers numbers";
     gap: 2px 10px;
     min-height: 52px;
-    padding: 4px 4px;
+    padding: 4px 0;
     border-radius: var(--r-sm);
     color: inherit;
     text-decoration: none;

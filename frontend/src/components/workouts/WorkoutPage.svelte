@@ -16,7 +16,7 @@
   import PageCard from '../PageCard.svelte';
   import PageShell from '../PageShell.svelte';
   import SaveStatus from '../SaveStatus.svelte';
-  import PanelSkeleton from '../PanelSkeleton.svelte';
+  import Loader from '../Loader.svelte';
   import Stepper from '../Stepper.svelte';
   import TextField from '../TextField.svelte';
   import ExercisePicker from '../exercises/ExercisePicker.svelte';
@@ -204,7 +204,7 @@
   {/snippet}
 
   {#if !detail && !error}
-    <PageCard><PanelSkeleton /></PageCard>
+    <Loader />
   {:else if detail}
     {#each blocks as block (block.exerciseId)}
       {@const isOpen = active === block.exerciseId}
@@ -314,12 +314,12 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    width: calc(100% + 16px);
+    width: 100%;
     min-height: 44px;
-    margin: -8px;
-    padding: 8px;
+    margin: 0;
+    padding: 0;
     border: 0;
-    border-radius: var(--r-md);
+    border-radius: 0;
     background: transparent;
     text-align: left;
     transition: background 0.15s;

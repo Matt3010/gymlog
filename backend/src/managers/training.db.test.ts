@@ -110,6 +110,7 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
         [squat.id]: { workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 5, weightKg: 90 }], note: null },
       });
       expect(workout.exerciseNotes).toEqual({});
+      expect(workout.previousNote).toBeNull();
     });
 
     it("start from a plan day, with what it asks for", async () => {

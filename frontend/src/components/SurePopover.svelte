@@ -65,7 +65,11 @@
 
 <style>
   /* il vetro, la posizione e l'entrata li mette il foglietto */
-  :global(#sure-popover) { padding: 14px; }
+  /* sul telefono il foglio ha il suo spazio, quello di Popover: qui no, perché
+     un id vincerebbe sui suoi margini e i tasti toccherebbero il bordo */
+  @media (min-width: 601px) {
+    :global(#sure-popover) { padding: 14px; }
+  }
 
   .sure-what {
     margin: 0;
@@ -89,4 +93,11 @@
     margin-top: 12px;
   }
 
+
+  /* sul telefono il no e il sì metà per uno, larghi come il foglio */
+  @media (max-width: 600px) {
+    .sure-acts { gap: 10px; }
+
+    .sure-acts :global(.btn) { flex: none; width: calc(50% - 5px); }
+  }
 </style>

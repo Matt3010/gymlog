@@ -1,5 +1,5 @@
 import type { Database, Executor } from "../../lib";
-import type { PlanExercise, PreviousSets, SetInput, Workout, WorkoutChange, WorkoutSet } from "../../repositories";
+import type { PlanExercise, PreviousNote, PreviousSets, SetInput, Workout, WorkoutChange, WorkoutSet } from "../../repositories";
 import { createExercisesService, createPlansService, createWorkoutsService } from "../../services";
 import { InputError } from "../../validators";
 
@@ -11,6 +11,8 @@ export interface WorkoutDetail extends Workout {
   readonly previous: Record<string, PreviousSets>;
   /** By exercise id: what was written about it in this workout. */
   readonly exerciseNotes: Record<string, string>;
+  /** The note of the last earlier workout of the same plan day. */
+  readonly previousNote: PreviousNote | null;
 }
 
 /** Workouts together with plans and exercises; each method one transaction. */
@@ -34,6 +36,7 @@ async function detail(tx: Executor, userId: number, workout: Workout): Promise<W
     sets: await workouts.sets(workout.id),
     previous: await workouts.previous(userId, workout.id),
     exerciseNotes: await workouts.exerciseNotes(workout.id),
+    previousNote: await workouts.previousNote(userId, workout.id),
   };
 }
 

@@ -24,7 +24,7 @@
 </script>
 
 <div class="gate">
-  <svelte:element this={onsubmit ? 'form' : 'div'} class="route surface" {onsubmit}>
+  <svelte:element this={onsubmit ? 'form' : 'div'} class="route" {onsubmit}>
     <header class="route-head">
       <span class="wordmark"><Icon name="logo" /> gymlog</span>
       <h1>{title}</h1>
@@ -42,15 +42,19 @@
     place-items: center;
     padding: calc(24px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
     overflow: auto;
-    background:
-      radial-gradient(60% 50% at 20% 15%, color-mix(in srgb, var(--me) 16%, transparent), transparent 70%),
-      radial-gradient(55% 45% at 85% 90%, color-mix(in srgb, var(--ok) 13%, transparent), transparent 70%);
+    /* lo stesso colore piatto di ogni altra pagina: il fondo del corpo */
+    background: transparent;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    /* un po' sopra il mezzo, dove l'occhio va per primo */
+    padding-bottom: calc(12vh + env(safe-area-inset-bottom));
   }
 
+  /* il modulo sta sulla pagina, senza scatola intorno */
   .route {
     position: relative;
-    width: min(400px, 100%);
-    padding: 22px 22px 20px;
+    width: min(420px, 100%);
+    padding: 0;
     display: grid;
     gap: 18px;
     animation: rise 0.45s var(--ease);
@@ -98,7 +102,6 @@
   .route :global(.go:disabled) { opacity: 0.6; }
 
   @media (max-width: 600px) {
-    .route { padding: 18px; }
     h1 { font-size: 20px; }
   }
 </style>

@@ -47,6 +47,21 @@ describe('the plans', () => {
     expect(screen.getByRole('link', { name: 'Nuova' })).toHaveAttribute('href', '/schede/nuova');
   });
 
+  it('with none in use offer one way to write one, and none in the header', async () => {
+    fakeApi().on('GET /plans', []);
+    render(Host, { page: PlansPage });
+    expect(await screen.findByRole('link', { name: 'Scrivi una scheda' })).toHaveAttribute('href', '/schede/nuova');
+    expect(screen.queryByRole('link', { name: 'Nuova' })).not.toBeInTheDocument();
+  });
+
+  it('archived sit in a section like any other', async () => {
+    fakeApi().on('GET /plans', [FORZA, { ...FORZA, id: 6, name: 'Estate', archived: true, days: [] }]);
+    render(Host, { page: PlansPage });
+    const archived = (await screen.findByText('Archiviate')).closest('.card')!;
+    expect(archived).not.toHaveClass('dashed');
+    expect(screen.getByRole('link', { name: 'Nuova' })).toBeInTheDocument();
+  });
+
   it('invite to write the first one', async () => {
     fakeApi().on('GET /plans', []);
     render(Host, { page: PlansPage });
@@ -278,17 +293,23 @@ describe('a saved plan', () => {
   });
 
 
-  it('list shows its shape while it loads', () => {
+  it('list shows its shape while it loads', async () => {
     silentApi();
     render(Host, { page: PlansPage });
-    expect(document.querySelector('.skeleton')).toBeInTheDocument();
+    // a loader, not a skeleton; and only after a short wait, so a fast load does not flash
+    expect(screen.queryByRole('status', { name: 'Caricamento…' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('status', { name: 'Caricamento…' })).toBeInTheDocument();
+    expect(document.querySelector('.skeleton')).toBeNull();
   });
 });
 
 describe('while it loads, the page', () => {
-  it('shows its shape', () => {
+  it('shows its shape', async () => {
     silentApi();
     render(Host, { page: PlanEditorPage, params: { id: 5 } });
-    expect(document.querySelector('.skeleton')).toBeInTheDocument();
+    // a loader, not a skeleton; and only after a short wait, so a fast load does not flash
+    expect(screen.queryByRole('status', { name: 'Caricamento…' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('status', { name: 'Caricamento…' })).toBeInTheDocument();
+    expect(document.querySelector('.skeleton')).toBeNull();
   });
 });
