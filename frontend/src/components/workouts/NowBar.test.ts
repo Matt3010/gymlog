@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { current } from '../../lib/current.svelte';
 import { nav } from '../../lib/nav.svelte';
 import { rest } from '../../lib/rest.svelte';
 import type { WorkoutSummary } from '../../lib/types';
@@ -31,14 +33,21 @@ describe('the workout in progress, on every page', () => {
     expect(await screen.findByRole('link', { name: /^In corso/ })).toHaveTextContent(/Allenamento libero\s*1 serie/);
   });
 
-  it('counts the rest down while it runs, even away from the workout', async () => {
+  it('is the same bar for the rest, away from the workout too: the time left, and ±15 s and stop at hand', async () => {
     fakeApi().on(RECENT, [workout(9)]);
+    nav.go('/esercizi');
     render(NowBar);
+    const user = userEvent.setup();
     const bar = await screen.findByRole('link', { name: /^In corso/ });
     rest.start(72);
-    await vi.waitFor(() => expect(bar).toHaveTextContent(/Recupero\s*1:12/));
-    rest.stop();
-    await vi.waitFor(() => expect(bar).toHaveTextContent('3 serie'));
+    await vi.waitFor(() => expect(screen.getByRole('timer', { name: 'Recupero' })).toHaveTextContent(/Recupero\s*1:12/));
+    // still the workout's bar: its name stays in it
+    expect(bar).toHaveTextContent('Ciao · A');
+    await user.click(screen.getByRole('button', { name: 'Aggiungi 15 secondi' }));
+    expect(screen.getByRole('timer', { name: 'Recupero' })).toHaveTextContent('1:27');
+    await user.click(screen.getByRole('button', { name: 'Ferma il recupero' }));
+    expect(screen.queryByRole('timer', { name: 'Recupero' })).not.toBeInTheDocument();
+    expect(bar).toHaveTextContent('3 serie');
   });
 
   it('is not there without a workout in progress', async () => {
@@ -48,14 +57,24 @@ describe('the workout in progress, on every page', () => {
     expect(screen.queryByRole('link', { name: /^In corso/ })).not.toBeInTheDocument();
   });
 
-  it('steps aside on the page of that workout, and comes back elsewhere', async () => {
+  it('stays on the page of that workout too, the same, only not a link to where you are', async () => {
     fakeApi().on(RECENT, [workout(9)]);
     nav.go('/allenamenti/9');
     render(NowBar);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(await screen.findByRole('region', { name: 'In corso' })).toHaveTextContent('Ciao · A');
     expect(screen.queryByRole('link', { name: /^In corso/ })).not.toBeInTheDocument();
     nav.go('/');
     expect(await screen.findByRole('link', { name: /^In corso/ })).toBeInTheDocument();
+  });
+
+  it('shows what the workout page says right away: a set logged counts at once', async () => {
+    fakeApi().on(RECENT, [workout(9)]);
+    nav.go('/allenamenti/9');
+    render(NowBar);
+    const bar = await screen.findByRole('region', { name: 'In corso' });
+    expect(bar).toHaveTextContent('3 serie');
+    current.set({ ...current.workout!, sets: 4 });
+    await vi.waitFor(() => expect(bar).toHaveTextContent('4 serie'));
   });
 
   it('looks again at every change of page: a workout ended there is gone here', async () => {

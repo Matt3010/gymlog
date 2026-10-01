@@ -364,6 +364,16 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expectClearOfTabBar(page, rest, ...workoutButtons);
   await expectUncovered(page, rest, ...workoutButtons);
 
+  // The rest is the same bar on every page, and it survives the app reloading (an iPhone does that in the background).
+  await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Schede' }).click();
+  await expect(rest).toContainText(/Recupero 1:/);
+  await expect(page.getByRole('link', { name: /^In corso/ })).toContainText('Forza! · A');
+  await page.reload();
+  await expect(rest).toContainText(/Recupero 1:/);
+  await page.getByRole('link', { name: /^In corso/ }).click();
+  await expect(page.getByRole('heading', { name: 'Forza! · A' })).toBeVisible();
+  await expect(rest).toBeVisible();
+
   await page.getByRole('button', { name: 'Termina' }).click();
   await expect(page.locator('#toast')).toHaveText('Allenamento terminato.');
   await expect(rest).toBeHidden();

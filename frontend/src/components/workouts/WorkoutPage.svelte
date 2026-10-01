@@ -4,6 +4,7 @@
   import { formatClock, formatDay, formatDuration, formatKg, formatRest } from '../../lib/format';
   import { nav } from '../../lib/nav.svelte';
   import { HOME_PATH } from '../../lib/routing';
+  import { current } from '../../lib/current.svelte';
   import { rest } from '../../lib/rest.svelte';
   import { toast } from '../../lib/toast.svelte';
   import { ui } from '../../lib/ui.svelte';
@@ -24,7 +25,6 @@
   import TextField from '../TextField.svelte';
   import ExercisePicker from '../exercises/ExercisePicker.svelte';
   import NoteField from './NoteField.svelte';
-  import RestBar from './RestBar.svelte';
   import SetForm from './SetForm.svelte';
 
   /**
@@ -66,6 +66,17 @@
   const blocks = $derived(detail ? blocksOf(detail, added) : []);
   const finished = $derived(detail?.finishedAt != null);
   const title = $derived(detail ? (detail.dayName ? `${detail.planName} · ${detail.dayName}` : 'Allenamento libero') : 'Allenamento');
+
+  /* La barra «In corso» sa da qui quello che succede, subito: una serie
+     segnata, l'allenamento terminato o riaperto. Uno già terminato, aperto
+     dallo storico, non tocca quello in corso. */
+  $effect(() => {
+    if (!detail) return;
+    const open = detail.finishedAt === null ? { id, title, startedAt: detail.startedAt, sets: detail.sets.length } : null;
+    untrack(() => {
+      if (open || current.workout?.id === id) current.set(open);
+    });
+  });
 
   $effect(() => {
     workoutsApi.get(id).then(
@@ -155,6 +166,7 @@
     try {
       await workoutsApi.remove(id);
       rest.stop();
+      if (current.workout?.id === id) current.set(null);
       toast.show('Allenamento eliminato.');
       nav.go(HOME_PATH, { replace: true });
     } catch (failure) {
@@ -335,9 +347,7 @@
 </PageShell>
 
 
-{#if rest.running && !finished}
-  <RestBar timer={rest} />
-{/if}
+<!-- il recupero sta nella barra «In corso», la stessa di ogni pagina (NowBar, in App) -->
 
 
 <style>

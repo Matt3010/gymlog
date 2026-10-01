@@ -184,6 +184,22 @@ describe('a workout in progress', () => {
     });
   });
 
+  it('keeps the bar above the tabs up to date, set by set, until it is ended', async () => {
+    server();
+    nav.go('/allenamenti/7');
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    const bar = await screen.findByRole('region', { name: 'In corso' });
+    expect(bar).toHaveTextContent(/Forza · A\s*1 serie/);
+    // on its own page it is not a link to itself
+    expect(screen.queryByRole('link', { name: /^In corso/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
+    await user.click(screen.getByRole('button', { name: 'Ferma il recupero' }));
+    await vi.waitFor(() => expect(bar).toHaveTextContent('2 serie'));
+    await user.click(screen.getByRole('button', { name: 'Termina' }));
+    await vi.waitFor(() => expect(screen.queryByRole('region', { name: 'In corso' })).not.toBeInTheDocument());
+  });
+
   it('counts every quick tap on +, none lost', async () => {
     server();
     render(Host, { page: WorkoutPage, params: { id: 7 } });

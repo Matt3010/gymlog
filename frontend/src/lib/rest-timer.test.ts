@@ -66,6 +66,39 @@ describe('the rest timer', () => {
     expect(done).not.toHaveBeenCalled();
   });
 
+  it('kept under a name, survives the app starting again: the page reloaded in the background', () => {
+    const before = new RestTimer(undefined, 'rest');
+    before.start(90);
+    before.add(15);
+    vi.advanceTimersByTime(30_000);
+    // the app reloads: a new timer, same name
+    const after = new RestTimer(undefined, 'rest');
+    expect([after.running, after.remaining, after.total]).toEqual([true, 75, 105]);
+    vi.advanceTimersByTime(75_000);
+    expect(after.running).toBe(false);
+    // ended: nothing left to bring back
+    expect(new RestTimer(undefined, 'rest').running).toBe(false);
+  });
+
+  it('kept under a name, forgets a rest stopped or already over', () => {
+    const stopped = new RestTimer(undefined, 'rest');
+    stopped.start(90);
+    stopped.stop();
+    expect(new RestTimer(undefined, 'rest').running).toBe(false);
+    new RestTimer(undefined, 'rest').start(10);
+    vi.advanceTimersByTime(60_000);
+    // the phone was off past its end: it does not come back, nor buzz late
+    const done = vi.fn();
+    expect(new RestTimer(done, 'rest').running).toBe(false);
+    expect(done).not.toHaveBeenCalled();
+  });
+
+  it('without a name, keeps nothing', () => {
+    new RestTimer().start(90);
+    expect(new RestTimer().running).toBe(false);
+    expect(localStorage.length).toBe(0);
+  });
+
   it('does not start with no rest', () => {
     const timer = new RestTimer();
     timer.start(0);
