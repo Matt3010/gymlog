@@ -88,7 +88,9 @@
     transition: background 0.15s, color 0.15s, transform 0.12s var(--ease);
   }
 
+  @media (hover: hover) {
   .nudge:hover { background: var(--sunken); color: var(--ink); }
+}
   .nudge:active { transform: scale(0.94); }
 
   .value { position: relative; display: block; }

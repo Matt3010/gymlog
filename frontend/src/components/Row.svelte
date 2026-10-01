@@ -70,7 +70,9 @@
     transition: background 0.16s, box-shadow 0.16s, border-color 0.16s;
   }
 
+  @media (hover: hover) {
   .row:hover { background: var(--sunken-hover); }
+}
 
   /* una riga che ha delle righe sotto non è più una riga: è una card, e una
      card respira un po' di più */
@@ -92,7 +94,9 @@
     border: 1px dashed var(--hairline);
   }
 
+  @media (hover: hover) {
   .row.is-dashed:hover { background: none; }
+}
 
   .row.is-dashed:focus-within {
     border-style: solid;
@@ -134,17 +138,21 @@
     letter-spacing: -0.012em;
   }
 
+  @media (hover: hover) {
   .row :global(input:hover) { background: var(--glass-strong); }
+}
   .row :global(input:focus) { background: var(--glass-strong); box-shadow: 0 0 0 1px var(--hairline); }
 
   /* nella riga vuota il fuoco lo mostra la riga intera: il campo non ne fa un
      secondo, e sta un po' più largo perché lì il nome non c'è ancora */
   .row.is-dashed :global(input) { padding: 6px 8px; }
 
+  @media (hover: hover) {
   .row.is-dashed :global(input:hover), .row.is-dashed :global(input:focus) {
-    background: none;
-    box-shadow: none;
-  }
+      background: none;
+      box-shadow: none;
+    }
+}
 
   /* il conteggio ha una larghezza sua, se no le colonne ballano da riga a riga */
   .row :global(.count) {
@@ -167,20 +175,34 @@
   /* piatta, dentro una card: il tratto la separa, la pressione la accende */
   .row.is-flat,
   .row.is-flat.is-dashed {
+    position: relative;
     padding: 4px 0;
     border: 0;
-    border-bottom: 1px solid var(--hairline-soft);
-    border-radius: 0;
+    /* la pressione si accende con gli angoli tondi, mai a spigolo vivo */
+    border-radius: var(--r-md);
     background: transparent;
     box-shadow: none;
   }
 
+  /* il tratto fra una riga e l'altra sta a parte, dritto, sotto gli angoli tondi */
+  .row.is-flat::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--hairline-soft);
+  }
+
+  @media (hover: hover) {
   .row.is-flat:hover { background: transparent; }
+}
 
   .row.is-flat:active { background: var(--sunken); }
 
   /* la riga che aggiunge chiude l'elenco: sotto non serve un tratto */
-  .row.is-flat.is-dashed { border-bottom: 0; }
+  .row.is-flat.is-dashed::after { content: none; }
 
   .row.is-flat.is-dashed:focus-within { border: 0; box-shadow: none; }
 </style>

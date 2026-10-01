@@ -18,7 +18,9 @@ input, textarea {
 
 input::placeholder, textarea::placeholder { color: var(--ink-3); }
 
-input:hover, textarea:hover { background: var(--sunken-hover); }
+@media (hover: hover) {
+  input:hover, textarea:hover { background: var(--sunken-hover); }
+}
 
 input:focus, textarea:focus {
   outline: 0;

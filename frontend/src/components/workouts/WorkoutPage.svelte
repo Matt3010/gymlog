@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
-  import { Autosave } from '../../lib/autosave.svelte';
   import { workoutsApi } from '../../lib/endpoints';
   import { formatClock, formatDay, formatDuration, formatKg, formatRest } from '../../lib/format';
   import { nav } from '../../lib/nav.svelte';
@@ -20,7 +19,7 @@
   import Stepper from '../Stepper.svelte';
   import TextField from '../TextField.svelte';
   import ExercisePicker from '../exercises/ExercisePicker.svelte';
-  import ExerciseNote from './ExerciseNote.svelte';
+  import NoteField from './NoteField.svelte';
   import RestBar from './RestBar.svelte';
   import SetForm from './SetForm.svelte';
 
@@ -42,7 +41,6 @@
   let active = $state<number | null>(null);
   let reps = $state('');
   let kg = $state('');
-  let notes = $state('');
   let working = $state(false);
 
   /* Il recupero che chiede la scheda, dopo ogni serie. A zero il telefono
@@ -60,7 +58,6 @@
     workoutsApi.get(id).then(
       (loaded) => {
         detail = loaded;
-        notes = loaded.notes ?? '';
         // si apre il primo esercizio con delle serie ancora da fare
         const all = blocksOf(loaded);
         const next = all.find((block) => block.sets.length < (block.target?.reps.length ?? 1)) ?? all[0];
@@ -112,19 +109,9 @@
     if (block) open(block);
   }
 
-  /* la nota dell'allenamento si salva lasciando il campo, come ogni altra */
-  const noteSaver = new Autosave<string | null>(async (text) => (detail = await workoutsApi.update(id, { notes: text })), 0);
-
-  function saveNotes(): Promise<void> {
-    if (!detail || (detail.notes ?? '') === notes.trim()) return Promise.resolve();
-    noteSaver.change(notes.trim() === '' ? null : notes.trim());
-    return noteSaver.flush();
-  }
-
   async function setFinished(value: boolean): Promise<void> {
     working = true;
     try {
-      await saveNotes();
       detail = await workoutsApi.update(id, { finished: value });
       if (value) {
         active = null;
@@ -229,7 +216,6 @@
               <span class="eyebrow">L’ultima volta</span>
               {formatDay(block.previous.startedAt)} · {describeSets(block.previous.sets)}
             </p>
-            {#if block.previous.note}<p class="last-note">«{block.previous.note}»</p>{/if}
           {/if}
 
           {#if block.sets.length > 0}
@@ -248,7 +234,16 @@
         {/if}
 
         {#if isOpen || block.sets.length > 0 || detail.exerciseNotes[block.exerciseId]}
-          <div class="note"><ExerciseNote workoutId={id} exerciseId={block.exerciseId} note={detail.exerciseNotes[block.exerciseId] ?? ''} /></div>
+          <div class="note">
+            <NoteField
+              label="Nota"
+              fieldLabel="Nota"
+              placeholder="Come è andato, cosa cambiare la prossima volta"
+              note={detail.exerciseNotes[block.exerciseId] ?? ''}
+              previous={block.previous?.note ? { note: block.previous.note } : null}
+              save={(text) => workoutsApi.saveNote(id, block.exerciseId, text)}
+            />
+          </div>
         {/if}
         {#if isOpen && !finished}
           <div class="add">
@@ -274,11 +269,13 @@
     {/if}
 
     <PageCard>
-      <label class="field">
-        <span class="eyebrow">Note <SaveStatus saver={noteSaver} /></span>
-        <TextField kind="multiline" bind:value={notes} maxlength={1000} placeholder="Come è andata, cosa cambiare" onblur={() => void saveNotes()} />
-      </label>
-      {#if noteSaver.status === 'error'}<Alert message={noteSaver.error} />{/if}
+      <NoteField
+        label="Note"
+        placeholder="Come è andata, cosa cambiare"
+        note={detail.notes ?? ''}
+        previous={detail.previousNote}
+        save={(text) => workoutsApi.update(id, { notes: text })}
+      />
     </PageCard>
 
     {#if error && active === null}<Alert message={error} />{/if}
@@ -306,9 +303,10 @@
 
 
 <style>
-  .last-note { margin: -4px 0 0; font-size: 12.5px; font-style: italic; color: var(--ink-2); overflow-wrap: anywhere; }
 
   .meta { margin: 0; font-size: 12.5px; color: var(--ink-3); }
+
+  .head:active { background: var(--sunken); }
 
   .head {
     display: flex;
@@ -319,13 +317,15 @@
     margin: 0;
     padding: 0;
     border: 0;
-    border-radius: 0;
+    border-radius: var(--r-md);
     background: transparent;
     text-align: left;
     transition: background 0.15s;
   }
 
+  @media (hover: hover) {
   .head:hover { background: var(--sunken); }
+}
 
   .head :global(.ico) { color: var(--ink-3); }
 
@@ -384,7 +384,9 @@
     transition: background 0.15s;
   }
 
+  @media (hover: hover) {
   .set:hover { background: var(--sunken); }
+}
 
   .nr {
     display: grid;

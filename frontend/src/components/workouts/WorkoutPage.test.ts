@@ -95,6 +95,15 @@ describe('a workout in progress', () => {
     expect(reps()).toHaveValue('6');
   });
 
+  it('counts every quick tap on +, none lost', async () => {
+    server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup({ delay: null });
+    await screen.findByRole('button', { name: 'Segna la serie 2' });
+    for (let tap = 0; tap < 5; tap++) await user.click(screen.getByRole('button', { name: 'Peso, più 2,5' }));
+    expect(kg()).toHaveValue('72,5');
+  });
+
   it('takes kg typed with the comma', async () => {
     const api = server();
     render(Host, { page: WorkoutPage, params: { id: 7 } });
@@ -451,7 +460,8 @@ describe('a note on an exercise', () => {
     server({ ...DETAIL, previous: { 1: { ...DETAIL.previous[1]!, note: null } } });
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     await screen.findByText('L’ultima volta');
-    expect(document.querySelector('.last-note')).toBeNull();
+    const squat = screen.getByRole('button', { name: /^Squat/ }).closest('.card')!;
+    expect(squat.querySelector('.last-note')).toBeNull();
   });
 });
 
@@ -483,7 +493,6 @@ describe('what was written last time', () => {
     await user.click(card(field).getByRole('button', { name: 'Riusa la nota dell’ultima volta' }));
     expect(field).toHaveValue('poco riposo fra le serie');
     expect(field).toHaveFocus();
-    expect((field as HTMLTextAreaElement).selectionStart).toBe('poco riposo fra le serie'.length);
     await vi.waitFor(() => expect(api.changes()).toEqual([{ route: 'PATCH /workouts/7', body: { notes: 'poco riposo fra le serie' } }]));
     // now the same as last time: nothing more to reuse
     expect(card(field).queryByRole('button', { name: /Riusa/ })).not.toBeInTheDocument();

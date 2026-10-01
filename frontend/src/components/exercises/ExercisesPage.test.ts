@@ -19,7 +19,7 @@ describe('the exercises', () => {
   it('are listed with their group, each opening its stats page', async () => {
     fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [PANCA, SQUAT]);
     render(Host, { page: ExercisesPage });
-    expect(await screen.findByRole('link', { name: 'Squat Gambe' })).toHaveAttribute('href', '/esercizi/1');
+    expect(await screen.findByRole('link', { name: /^Squat Gambe/ })).toHaveAttribute('href', '/esercizi/1');
     expect(names()).toEqual(['Panca piana', 'Squat']);
     expect(screen.getByRole('heading', { name: 'Esercizi' }).parentElement).toHaveTextContent('2');
   });
@@ -30,6 +30,8 @@ describe('the exercises', () => {
     const squat = await screen.findByRole('link', { name: /^Squat/ });
     expect(squat).toHaveTextContent('media 81,25 kg · max 100 kg · 6 sessioni · l’ultima ven 18 set');
     expect(screen.getByRole('link', { name: /^Panca piana/ }).textContent).not.toMatch(/media|sessioni/);
+    // every row has its second line: an exercise never done says so
+    expect(screen.getByRole('link', { name: /^Panca piana/ })).toHaveTextContent('Nessuna sessione ancora');
   });
 
   it('say «1 sessione» for one', async () => {
@@ -41,7 +43,7 @@ describe('the exercises', () => {
   it('are still listed when their numbers cannot be read', async () => {
     fakeApi().on('GET /stats/exercises', { status: 500, body: {} }).on('GET /exercises', [SQUAT]);
     render(Host, { page: ExercisesPage });
-    expect(await screen.findByRole('link', { name: 'Squat Gambe' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Squat Gambe/ })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -178,6 +180,22 @@ describe('the exercises', () => {
     expect(names()).toEqual(['Squat', 'Trazioni']);
     expect(screen.getByPlaceholderText('Nuovo esercizio')).toHaveValue('');
     expect(toast.message).toBe('Esercizio aggiunto.');
+  });
+
+  it('are created from a field like any other, «Crea» working only with a name', async () => {
+    fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [SQUAT]);
+    render(Host, { page: ExercisesPage });
+    const user = userEvent.setup();
+    const field = await screen.findByPlaceholderText('Nuovo esercizio');
+    expect(field).toHaveClass('text-field');
+    expect(field.closest('.row')).toBeNull();
+    const create = screen.getByRole('button', { name: 'Crea' });
+    expect(create).toBeDisabled();
+    await user.type(field, '  ');
+    expect(create).toBeDisabled();
+    await user.type(field, 'Dip');
+    expect(create).toBeEnabled();
+    expect(create).toHaveClass('primary');
   });
 
   it('are created with a labelled «Crea» button too', async () => {

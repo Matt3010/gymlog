@@ -224,10 +224,12 @@
 
   tbody tr :global(td) { transition: background 0.14s; }
 
+  @media (hover: hover) {
   /* Una fascia dritta, senza angoli tondi. La linea che separa le righe sta
-     sulle stesse celle, e con gli angoli tondi si piegava anche lei ai due
-     capi, come un nastro invece che un filo. */
-  tbody tr:hover :global(td) { background: var(--sunken); }
+       sulle stesse celle, e con gli angoli tondi si piegava anche lei ai due
+       capi, come un nastro invece che un filo. */
+    tbody tr:hover :global(td) { background: var(--sunken); }
+}
 
   th.end,
   tbody :global(td.end) { text-align: right; }
@@ -256,8 +258,10 @@
     transition: color 0.14s;
   }
 
+  @media (hover: hover) {
   .ordina:hover,
-  .ordina.is-on { color: var(--ink); }
+    .ordina.is-on { color: var(--ink); }
+}
 
   .ordina :global(.ico) { width: 12px; height: 12px; }
 

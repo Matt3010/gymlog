@@ -108,7 +108,9 @@
     white-space: nowrap;
   }
 
+  @media (hover: hover) {
   .tabs.pill .tab:hover { color: var(--ink-2); }
+}
 
   /* quando sono indirizzi stanno larghe quanto la parola: in testa a una
      pagina una barra tirata per tutta la riga sembrerebbe la pagina stessa */
@@ -138,7 +140,9 @@
     opacity: 0.55;
   }
 
+  @media (hover: hover) {
   .tabs.text .tab:hover { opacity: 1; }
+}
 
   /*
    * Dove si tocca, una linguetta è alta quanto un dito.

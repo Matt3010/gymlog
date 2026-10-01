@@ -108,6 +108,8 @@ export interface WorkoutDetail extends Workout {
   previous: Record<string, PreviousSets>;
   /** La nota di ogni esercizio in questo allenamento, per id. */
   exerciseNotes: Record<string, string>;
+  /** La nota dell'ultimo allenamento dello stesso giorno della scheda (o libero, se libero). */
+  previousNote: { workoutId: number; startedAt: string; note: string } | null;
 }
 
 export interface SetStats {

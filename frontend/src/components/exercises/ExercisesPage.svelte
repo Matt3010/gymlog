@@ -102,7 +102,8 @@
                 <a class="open" href={exercisePath(exercise.id)}>
                   <span class="name">{exercise.name}</span>
                   {#if exercise.muscleGroup}<span class="group">{exercise.muscleGroup}</span>{/if}
-                  {#if row}<span class="numbers">{howItGoes(row)}</span>{/if}
+                  <!-- sempre una seconda riga, così ogni riga ha la stessa forma -->
+                  <span class="numbers" class:muted={!row}>{row ? howItGoes(row) : 'Nessuna sessione ancora'}</span>
                 </a>
                 {#snippet trail()}
                   <Button look="icon" title="Modifica {exercise.name}" aria-label="Modifica {exercise.name}" onclick={() => open(exercise)}>
@@ -142,6 +143,7 @@
     display: grid;
     gap: 1px;
     min-height: 40px;
+    align-content: center;
     padding: 4px 0;
     border: 0;
     border-radius: var(--r-sm);
@@ -156,6 +158,8 @@
   .group { font-size: 12px; color: var(--ink-3); }
 
   .numbers { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+  .numbers.muted { color: var(--ink-3); }
 
   .none { padding: 10px 6px; font-size: 12.5px; color: var(--ink-3); }
 </style>

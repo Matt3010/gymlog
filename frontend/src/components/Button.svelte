@@ -126,7 +126,9 @@
     transition: transform 0.14s var(--ease), box-shadow 0.2s, filter 0.2s;
   }
 
+  @media (hover: hover) {
   .primary:hover { filter: brightness(1.08); box-shadow: var(--shadow-2); }
+}
   .primary:active { transform: translateY(1px); }
 
   /* --------------------------------------------------------------- ghost -- */
@@ -139,7 +141,9 @@
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
 
+  @media (hover: hover) {
   .ghost:hover { background: var(--sunken); color: var(--ink); }
+}
 
   /* ---------------------------------------------------------------- icon -- */
   .icon {
@@ -156,7 +160,9 @@
     transition: background 0.15s, color 0.15s;
   }
 
+  @media (hover: hover) {
   .icon:hover { background: var(--sunken-hover); color: var(--ink); }
+}
 
 
   /* Dove si tocca, un tasto è largo quanto un dito: trenta pixel sono la
@@ -194,7 +200,9 @@
 
   .glass :global(.ico) { width: 13px; height: 13px; }
 
+  @media (hover: hover) {
   .glass:hover:not(:disabled) { background: rgb(0 0 0 / 0.72); color: #fff; }
+}
 
   .glass:disabled, .glass[aria-disabled='true'] { opacity: 0.45; }
 
@@ -226,7 +234,9 @@
 
   .round.is-sm :global(.ico) { width: 12px; height: 12px; }
 
+  @media (hover: hover) {
   .round:hover:not(:disabled) { filter: brightness(1.08); }
+}
   .round:active:not(:disabled) { transform: scale(0.94); }
 
   .round:disabled, .round[aria-disabled='true'] {
@@ -247,7 +257,9 @@
     transition: background 0.15s, color 0.15s;
   }
 
+  @media (hover: hover) {
   .link:hover { background: var(--sunken-hover); color: var(--ink); }
+}
 
   /* Dove si tocca, anche un comando scritto piccolo vuole un dito: lo spazio
      si aggiunge dentro e si toglie fuori, così la riga resta dov'era e a
@@ -270,17 +282,21 @@
     transition: color 0.15s;
   }
 
+  @media (hover: hover) {
   .danger:hover { color: var(--danger); }
+}
   .danger :global(.ico) { width: 16px; height: 16px; }
 
   /* ---------------------------------------------------------------- tono -- */
   /* il rosso si vede prima di leggere: chi porta via qualcosa lo porta addosso */
   .is-danger { color: color-mix(in srgb, var(--danger) 80%, transparent); }
 
+  @media (hover: hover) {
   .is-danger:hover {
-    color: var(--danger);
-    background: color-mix(in srgb, var(--danger) 14%, transparent);
-  }
+      color: var(--danger);
+      background: color-mix(in srgb, var(--danger) 14%, transparent);
+    }
+}
 
   /* --------------------------------------------------------- danger-solid -- */
   /* quando la domanda è "lo elimino?", la risposta si prende il colore: è
@@ -298,7 +314,9 @@
     transition: filter 0.15s, transform 0.14s var(--ease);
   }
 
+  @media (hover: hover) {
   .danger-solid:hover { filter: brightness(1.1); }
+}
   .danger-solid:active { transform: translateY(1px); }
 
   /*

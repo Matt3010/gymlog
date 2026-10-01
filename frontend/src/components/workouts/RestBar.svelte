@@ -77,7 +77,9 @@
     transition: background 0.15s;
   }
 
+  @media (hover: hover) {
   button:hover { background: var(--sunken-hover); }
+}
 
   .stop { display: grid; place-items: center; min-width: 38px; padding: 0; color: var(--ink-2); }
 

@@ -99,10 +99,12 @@
     transition: background 0.14s, border-color 0.14s;
   }
 
+  @media (hover: hover) {
   .time-btn:hover, .time-btn.is-open {
-    background: var(--sunken-hover);
-    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  }
+      background: var(--sunken-hover);
+      border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    }
+}
 
   .letto { letter-spacing: 0.01em; }
 
@@ -146,7 +148,9 @@
     transition: background 0.12s, color 0.12s;
   }
 
+  @media (hover: hover) {
   .voce:hover { background: var(--sunken); color: var(--ink); }
+}
 
   .voce.is-on {
     background: color-mix(in srgb, var(--accent) 22%, transparent);

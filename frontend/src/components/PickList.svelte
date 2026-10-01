@@ -82,7 +82,9 @@
     transition: background 0.14s, color 0.14s;
   }
 
+  @media (hover: hover) {
   .one:hover { background: var(--sunken); color: var(--ink); }
+}
 
   /* quella di adesso resta segnata: sceglierla di nuovo non è un errore, ma
      sapere qual è evita di cercarla */

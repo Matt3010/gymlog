@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronUp,
   CircleAlert,
+  Copy,
   Download,
   ClipboardList,
   Dumbbell,
@@ -73,6 +74,7 @@ export const ICONS = {
   sortAsc: ArrowUpNarrowWide,
   sortDesc: ArrowDownWideNarrow,
   download: Download,
+  copy: Copy,
 } as const;
 
 export type IconName = keyof typeof ICONS;

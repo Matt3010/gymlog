@@ -75,7 +75,9 @@
 
   a :global(.ico) { width: 21px; height: 21px; }
 
+  @media (hover: hover) {
   a:hover { color: var(--ink-2); }
+}
 
   a.here { color: var(--ink); }
 

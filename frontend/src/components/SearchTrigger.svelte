@@ -37,7 +37,9 @@
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-#search-trigger:hover { background: var(--sunken-hover); color: var(--ink-2); }
+@media (hover: hover) {
+  #search-trigger:hover { background: var(--sunken-hover); color: var(--ink-2); }
+}
 
 #search-trigger span { flex: 1; min-width: 0; }
 

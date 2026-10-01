@@ -53,5 +53,7 @@
     transition: background 0.14s;
   }
 
+  @media (hover: hover) {
   .alert :global(.btn.alert-fix:hover) { background: var(--sunken); }
+}
 </style>

@@ -101,7 +101,9 @@
 
   td a { color: var(--ink); text-decoration: none; font-weight: 540; }
 
+  @media (hover: hover) {
   td a:hover { text-decoration: underline; }
+}
 
   .unit { margin: 0; font-size: 11.5px; color: var(--ink-3); }
 </style>

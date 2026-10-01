@@ -121,15 +121,49 @@ async function expectAligned(page: Page): Promise<void> {
       const left = card.getBoundingClientRect().left + parseFloat(getComputedStyle(card).paddingLeft) + parseFloat(getComputedStyle(card).borderLeftWidth);
       const inside = [
         ...[...card.children].filter((child) => getComputedStyle(child).position !== 'absolute'),
-        ...card.querySelectorAll('.row, .row .go, .row .open, button.day, .empty, .empty > *'),
+        ...card.querySelectorAll('.row, .row .go, .row .open, .row .open > *, button.day, .empty, .empty > *'),
       ];
+      // where the content starts: a block's padding counts, a button's or a field's is its own
+      const start = (element: Element) => {
+        const box = element.getBoundingClientRect().left;
+        if (element.matches('button, input, textarea, .btn')) return box;
+        const style = getComputedStyle(element);
+        return box + parseFloat(style.paddingLeft) + parseFloat(style.borderLeftWidth);
+      };
       return inside
         .filter((element) => element.getBoundingClientRect().width > 0)
-        .filter((element) => Math.abs(element.getBoundingClientRect().left - left) > 1)
-        .map((element) => `${element.className.toString().split(' ')[0]}: ${(element.textContent ?? '').trim().slice(0, 24)} (${Math.round(element.getBoundingClientRect().left - left)}px)`);
+        .filter((element) => Math.abs(start(element) - left) > 1)
+        .map((element) => `${element.className.toString().split(' ')[0]}: ${(element.textContent ?? '').trim().slice(0, 24)} (${Math.round(start(element) - left)}px)`);
     }),
   );
   expect(off, 'things inside a card off its content edge').toEqual([]);
+}
+
+/** A text that shares a row with a button is not squeezed by it: on the phone the button goes underneath. */
+async function expectNotSqueezed(text: Locator, button: Locator): Promise<void> {
+  const [line, lines] = await text.evaluate((element) => [parseFloat(getComputedStyle(element).lineHeight) || 18, element.getBoundingClientRect().height]);
+  expect(lines, `${await text.textContent()} on one line`).toBeLessThan(line * 1.6);
+  expect((await button.boundingBox())!.y, 'the button below the text').toBeGreaterThanOrEqual((await text.boundingBox())!.y + (await text.boundingBox())!.height);
+}
+
+/** A row lit when pressed has round corners; and on a touch screen a tap leaves nothing lit. */
+async function expectRoundPress(row: Locator): Promise<void> {
+  const radius = await row.evaluate((element) => parseFloat(getComputedStyle(element).borderTopLeftRadius));
+  expect(radius, `${(await row.textContent())?.trim().slice(0, 20)} has round corners`).toBeGreaterThan(0);
+}
+
+async function expectNothingLitAfterTap(row: Locator): Promise<void> {
+  await row.tap();
+  await row.page().waitForTimeout(300);
+  const background = await row.evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(background, 'nothing lit after a tap').toBe('rgba(0, 0, 0, 0)');
+}
+
+/** The text of a row is centred on its button. */
+async function expectCentredOn(text: Locator, button: Locator): Promise<void> {
+  const a = (await text.boundingBox())!;
+  const b = (await button.boundingBox())!;
+  expect(Math.abs(a.y + a.height / 2 - (b.y + b.height / 2)), 'text centred on its button').toBeLessThanOrEqual(2);
 }
 
 const tile = (page: Page, name: string) => page.locator('dt', { hasText: new RegExp(`^${name}$`) }).locator('xpath=following-sibling::dd[1]');
@@ -186,6 +220,11 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.locator('.row .name')).toHaveText(['Panca piana', 'Squat']);
   await expectFlatRows(page);
   await expectFullWidth(page.getByRole('button', { name: 'Crea', exact: true }));
+  // «Nuovo esercizio» is a field like the others, and «Crea» only works with a name
+  await expect(page.getByPlaceholder('Nuovo esercizio')).toHaveClass(/text-field/);
+  await expect(page.getByRole('button', { name: 'Crea', exact: true })).toBeDisabled();
+  await expectRoundPress(page.locator('.row.is-flat').first());
+  await expectCentredOn(page.locator('.row .open').first(), page.getByRole('button', { name: 'Modifica Panca piana' }));
   await expectAligned(page);
   await expectNoZoomOnFocus(page);
 
@@ -242,15 +281,24 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   for (const name of ['Segna la serie 1', 'Aggiungi un esercizio', 'Termina']) await expectFullWidth(page.getByRole('button', { name }));
   await page.getByRole('button', { name: 'Segna la serie 1' }).click();
   await expectDivided(page.locator('.card .sets').first());
+  // fast taps on − and + never zoom the page: no double-tap zoom, pinch still works
+  for (const target of [page.locator('html'), page.getByRole('button', { name: 'Peso, più 2,5' })]) {
+    expect(await target.evaluate((element) => getComputedStyle(element).touchAction)).toBe('manipulation');
+  }
+  await expectRoundPress(page.locator('.card .head').first());
+  await expectNothingLitAfterTap(page.locator('.card .head').nth(1));
+  await page.locator('.card .head').first().tap();
   await expectAligned(page);
   await expect(page.getByRole('button', { name: 'Segna la serie 2' })).toBeVisible();
   await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('60');
   await page.getByRole('button', { name: 'Peso, più 2,5' }).click();
   await page.getByRole('button', { name: 'Segna la serie 2' }).click();
   await expect(page.locator('.set .what')).toHaveText(['8 × 60 kg', '8 × 62,5 kg']);
+  await page.getByPlaceholder('Come è andata, cosa cambiare').fill('poco riposo');
+  await page.getByPlaceholder('Come è andata, cosa cambiare').blur();
   await page.getByLabel('Nota', { exact: true }).first().fill('scendere più lento');
   await page.getByLabel('Nota', { exact: true }).first().blur();
-  await expect(page.getByText('Salvata')).toBeVisible();
+  await expect(page.getByText('Salvata').first()).toBeVisible();
 
   // The rest the plan asks for runs above the tab bar, clear of the page's last buttons.
   const rest = page.getByRole('timer', { name: 'Recupero' });
@@ -275,9 +323,19 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByRole('link', { name: 'Allenati' }).first().click();
   await expect(page.locator('#toast')).toBeHidden();
   await page.getByRole('button', { name: 'A 2 esercizi' }).click();
-  await expect(page.getByText('L’ultima volta').locator('..')).toContainText('Oggi · 8 × 60 kg, 8 × 62,5 kg');
+  await expect(page.getByText('L’ultima volta', { exact: true }).locator('..')).toContainText('Oggi · 8 × 60 kg, 8 × 62,5 kg');
   await expect(page.getByText('«scendere più lento»')).toBeVisible();
+  // last time's note comes back with «Riusa», ready to be changed, and saves itself
+  const squatNote = page.getByLabel('Nota', { exact: true }).first();
+  await page.getByRole('button', { name: 'Riusa la nota dell’ultima volta' }).first().click();
+  await expect(squatNote).toHaveValue('scendere più lento');
+  await expect(squatNote).toBeFocused();
+  expect(await squatNote.evaluate((field: HTMLTextAreaElement) => field.selectionStart)).toBe('scendere più lento'.length);
+  await squatNote.pressSequentially(', ancora');
+  await squatNote.blur();
+  await expect(page.getByRole('status', { name: 'Salvataggio' }).first()).toHaveText('Salvata');
   await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('60');
+  await expect(page.getByText('«poco riposo»')).toBeVisible();
 
   // Three sections only; the exercises say how each is going, and a row opens its stats.
   await expect(page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link')).toHaveText(['Allenati', 'Schede', 'Esercizi']);
@@ -305,6 +363,10 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByRole('link', { name: 'Allenati' }).click();
   const asked: string[] = [];
   page.on('request', (request) => request.url().includes('/api/workouts?limit=20') && asked.push(request.url()));
+  // «In corso»: the text first, «Riprendi» underneath, nothing squeezed
+  await expectNotSqueezed(page.locator('.open .when'), page.getByRole('link', { name: 'Riprendi' }));
+  await expectNotSqueezed(page.locator('.open .title'), page.getByRole('link', { name: 'Riprendi' }));
+  await expectFullWidth(page.getByRole('link', { name: 'Riprendi' }));
   await page.getByRole('link', { name: 'Tutto lo storico' }).click();
   await expect(page.getByRole('heading', { name: 'Storico' })).toBeVisible();
   await expect(page.locator('.row')).toHaveCount(2);

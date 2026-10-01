@@ -93,7 +93,9 @@
     transition: color 0.16s;
   }
 
+  @media (hover: hover) {
   .back:hover { color: var(--ink); }
+}
 
   /* dove si tocca, il ritorno è alto quanto un dito; il titolo non si muove */
   @media (hover: none) {

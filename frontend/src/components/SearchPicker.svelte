@@ -125,7 +125,9 @@
     transition: background 0.14s;
   }
 
+  @media (hover: hover) {
   .voce:hover { background: var(--sunken); }
+}
 
   .voce.is-on { color: var(--ink); font-weight: 560; }
 

@@ -174,3 +174,11 @@ h2 {
     animation-name: sheet-in-mobile;
   }
 }
+
+/*
+ * Niente zoom col doppio tocco: premendo «+» due volte di fila per i chili,
+ * Safari su iPhone ingrandiva la pagina invece di contare il secondo tocco.
+ * `manipulation` toglie il doppio tocco (e la sua attesa), e lascia lo zoom
+ * con due dita a chi lo vuole. Sul documento e su ogni cosa che si preme.
+ */
+html, body, button, a, input, textarea, select, label, [role='button'] { touch-action: manipulation; }

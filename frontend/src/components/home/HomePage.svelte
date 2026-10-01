@@ -129,6 +129,11 @@
     gap: 12px;
   }
 
+  /* sul telefono il testo prima, intero, e «Riprendi» sotto, largo quanto la card */
+  @media (max-width: 600px) {
+    .open { flex-direction: column; align-items: stretch; }
+  }
+
   .what { display: grid; gap: 2px; min-width: 0; }
 
   .title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; overflow-wrap: anywhere; }

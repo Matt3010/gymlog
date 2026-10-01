@@ -113,7 +113,9 @@
     transition: background 0.14s, color 0.14s;
   }
 
+  @media (hover: hover) {
   .passo:hover { background: var(--sunken); color: var(--ink-2); }
+}
 
   .numero {
     flex: none;

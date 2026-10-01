@@ -135,7 +135,9 @@
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
   }
+  @media (hover: hover) {
   .peek-btn:hover { background: var(--sunken); color: var(--ink-2); }
+}
   .peek-btn[aria-pressed="true"] { color: var(--ink-2); }
   .peek-btn :global(.ico) { width: 16px; height: 16px; }
 </style>

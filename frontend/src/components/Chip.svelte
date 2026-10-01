@@ -82,7 +82,9 @@
   transition: background 0.16s, border-color 0.16s, color 0.16s, opacity 0.16s, transform 0.14s var(--ease);
 }
 
-.chip:hover { transform: translateY(-1px); }
+@media (hover: hover) {
+  .chip:hover { transform: translateY(-1px); }
+}
 
 /* Dove si tocca, una pastiglia è alta quanto un dito. Trenta pixel bastano a
    un puntatore che arriva preciso; un polpastrello ne copre quaranta, e fra

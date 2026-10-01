@@ -89,10 +89,12 @@
     font-size: 12.5px;
   }
 
+  @media (hover: hover) {
   .pick-field.field:hover, .pick-field.field.is-open {
-    background: var(--sunken-hover);
-    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  }
+      background: var(--sunken-hover);
+      border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    }
+}
 
   /* dentro a una riga: pesa meno di quello che la riga dice */
   .pick-field.pill {
@@ -108,10 +110,12 @@
     font-variant-numeric: tabular-nums;
   }
 
+  @media (hover: hover) {
   .pick-field.pill:hover, .pick-field.pill.is-open {
-    background: var(--sunken-hover);
-    color: var(--ink-2);
-  }
+      background: var(--sunken-hover);
+      color: var(--ink-2);
+    }
+}
 
   .pick-field :global(.ico) { width: 12px; height: 12px; color: var(--ink-3); }
 </style>

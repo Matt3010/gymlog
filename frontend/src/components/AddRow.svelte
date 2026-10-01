@@ -65,8 +65,16 @@
 
 <!-- il modulo non disegna niente: tutta la geometria è quella della riga, e i
      pezzi stanno nelle stesse fessure delle righe qui sopra -->
+{#if label}
+  <!-- con la parola: un campo come tutti gli altri, e sotto il tasto che crea,
+       acceso solo quando c'è un nome -->
+  <form class="create" onsubmit={submit} {id}>
+    <TextField name="name" required maxlength={40} {placeholder} label={placeholder} bind:element={field} bind:value />
+    <Button look="primary" type="submit" disabled={!value.trim()}>{label}</Button>
+  </form>
+{:else}
 <form class="shell" onsubmit={submit}>
-  <Row dashed {flat} {id} class={`${value.trim() ? 'is-ready' : ''} ${label ? 'has-label' : ''}`}>
+  <Row dashed {flat} {id} class={value.trim() ? 'is-ready' : ''}>
     {#snippet lead()}{#if flat && !before}<span class="plus"><Icon name="plus" /></span>{/if}{@render before?.()}{/snippet}
 
     <TextField
@@ -80,16 +88,13 @@
 
     {#snippet trail()}
       {@render after?.()}
-      {#if label}
-        <Button look="ghost" size="sm" type="submit" extra="add-go" {title}>{label}</Button>
-      {:else}
-        <Button look="icon" type="submit" extra="add-go" {title}>
-          <Icon name="plus" />
-        </Button>
-      {/if}
+      <Button look="icon" type="submit" extra="add-go" {title}>
+        <Icon name="plus" />
+      </Button>
     {/snippet}
   </Row>
 </form>
+{/if}
 
 <style>
   .shell { display: contents; }
@@ -105,12 +110,15 @@
 
   .plus :global(.ico) { width: 16px; height: 16px; }
 
-  /* con la parola, sul telefono il tasto va sotto il campo, largo quanto la riga */
+  .create {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding-top: 10px;
+  }
+
+  /* sul telefono il tasto va sotto il campo, largo quanto lui */
   @media (max-width: 600px) {
-    :global(.row.has-label .line) { flex-wrap: wrap; row-gap: 8px; }
-
-    :global(.row.has-label .trail) { flex-basis: 100%; }
-
-    :global(.row.has-label .add-go) { width: 100%; }
+    .create { grid-template-columns: minmax(0, 1fr); }
   }
 </style>

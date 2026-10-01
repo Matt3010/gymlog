@@ -76,7 +76,9 @@
   transition: background 0.15s;
 }
 
-.toast-action:hover { background: rgb(255 255 255 / 0.24); }
+@media (hover: hover) {
+  .toast-action:hover { background: rgb(255 255 255 / 0.24); }
+}
 
 .toast-action :global(.ico) { width: 14px; height: 14px; }
 
