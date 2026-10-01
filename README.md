@@ -20,7 +20,7 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
 - **Allenamenti:** parti da un giorno della scheda o da un allenamento libero. Per ogni
   esercizio vedi cosa chiede la scheda e cosa hai fatto l'ultima volta; registri ogni
   serie (ripetizioni × kg), con il recupero che parte da solo. I nomi della scheda e
-  del giorno restano nello storico (dalla home, «Tutto lo storico») anche se poi
+  del giorno restano nello Storico (una sezione sua, nella barra in basso) anche se poi
   cambi o cancelli la scheda.
 - **Statistiche:** nell'elenco degli esercizi, accanto a ognuno, peso medio, massimo,
   sessioni e l'ultima volta; aprendolo, sessione per sessione: serie, ripetizioni,

@@ -3,7 +3,7 @@
   import { plansApi, workoutsApi } from '../../lib/endpoints';
   import { formatClock, formatDay } from '../../lib/format';
   import { nav } from '../../lib/nav.svelte';
-  import { HISTORY_PATH, planPath, workoutPath } from '../../lib/routing';
+  import { planPath, workoutPath } from '../../lib/routing';
   import type { Plan, WorkoutSummary } from '../../lib/types';
   import { ui } from '../../lib/ui.svelte';
   import { inProgress } from '../../lib/workout';
@@ -17,11 +17,11 @@
   import PickField from '../PickField.svelte';
   import { readJSON, writeJSON } from '../../lib/storage';
   import Loader from '../Loader.svelte';
-  import WorkoutRow from '../workouts/WorkoutRow.svelte';
 
   /**
    * Dove si comincia, in palestra: l'allenamento lasciato aperto da
-   * riprendere, i giorni delle schede da cui partire, e gli ultimi fatti.
+   * riprendere e i giorni delle schede da cui partire. Quelli fatti stanno
+   * nello Storico, una sezione sua.
    */
   let plans = $state<Plan[] | null>(null);
   let recent = $state<WorkoutSummary[] | null>(null);
@@ -49,7 +49,6 @@
   }
 
   const open = $derived(recent ? inProgress(recent) : undefined);
-  const done = $derived((recent ?? []).filter((workout) => workout !== open).slice(0, 5));
 
   /** «A» da sola non dice niente: un nome di una o due lettere è un giorno. */
   const dayLabel = (name: string): string => (name.length <= 2 ? `Giorno ${name}` : name);
@@ -142,15 +141,6 @@
       </Button>
     </span>
 
-    {#if done.length > 0}
-      <PageCard>
-        <span class="eyebrow">Gli ultimi</span>
-        <ul class="rows">
-          {#each done as workout (workout.id)}<WorkoutRow {workout} />{/each}
-        </ul>
-        <a class="more" href={HISTORY_PATH}>Tutto lo storico</a>
-      </PageCard>
-    {/if}
   {/if}
 </PageShell>
 
@@ -227,7 +217,4 @@
 
   @media (min-width: 601px) { .free { justify-self: start; } }
 
-  .rows { display: grid; margin: 0; padding: 0; list-style: none; }
-
-  .more { justify-self: start; font-size: 12.5px; color: var(--ink-2); }
 </style>

@@ -397,8 +397,8 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('60');
   await expect(page.getByText('«poco riposo»')).toBeVisible();
 
-  // Three sections only; the exercises say how each is going, and a row opens its stats.
-  await expect(page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link')).toHaveText(['Allenati', 'Schede', 'Esercizi']);
+  // Four sections, the history its own; the exercises say how each is going, and a row opens its stats.
+  await expect(page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link')).toHaveText(['Allenati', 'Schede', 'Esercizi', 'Storico']);
   await page.getByRole('link', { name: 'Esercizi' }).click();
   await expect(page.getByRole('link', { name: /^Squat/ })).toContainText('media 61,25 kg · max 62,5 kg · 1 sessione · l’ultima oggi');
   await expect(page.getByRole('link', { name: /^Panca piana/ })).not.toContainText('media');
@@ -427,7 +427,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expectNotSqueezed(page.locator('.open .when'), page.getByRole('link', { name: 'Riprendi' }));
   await expectNotSqueezed(page.locator('.open .title'), page.getByRole('link', { name: 'Riprendi' }));
   await expectFullWidth(page.getByRole('link', { name: 'Riprendi' }));
-  await page.getByRole('link', { name: 'Tutto lo storico' }).click();
+  await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Storico' }).click();
   await expect(page.getByRole('heading', { name: 'Storico' })).toBeVisible();
   await expect(page.locator('.row')).toHaveCount(2);
   await expectFlatRows(page);

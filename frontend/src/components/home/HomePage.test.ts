@@ -142,17 +142,12 @@ describe('home', () => {
     expect(screen.getByText(/^Iniziato .* · 1 serie$/)).toBeInTheDocument();
   });
 
-  it('lists the last ones done, linking to each and to the whole history', async () => {
-    fakeApi().on('GET /plans', [FORZA]).on(RECENT, [workout(8), workout(7, { planName: null, dayName: null, sets: 1, volume: 62.5 })]);
+  it('leaves the workouts done to the history, its own section', async () => {
+    fakeApi().on('GET /plans', [FORZA]).on(RECENT, [workout(8), workout(7)]);
     render(HomePage);
-    const list = (await screen.findByText('Gli ultimi')).parentElement!;
-    const rows = within(list).getAllByRole('link').map((link) => [link.getAttribute('href'), link.textContent?.replace(/\s+/g, ' ').trim()]);
-    expect(rows).toEqual([
-      ['/allenamenti/8', 'dom 20 set Forza · A 6 serie · 2400 kg'],
-      ['/allenamenti/7', 'dom 20 set Allenamento libero 1 serie · 62,5 kg'],
-      ['/storico', 'Tutto lo storico'],
-    ]);
-    expect(screen.queryByRole('link', { name: 'Riprendi' })).not.toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Forza' });
+    expect(screen.queryByText('Gli ultimi')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Tutto lo storico' })).not.toBeInTheDocument();
   });
 
   it('invites to write a plan when there is none', async () => {

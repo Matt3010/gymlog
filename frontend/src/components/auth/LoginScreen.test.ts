@@ -137,8 +137,17 @@ describe('the app', () => {
     render(App);
     expect(await screen.findByRole('heading', { name: 'Allenati' })).toBeInTheDocument();
     const sections = screen.getByRole('navigation', { name: 'Sezioni' });
-    expect([...sections.querySelectorAll('a')].map((link) => link.textContent?.trim())).toEqual(['Allenati', 'Schede', 'Esercizi']);
+    expect([...sections.querySelectorAll('a')].map((link) => link.textContent?.trim())).toEqual(['Allenati', 'Schede', 'Esercizi', 'Storico']);
     expect(screen.getByRole('link', { name: 'Allenati' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('has the history as a section of its own', async () => {
+    home(fakeApi().on('GET /auth/me', { user: ANNA }).on('GET /workouts?limit=20&offset=0', []));
+    render(App);
+    await userEvent.setup().click(await screen.findByRole('link', { name: 'Storico' }));
+    expect(await screen.findByRole('heading', { name: 'Storico' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Storico' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Allenati' })).not.toHaveAttribute('aria-current');
   });
 
   it('renews an expired access before showing the door', async () => {

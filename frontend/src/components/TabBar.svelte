@@ -1,6 +1,6 @@
 <script lang="ts">
   import { nav } from '../lib/nav.svelte';
-  import { EXERCISES_PATH, HOME_PATH, PLANS_PATH, type Route } from '../lib/routing';
+  import { EXERCISES_PATH, HISTORY_PATH, HOME_PATH, PLANS_PATH, type Route } from '../lib/routing';
   import type { IconName } from '../lib/icons';
   import Icon from './Icon.svelte';
 
@@ -14,10 +14,11 @@
    * di «Esercizi».
    */
   const SECTIONS: { href: string; label: string; icon: IconName; owns: Route['kind'][] }[] = [
-    // lo storico si apre dalla home («Tutto lo storico»): sta sotto Allenati
-    { href: HOME_PATH, label: 'Allenati', icon: 'home', owns: ['home', 'workout', 'history'] },
+    { href: HOME_PATH, label: 'Allenati', icon: 'home', owns: ['home', 'workout'] },
     { href: PLANS_PATH, label: 'Schede', icon: 'plans', owns: ['plans', 'plan'] },
     { href: EXERCISES_PATH, label: 'Esercizi', icon: 'exercises', owns: ['exercises', 'exercise'] },
+    // gli allenamenti fatti: una sezione sua, la home resta per cominciare
+    { href: HISTORY_PATH, label: 'Storico', icon: 'history', owns: ['history'] },
   ];
 </script>
 
@@ -39,7 +40,7 @@
     bottom: 0;
     z-index: var(--z-bar);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     height: var(--tab-bar);
     padding: 0 max(6px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(6px, env(safe-area-inset-left));
     background: var(--glass);
