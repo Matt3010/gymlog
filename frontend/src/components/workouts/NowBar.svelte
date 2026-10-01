@@ -41,7 +41,6 @@
 </script>
 
 {#snippet what()}
-  <span class="dot" aria-hidden="true"></span>
   {#if rest.running}
     <span class="text">
       <span class="eyebrow">In corso · {open!.title}</span>
@@ -104,23 +103,13 @@
     align-items: center;
     gap: 10px;
     min-width: 0;
-    padding: 0 6px 0 14px;
+    padding: 0 6px 0 16px;
     color: var(--ink);
     text-decoration: none;
     -webkit-tap-highlight-color: transparent;
   }
 
   a.what:active { background: var(--sunken-hover); }
-
-  /* il pallino verde: qualcosa sta andando */
-  .dot {
-    flex: none;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--ok);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 20%, transparent);
-  }
 
   .text { flex: 1; display: grid; gap: 1px; min-width: 0; }
 
