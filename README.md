@@ -26,6 +26,9 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
   sessioni e l'ultima volta; aprendolo, sessione per sessione: serie, ripetizioni,
   volume (ripetizioni × kg), peso medio delle serie, peso massimo e massimale stimato
   (formula di Epley), con il grafico del massimale stimato e del peso più alto.
+- **In corso:** l'allenamento aperto sta in una barra sopra le sezioni, da ogni pagina:
+  cosa è, quante serie e da quanto, o il recupero che manca (che continua anche fuori
+  dall'allenamento). Toccandola si riprende.
 - **Riscaldamento:** nell'esercizio aperto, una linguetta col consiglio (non si segna):
   40% × 8, 60% × 5, 80% × 3 del peso della prima serie, più un singolo al 90% da 100 kg,
   al 2,5 sotto. Viene prima finché dell'esercizio non si è fatta nessuna serie.

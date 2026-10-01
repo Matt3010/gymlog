@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nav } from '../../lib/nav.svelte';
+import { rest } from '../../lib/rest.svelte';
 import { toast } from '../../lib/toast.svelte';
 import type { WorkoutDetail, WorkoutSet } from '../../lib/types';
 import { type Call, fakeApi, silentApi } from '../../test/fake-api';
@@ -430,6 +431,26 @@ describe('the rest after a set', () => {
     expect(bar()).toHaveTextContent('1:15');
     await user.click(screen.getByRole('button', { name: 'Ferma il recupero' }));
     expect(bar()).not.toBeInTheDocument();
+  });
+
+  it('keeps going when the page is left: the bar above the tabs counts it from elsewhere', async () => {
+    server();
+    fakeClock();
+    const { unmount } = render(Host, { page: WorkoutPage, params: { id: 7 } });
+    await logSquat();
+    unmount();
+    expect(rest.running).toBe(true);
+    expect(rest.remaining).toBe(90);
+  });
+
+  it('stops when the workout is deleted', async () => {
+    server().on('DELETE /workouts/7', { ok: true });
+    fakeClock();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = await logSquat();
+    await user.click(screen.getByRole('button', { name: 'Elimina l’allenamento' }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Elimina' }));
+    expect(rest.running).toBe(false);
   });
 
   it('vibrates at the end, and goes', async () => {

@@ -134,12 +134,12 @@ describe('home', () => {
     expect(screen.getByRole('button', { name: 'Giorno A E0, E1' })).toBeEnabled();
   });
 
-  it('puts the workout left open on top, to resume', async () => {
-    fakeApi().on('GET /plans', [FORZA]).on(RECENT, [workout(9, { finishedAt: null, sets: 1 }), workout(8)]);
+  it('leaves the workout in progress to the bar above the tabs, seen from every page', async () => {
+    fakeApi().on('GET /plans', [FORZA]).on(RECENT, [workout(9, { finishedAt: null, sets: 1 })]);
     render(HomePage);
-    const resume = await screen.findByRole('link', { name: 'Riprendi' });
-    expect(resume).toHaveAttribute('href', '/allenamenti/9');
-    expect(screen.getByText(/^Iniziato .* · 1 serie$/)).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Forza' });
+    expect(screen.queryByText('In corso')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Riprendi' })).not.toBeInTheDocument();
   });
 
   it('leaves the workouts done to the history, its own section', async () => {

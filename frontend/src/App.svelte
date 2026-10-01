@@ -17,6 +17,7 @@
   import PlanEditorPage from './components/plans/PlanEditorPage.svelte';
   import WorkoutPage from './components/workouts/WorkoutPage.svelte';
   import HistoryPage from './components/workouts/HistoryPage.svelte';
+  import NowBar from './components/workouts/NowBar.svelte';
   import { session } from './lib/client';
   import { nav } from './lib/nav.svelte';
   import { ui } from './lib/ui.svelte';
@@ -73,6 +74,7 @@
       <HistoryPage />
     {/if}
   {/key}
+  <NowBar />
   <TabBar />
 {:else if session.status === 'out'}
   <LoginScreen />

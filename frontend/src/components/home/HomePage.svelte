@@ -1,12 +1,10 @@
 <script lang="ts">
   import { session } from '../../lib/client';
   import { plansApi, workoutsApi } from '../../lib/endpoints';
-  import { formatClock, formatDay } from '../../lib/format';
   import { nav } from '../../lib/nav.svelte';
   import { planPath, workoutPath } from '../../lib/routing';
   import type { Plan, WorkoutSummary } from '../../lib/types';
   import { ui } from '../../lib/ui.svelte';
-  import { inProgress } from '../../lib/workout';
   import Alert from '../Alert.svelte';
   import Button from '../Button.svelte';
   import EmptyState from '../EmptyState.svelte';
@@ -24,16 +22,12 @@
    * nello Storico, una sezione sua.
    */
   let plans = $state<Plan[] | null>(null);
-  let recent = $state<WorkoutSummary[] | null>(null);
   let error = $state('');
   let starting = $state(false);
 
   $effect(() => {
-    Promise.all([plansApi.list(), workoutsApi.list(6)]).then(
-      ([allPlans, workouts]) => {
-        plans = allPlans.filter((plan) => !plan.archived);
-        recent = workouts;
-      },
+    plansApi.list().then(
+      (allPlans) => (plans = allPlans.filter((plan) => !plan.archived)),
       (failure: Error) => (error = failure.message),
     );
   });
@@ -48,7 +42,6 @@
     writeJSON(PLAN_KEY, chosen);
   }
 
-  const open = $derived(recent ? inProgress(recent) : undefined);
 
   /** «A» da sola non dice niente: un nome di una o due lettere è un giorno. */
   const dayLabel = (name: string): string => (name.length <= 2 ? `Giorno ${name}` : name);
@@ -83,23 +76,9 @@
 
   {#if error}<Alert message={error} />{/if}
 
-  {#if plans === null || recent === null}
+  {#if plans === null}
     {#if !error}<Loader />{/if}
   {:else}
-    {#if open}
-      <PageCard>
-        <span class="eyebrow">In corso</span>
-        <div class="open">
-          <div class="what">
-            <span class="title">{open.dayName ? `${open.planName} · ${open.dayName}` : 'Allenamento libero'}</span>
-            <span class="when">Iniziato {formatDay(open.startedAt).toLowerCase()} alle {formatClock(open.startedAt)} · {open.sets === 1 ? '1 serie' : `${open.sets} serie`}</span>
-          </div>
-          <Button look="primary" href={workoutPath(open.id)}>
-            <Icon name="play" /> Riprendi
-          </Button>
-        </div>
-      </PageCard>
-    {/if}
 
     {#if plans.length === 0}
       <PageCard>
@@ -145,23 +124,6 @@
 </PageShell>
 
 <style>
-  .open {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  /* sul telefono il testo prima, intero, e «Riprendi» sotto, largo quanto la card */
-  @media (max-width: 600px) {
-    .open { flex-direction: column; align-items: stretch; }
-  }
-
-  .what { display: grid; gap: 2px; min-width: 0; }
-
-  .title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; overflow-wrap: anywhere; }
-
-  .when { font-size: 12px; color: var(--ink-3); }
 
   .plan-head { display: grid; gap: 6px; }
 

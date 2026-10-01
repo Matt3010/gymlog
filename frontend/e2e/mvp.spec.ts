@@ -423,10 +423,17 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByRole('link', { name: 'Allenati' }).click();
   const asked: string[] = [];
   page.on('request', (request) => request.url().includes('/api/workouts?limit=20') && asked.push(request.url()));
-  // «In corso»: the text first, «Riprendi» underneath, nothing squeezed
-  await expectNotSqueezed(page.locator('.open .when'), page.getByRole('link', { name: 'Riprendi' }));
-  await expectNotSqueezed(page.locator('.open .title'), page.getByRole('link', { name: 'Riprendi' }));
-  await expectFullWidth(page.getByRole('link', { name: 'Riprendi' }));
+  // «In corso» sits above the tabs on every page, clear of them and of the page's last button; a tap resumes.
+  const now = page.getByRole('link', { name: /^In corso/ });
+  await expect(now).toContainText('Forza! · A');
+  await expectClearOfTabBar(page, now);
+  await scrollToEnd(page);
+  await expectUncovered(page, now, page.getByRole('button', { name: 'Allenamento libero' }));
+  await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Schede' }).click();
+  await now.click();
+  await expect(page.getByRole('heading', { name: 'Forza! · A' })).toBeVisible();
+  // on its own page it steps aside
+  await expect(now).toHaveCount(0);
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Storico' }).click();
   await expect(page.getByRole('heading', { name: 'Storico' })).toBeVisible();
   await expect(page.locator('.row')).toHaveCount(2);
@@ -487,7 +494,7 @@ test('a new person creates an account and is in at once', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
 
   // No workout in progress: one is started, its page opens, and the bin in its header deletes it.
-  await expect(page.getByRole('link', { name: /Riprendi/ })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /^In corso/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Allenamento libero' }).click();
   await expect(page).toHaveURL(/\/allenamenti\/\d+$/);
   await page.locator('header').getByRole('button', { name: 'Elimina l’allenamento' }).click();
@@ -495,5 +502,5 @@ test('a new person creates an account and is in at once', async ({ page }) => {
   await expect(page.getByText('Allenamento eliminato.')).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Riprendi/ })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /^In corso/ })).toHaveCount(0);
 });

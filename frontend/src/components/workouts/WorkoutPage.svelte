@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { onDestroy, untrack } from 'svelte';
+  import { untrack } from 'svelte';
   import { workoutsApi } from '../../lib/endpoints';
   import { formatClock, formatDay, formatDuration, formatKg, formatRest } from '../../lib/format';
   import { nav } from '../../lib/nav.svelte';
   import { HOME_PATH } from '../../lib/routing';
-  import { RestTimer } from '../../lib/rest-timer.svelte';
+  import { rest } from '../../lib/rest.svelte';
   import { toast } from '../../lib/toast.svelte';
   import { ui } from '../../lib/ui.svelte';
   import type { Exercise, WorkoutDetail, WorkoutSet } from '../../lib/types';
@@ -60,10 +60,8 @@
 
   /* Il recupero che chiede la scheda, dopo ogni serie. A zero il telefono
      vibra, se sa farlo: in tasca o sulla panca non lo si guarda. */
-  const rest = new RestTimer(() => {
-    if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
-  });
-  onDestroy(() => rest.stop());
+  /* Il recupero è uno per tutta l'app (lib/rest): uscendo da qui continua,
+     e la barra «In corso» lo conta dalle altre pagine. */
 
   const blocks = $derived(detail ? blocksOf(detail, added) : []);
   const finished = $derived(detail?.finishedAt != null);
@@ -156,6 +154,7 @@
     working = true;
     try {
       await workoutsApi.remove(id);
+      rest.stop();
       toast.show('Allenamento eliminato.');
       nav.go(HOME_PATH, { replace: true });
     } catch (failure) {
@@ -336,7 +335,7 @@
 </PageShell>
 
 
-{#if rest.running}
+{#if rest.running && !finished}
   <RestBar timer={rest} />
 {/if}
 
