@@ -118,6 +118,12 @@ describe("a plan", () => {
     expect(parsePlan(twenty).days[0]!.exercises[0]!.reps).toHaveLength(20);
   });
 
+  it("keeps the id of a day already saved", () => {
+    const withId = { ...plan, days: [{ ...day, id: 12 }, day] };
+    expect(parsePlan(withId).days.map((one) => ("id" in one ? one.id : undefined))).toEqual([12, undefined]);
+    expect(() => parsePlan({ ...plan, days: [{ ...day, id: 0 }] })).toThrow("Giorno: numero tra 1 e 2147483647 (intero).");
+  });
+
   it("takes up to fourteen days of thirty exercises", () => {
     const full = { name: "A", exercises: Array.from({ length: 30 }, () => day.exercises[0]) };
     expect(parsePlan({ ...plan, days: Array.from({ length: 14 }, () => full) }).days).toHaveLength(14);

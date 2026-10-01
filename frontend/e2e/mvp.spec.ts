@@ -266,6 +266,12 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByPlaceholder('Forza, autunno').fill('Forza!');
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Schede' }).click();
   await expect(page.getByRole('link', { name: /^Forza!/ })).toBeVisible();
+  // The last row of a list has no line under it: there is nothing below to part it from.
+  const lastLine = await page.getByRole('link', { name: /^Forza!/ }).evaluate((link) => {
+    const row = link.closest('.row')!;
+    return getComputedStyle(row, '::after').content;
+  });
+  expect(lastLine).toBe('none');
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Allenati' }).click();
   await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
   await expectFlatRows(page);

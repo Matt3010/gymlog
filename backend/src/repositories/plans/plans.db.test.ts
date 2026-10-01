@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SERVER, testDatabase } from "../../lib/database/test-database";
 import { createExercisesRepository } from "../exercises/exercises.repository";
+import { createWorkoutsRepository } from "../workouts/workouts.repository";
 import { createUsersRepository } from "../users/users.repository";
 import { createPlansRepository, type PlanInput } from "./plans.repository";
 
@@ -107,6 +108,37 @@ describe.skipIf(SERVER === undefined)("the plans repository", () => {
       },
     ]);
     expect(await repo().find(user.id, plan.id)).toEqual(replaced);
+  });
+
+  it("keeps the days sent with their id, changing them in place; adds and removes the others", async () => {
+    const { user, bench, row, input } = await setup();
+    const plan = await repo().create(user.id, input);
+    const [a, b] = plan.days;
+    const replaced = await repo().replace(user.id, plan.id, {
+      ...input,
+      days: [
+        { id: b!.id, name: "B2", exercises: [{ exerciseId: bench.id, reps: ["6"], restSeconds: null, notes: null }] },
+        { name: "C", exercises: [{ exerciseId: row.id, reps: ["12"], restSeconds: null, notes: null }] },
+      ],
+    });
+    expect(replaced?.days.map((day) => [day.name, day.position])).toEqual([["B2", 0], ["C", 1]]);
+    expect(replaced?.days[0]?.id).toBe(b!.id);
+    expect(replaced?.days[1]?.id).not.toBe(a!.id);
+    expect(replaced?.days[0]?.exercises.map((exercise) => [exercise.exerciseName, exercise.reps])).toEqual([["Panca piana", ["6"]]]);
+    const { rows } = await handle.db.$client.query("select id from plan_days where id = $1", [a!.id]);
+    expect(rows).toEqual([]);
+  });
+
+  it("renames, in the workouts that followed them, the plan and the days kept", async () => {
+    const { user, input } = await setup();
+    const plan = await repo().create(user.id, input);
+    const [a, b] = plan.days;
+    const onA = await createWorkoutsRepository(handle.db).create(user.id, { planDayId: a!.id, planName: plan.name, dayName: a!.name });
+    const onB = await createWorkoutsRepository(handle.db).create(user.id, { planDayId: b!.id, planName: plan.name, dayName: b!.name });
+    await repo().replace(user.id, plan.id, { ...input, name: "Forza 2", days: [{ id: a!.id, name: "Spinta", exercises: [] }] });
+    expect(await createWorkoutsRepository(handle.db).find(user.id, onA.id)).toMatchObject({ planDayId: a!.id, planName: "Forza 2", dayName: "Spinta" });
+    // B is gone: its workout keeps the names it had, without the link.
+    expect(await createWorkoutsRepository(handle.db).find(user.id, onB.id)).toMatchObject({ planDayId: null, planName: "Scheda autunno", dayName: "B" });
   });
 
   it("neither finds, replaces nor deletes another user's plan", async () => {

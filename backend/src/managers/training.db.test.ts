@@ -88,6 +88,15 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       await expect(plans.delete(other.user.id, plan.id)).rejects.toThrow(NotFoundError);
     });
 
+    it("refuse a day id that is not one of the plan's", async () => {
+      const { user, input, plans } = await setup();
+      const plan = await plans.create(user.id, input);
+      const other = await plans.create(user.id, input);
+      await expect(plans.replace(user.id, plan.id, { ...input, days: [{ ...input.days[0]!, id: other.days[0]!.id }] }))
+        .rejects.toThrow(new InputError("Uno dei giorni non esiste più. Ricarica la pagina."));
+      expect(await plans.get(user.id, other.id)).toEqual(other);
+    });
+
     it("take only the user's own exercises", async () => {
       const { user, input, plans } = await setup();
       const other = await setup();

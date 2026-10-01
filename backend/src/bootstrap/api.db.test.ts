@@ -321,6 +321,13 @@ describe.skipIf(SERVER === undefined)("the API", () => {
 
       const next = (await call("POST", "/api/workouts", { planDayId: null })).body;
       const again = (await call("POST", "/api/workouts", { planDayId: dayId })).body;
+      // Renaming the plan and the day, the day kept by its id: the workout follows, targets included.
+      const renamedAgain = (await call("PUT", `/api/plans/${plan.id}`, {
+        ...renamed, name: "Forza 3", days: [{ ...renamed.days[0], name: "Gambe" }],
+      })).body;
+      expect(renamedAgain.days[0].id).toBe(dayId);
+      expect((await call("GET", `/api/workouts/${again.id}`)).body).toMatchObject({ planName: "Forza 3", dayName: "Gambe", plan: renamedAgain.days[0].exercises });
+      expect((await call("GET", "/api/workouts")).body[0]).toMatchObject({ id: again.id, planName: "Forza 3", dayName: "Gambe" });
       expect(again.previousNote).toEqual({ workoutId: workout.id, startedAt: workout.startedAt, note: "bene" });
       expect(await call("DELETE", `/api/workouts/${again.id}`)).toMatchObject({ status: 200 });
       expect(next.previous).toEqual({ [squat.id]: { workoutId: workout.id, startedAt: workout.startedAt, sets: [{ reps: 5, weightKg: 102.5 }], note: "ginocchio ok" } });
@@ -335,7 +342,7 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect(await call("DELETE", `/api/workouts/${next.id}`)).toMatchObject({ status: 200 });
       expect((await call("GET", `/api/workouts/${next.id}`)).status).toBe(404);
       expect(await call("DELETE", `/api/plans/${plan.id}`)).toMatchObject({ status: 200 });
-      expect((await call("GET", `/api/workouts/${workout.id}`)).body).toMatchObject({ planDayId: null, planName: "Forza 2", plan: [] });
+      expect((await call("GET", `/api/workouts/${workout.id}`)).body).toMatchObject({ planDayId: null, planName: "Forza 3", dayName: "Gambe", plan: [] });
     });
 
     it("page the workouts, within bounds", async () => {

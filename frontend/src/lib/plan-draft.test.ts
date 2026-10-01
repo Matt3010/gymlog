@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDay, addSet, draftOf, move, problemOf, removeSet, toInput, type Draft } from './plan-draft';
+import { addDay, addSet, draftOf, learnDayIds, move, problemOf, removeSet, toInput, type Draft } from './plan-draft';
 import type { Plan } from './types';
 
 const plan: Plan = {
@@ -41,10 +41,35 @@ describe('a draft', () => {
     expect(toInput(draft)).toEqual({
       name: 'Forza 2', notes: null, archived: false,
       days: [
-        { name: 'A', exercises: [{ exerciseId: 1, reps: ['5', '5-6', '3'], restSeconds: 180, notes: 'lento' }] },
-        { name: 'B', exercises: [] },
+        { id: 10, name: 'A', exercises: [{ exerciseId: 1, reps: ['5', '5-6', '3'], restSeconds: 180, notes: 'lento' }] },
+        { id: 11, name: 'B', exercises: [] },
       ],
     });
+  });
+
+  it('sends the id of a saved day, none for a new one', () => {
+    const draft = draftOf(plan);
+    addDay(draft);
+    expect(toInput(draft).days.map((day) => day.id)).toEqual([10, 11, undefined]);
+    expect('id' in toInput(draft).days[2]!).toBe(false);
+  });
+});
+
+describe('a saved plan coming back', () => {
+  it('gives its id to each new day that was sent, by its place in what was sent', () => {
+    const draft = draftOf(plan);
+    addDay(draft);
+    const sent = [...draft.days];
+    // meanwhile a day is added at the end, not sent yet
+    addDay(draft);
+    learnDayIds(sent, { ...plan, days: [...plan.days, { id: 12, name: 'C', position: 2, exercises: [] }] });
+    expect(draft.days.map((day) => day.id)).toEqual([10, 11, 12, undefined]);
+  });
+
+  it('leaves alone a day that already has its id', () => {
+    const draft = draftOf(plan);
+    learnDayIds([...draft.days], { ...plan, days: [{ ...plan.days[0]!, id: 99 }, plan.days[1]!] });
+    expect(draft.days.map((day) => day.id)).toEqual([10, 11]);
   });
 });
 

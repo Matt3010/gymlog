@@ -3,7 +3,7 @@
   import { Autosave } from '../../lib/autosave.svelte';
   import { plansApi } from '../../lib/endpoints';
   import { nav } from '../../lib/nav.svelte';
-  import { addDay, addSet, draftOf, move, newKey, problemOf, removeSet, toInput, type Draft, type DraftDay } from '../../lib/plan-draft';
+  import { addDay, addSet, draftOf, learnDayIds, move, newKey, problemOf, removeSet, toInput, type Draft, type DraftDay } from '../../lib/plan-draft';
   import { planPath, PLANS_PATH } from '../../lib/routing';
   import { toast } from '../../lib/toast.svelte';
   import type { Exercise, PlanInput } from '../../lib/types';
@@ -52,7 +52,14 @@
     }
   }
 
-  const saver = new Autosave<PlanInput>((input) => plansApi.save(id!, input));
+  /** Quello che parte, con i giorni com'erano allora: la risposta dà l'id ai nuovi. */
+  interface Sending { json: string; days: DraftDay[] }
+  const saver = new Autosave<Sending>(async ({ json, days }) => {
+    const saved = await plansApi.save(id!, JSON.parse(json) as PlanInput);
+    learnDayIds(days, saved);
+    // Se nient'altro è cambiato intanto, gli id imparati non sono una modifica da rimandare.
+    if (sent === json && draft) sent = JSON.stringify(toInput(draft));
+  });
   // lasciando la pagina parte quello che aspettava
   onDestroy(() => void saver.flush());
 
@@ -72,7 +79,7 @@
     const now = JSON.stringify(toInput(draft));
     if (now === sent || problem) return;
     sent = now;
-    saver.change(JSON.parse(now) as PlanInput);
+    saver.change({ json: now, days: [...draft.days] });
   });
 
   /** Un esercizio da aggiungere a un giorno, scelto in una finestra. */
@@ -95,6 +102,13 @@
   };
 
   /** Prima si chiede, accanto al tasto: una scheda eliminata non torna. */
+  /** Togliere un pezzo della scheda chiede prima, come eliminarla: tutto ciò che è rosso chiede. */
+  function askTake(anchor: HTMLElement, title: string, onYes: () => void, detail?: string): void {
+    ui.askSure(anchor, { title, ...(detail === undefined ? {} : { detail }), verb: 'Togli', onYes });
+  }
+
+  const dayName = (day: DraftDay): string => day.name.trim() || 'senza nome';
+
   function askRemove(anchor: HTMLElement): void {
     ui.askSure(anchor, {
       title: `Eliminare la scheda «${draft?.name.trim() || 'senza nome'}»?`,
@@ -189,7 +203,7 @@
             <Button look="icon" title="Sposta giù" disabled={dayIndex === draft.days.length - 1} onclick={() => draft && (draft.days = move(draft.days, dayIndex, 1))}>
               <Icon name="down" />
             </Button>
-            <Button look="icon" tone="danger" title="Togli il giorno" onclick={() => draft && (draft.days = draft.days.filter((one) => one !== day))}>
+            <Button look="icon" tone="danger" title="Togli il giorno" onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere il giorno «${dayName(day)}»?`, () => draft && (draft.days = draft.days.filter((one) => one !== day)), 'Con i suoi esercizi.')}>
               <Icon name="trash" />
             </Button>
           </span>
@@ -206,7 +220,7 @@
                 <Button look="icon" size="sm" title="Sposta giù" disabled={index === day.exercises.length - 1} onclick={() => (day.exercises = move(day.exercises, index, 1))}>
                   <Icon name="down" />
                 </Button>
-                <Button look="icon" size="sm" tone="danger" title="Togli l’esercizio" onclick={() => (day.exercises = day.exercises.filter((one) => one !== exercise))}>
+                <Button look="icon" size="sm" tone="danger" title="Togli l’esercizio" onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere «${exercise.exerciseName}» dal giorno «${dayName(day)}»?`, () => (day.exercises = day.exercises.filter((one) => one !== exercise)))}>
                   <Icon name="close" />
                 </Button>
               </span>
@@ -217,7 +231,7 @@
                 <li class="set">
                   <span class="set-name">Serie {at + 1}</span>
                   <TextField bind:value={exercise.reps[at]} label="Serie {at + 1}, ripetizioni" placeholder="8-10" maxlength={20} />
-                  <Button look="icon" size="sm" tone="danger" title="Togli la serie {at + 1}" aria-label="Togli la serie {at + 1}" disabled={exercise.reps.length === 1} onclick={() => removeSet(exercise, at)}>
+                  <Button look="icon" size="sm" tone="danger" title="Togli la serie {at + 1}" aria-label="Togli la serie {at + 1}" disabled={exercise.reps.length === 1} onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere la serie ${at + 1} di «${exercise.exerciseName}»?`, () => removeSet(exercise, at))}>
                     <Icon name="close" />
                   </Button>
                 </li>

@@ -35,6 +35,9 @@ const settled = (check: () => void) => vi.waitFor(check, { timeout: 3000 });
 /** The reps of each set on the page, top to bottom. */
 const setReps = () => screen.getAllByLabelText(/^Serie \d+, ripetizioni$/).map((input) => (input as HTMLInputElement).value);
 const status = () => screen.getByRole('status', { name: 'Salvataggio' });
+/** Says yes to the question a removal asks first. */
+const confirmTake = async (user: ReturnType<typeof userEvent.setup>) =>
+  user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Togli' }));
 const pause = () => new Promise((resolve) => setTimeout(resolve, 800));
 
 describe('the plans', () => {
@@ -123,6 +126,7 @@ describe('a plan being written', () => {
     await user.clear(screen.getByLabelText('Serie 1, ripetizioni'));
     await user.type(screen.getByLabelText('Serie 1, ripetizioni'), ' 5 ');
     await user.click(screen.getByRole('button', { name: 'Togli la serie 3' }));
+    await confirmTake(user);
     await user.clear(screen.getByLabelText('Serie 2, ripetizioni'));
     await user.type(screen.getByLabelText('Serie 2, ripetizioni'), '8');
     // one more, copying the last
@@ -155,6 +159,7 @@ describe('a plan being written', () => {
           name: 'Forza', notes: '3 volte', archived: false,
           days: [
             {
+              id: 91,
               name: 'A',
               exercises: [
                 { exerciseId: 1, reps: ['5', '8', '8'], restSeconds: 180, notes: null },
@@ -178,7 +183,9 @@ describe('a plan being written', () => {
     await user.click(screen.getByRole('button', { name: 'Aggiungi esercizio' }));
     await user.click(await screen.findByRole('button', { name: 'Squat Gambe' }));
     await user.click(screen.getByRole('button', { name: 'Togli la serie 3' }));
+    await confirmTake(user);
     await user.click(screen.getByRole('button', { name: 'Togli la serie 2' }));
+    await confirmTake(user);
     expect(screen.getByRole('button', { name: 'Togli la serie 1' })).toBeDisabled();
     expect(setReps()).toEqual(['10']);
   });
@@ -194,6 +201,65 @@ describe('a plan being written', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Nel giorno «A» la serie 2 dell’esercizio «Squat» non ha ripetizioni. Scrivi quante, anche «max».');
     await pause();
     expect(planChanges(api).some((change) => JSON.stringify(change.body).includes('""'))).toBe(false);
+  });
+});
+
+describe('a day added to a saved plan', () => {
+  it('is sent without an id once, then with the id the server gave it', async () => {
+    const api = fakeApi()
+      .on('GET /plans/9', NUOVA)
+      .on('PUT /plans/9', (call: Call) => {
+        const input = call.body as { days: { id?: number; name: string }[] };
+        return { ...NUOVA, days: input.days.map((day, position) => ({ id: day.id ?? 92, name: day.name, position, exercises: [] })) };
+      });
+    render(Host, { page: PlanEditorPage, params: { id: 9 } });
+    const user = userEvent.setup();
+    await screen.findByRole('heading', { name: 'Forza' });
+    await user.click(screen.getByRole('button', { name: 'Aggiungi giorno' }));
+    await settled(() => expect(planChanges(api)).toHaveLength(1));
+    expect((planChanges(api)[0]!.body as { days: { id?: number }[] }).days.map((day) => day.id)).toEqual([91, undefined]);
+    const names = screen.getAllByLabelText('Giorno');
+    await user.clear(names[1]!);
+    await user.type(names[1]!, 'Gambe');
+    await user.tab();
+    await settled(() => expect(planChanges(api)).toHaveLength(2));
+    expect((planChanges(api)[1]!.body as { days: { id?: number; name: string }[] }).days).toMatchObject([{ id: 91 }, { id: 92, name: 'Gambe' }]);
+  });
+});
+
+describe('taking something out of a plan', () => {
+  it('asks first, naming it, and nothing changes until yes', async () => {
+    const api = fakeApi().on('GET /plans/5', FORZA).on('PUT /plans/5', FORZA);
+    render(Host, { page: PlanEditorPage, params: { id: 5 } });
+    const user = userEvent.setup();
+    await screen.findByRole('heading', { name: 'Forza' });
+
+    await user.click(screen.getAllByRole('button', { name: 'Togli il giorno' })[1]!);
+    let question = within(await screen.findByRole('alertdialog', { name: 'Togliere il giorno «B»?' }));
+    expect(question.getByText('Con i suoi esercizi.')).toBeInTheDocument();
+    await user.click(question.getByRole('button', { name: 'Annulla' }));
+    expect(screen.getAllByLabelText('Giorno')).toHaveLength(2);
+
+    await user.click(screen.getAllByRole('button', { name: 'Togli l’esercizio' })[0]!);
+    question = within(await screen.findByRole('alertdialog', { name: 'Togliere «Squat» dal giorno «A»?' }));
+    await user.click(question.getByRole('button', { name: 'Annulla' }));
+
+    await user.click(screen.getAllByRole('button', { name: 'Togli la serie 5' })[0]!);
+    question = within(await screen.findByRole('alertdialog', { name: 'Togliere la serie 5 di «Squat»?' }));
+    await user.click(question.getByRole('button', { name: 'Annulla' }));
+
+    expect(setReps()).toEqual(['5', '5', '5', '5', '3', '8', '8', '8', '8', '8', '8']);
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    expect(planChanges(api)).toEqual([]);
+  });
+
+  it('every button that takes something out is red', async () => {
+    fakeApi().on('GET /plans/5', FORZA);
+    render(Host, { page: PlanEditorPage, params: { id: 5 } });
+    await screen.findByRole('heading', { name: 'Forza' });
+    const takers = screen.getAllByRole('button', { name: /^(Togli|Elimina)/ });
+    expect(takers.length).toBeGreaterThan(5);
+    for (const button of takers) expect(button).toHaveClass('is-danger');
   });
 });
 
@@ -231,6 +297,7 @@ describe('a saved plan', () => {
     await user.click(screen.getAllByRole('button', { name: 'Sposta su' })[2]!);
     await user.click(screen.getAllByRole('button', { name: 'Sposta su' })[3]!);
     await user.click(screen.getAllByRole('button', { name: 'Togli l’esercizio' })[2]!);
+    await confirmTake(user);
     await user.click(screen.getByRole('checkbox', { name: /Archiviata/ }));
     await settled(() => expect(planChanges(api).at(-1)?.body).toMatchObject({ archived: true }));
     expect(planChanges(api).at(-1)).toEqual({
@@ -238,8 +305,8 @@ describe('a saved plan', () => {
       body: {
         name: 'Forza', notes: '3 volte', archived: true,
         days: [
-          { name: 'B', exercises: [{ exerciseId: 3, reps: ['8', '8', '8'], restSeconds: 90, notes: 'lento' }] },
-          { name: 'A', exercises: [{ exerciseId: 2, reps: ['8', '8', '8'], restSeconds: 90, notes: null }] },
+          { id: 52, name: 'B', exercises: [{ exerciseId: 3, reps: ['8', '8', '8'], restSeconds: 90, notes: 'lento' }] },
+          { id: 51, name: 'A', exercises: [{ exerciseId: 2, reps: ['8', '8', '8'], restSeconds: 90, notes: null }] },
         ],
       },
     });
@@ -268,6 +335,7 @@ describe('a saved plan', () => {
     const user = userEvent.setup();
     await screen.findByRole('heading', { name: 'Forza' });
     await user.click(screen.getAllByRole('button', { name: 'Togli il giorno' })[0]!);
+    await confirmTake(user);
     await settled(() => expect(api.changes()).toHaveLength(1));
     expect((api.changes()[0]?.body as { days: { name: string }[] }).days.map((day) => day.name)).toEqual(['B']);
   });

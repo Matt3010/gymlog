@@ -120,6 +120,8 @@ describe('the exercises', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Modifica Squat' }));
     const remove = sheet().getByRole('button', { name: 'Elimina l’esercizio «Squat»' });
+    // destructive, so red like every other delete
+    expect(remove).toHaveClass('is-danger');
     // at the top right of its window, next to the close
     expect(remove.closest('header')).not.toBeNull();
     await user.click(remove);

@@ -58,7 +58,8 @@ export interface PlanInput {
   name: string;
   notes: string | null;
   archived: boolean;
-  days: { name: string; exercises: PlanExerciseInput[] }[];
+  /** Un giorno già salvato porta il suo id: il server lo cambia, e gli allenamenti restano collegati. */
+  days: { id?: number; name: string; exercises: PlanExerciseInput[] }[];
 }
 
 export interface Workout {

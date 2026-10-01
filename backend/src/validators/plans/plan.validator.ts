@@ -33,10 +33,12 @@ export function parsePlan(value: unknown): PlanInput {
     archived: body.archived === undefined ? false : bool(body, "archived"),
     days: days.map((dayValue) => {
       const day = object(dayValue);
+      // Labelled as a day in the error: the key itself is just "id".
+      const dayId = day.id === undefined ? undefined : id({ planDayId: day.id }, "planDayId");
       const name = text(day, "name");
       const exercises = list(day, "exercises");
       if (exercises.length > MAX_EXERCISES_PER_DAY) throw new InputError(`Esercizi: al più ${MAX_EXERCISES_PER_DAY} per giorno.`);
-      return { name, exercises: exercises.map(parsePlanExercise) };
+      return { ...(dayId === undefined ? {} : { id: dayId }), name, exercises: exercises.map(parsePlanExercise) };
     }),
   };
 }

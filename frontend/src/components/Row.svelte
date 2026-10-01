@@ -195,6 +195,11 @@
     background: var(--hairline-soft);
   }
 
+  /* l'ultima riga di un elenco che chiude la card non ha niente da cui
+     separarsi: il tratto lì sarebbe un bordo in più. Se sotto c'è altro
+     («Tutto lo storico», il campo per crearne uno) il tratto resta. */
+  :global(ul.rows:last-child > li:last-child) > .row.is-flat::after { content: none; }
+
   @media (hover: hover) {
   .row.is-flat:hover { background: transparent; }
 }

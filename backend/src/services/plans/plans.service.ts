@@ -1,5 +1,6 @@
 import { found, foundIf } from "../../errors";
 import type { Executor } from "../../lib";
+import { InputError } from "../../validators";
 import { createPlansRepository, type Plan, type PlanDayDetail, type PlanInput } from "../../repositories";
 
 /** Plans on their own. Whether the exercises in them are the user's is the plans manager's to check. */
@@ -21,7 +22,17 @@ export function createPlansService(db: Executor): PlansService {
     get: async (userId, id) => found(await plans.find(userId, id)),
     // A plan, its days and their exercises are written together or not at all.
     create: (userId, input) => db.transaction((tx) => createPlansRepository(tx).create(userId, input)),
-    replace: async (userId, id, input) => found(await db.transaction((tx) => createPlansRepository(tx).replace(userId, id, input))),
+    replace: async (userId, id, input) => found(await db.transaction(async (tx) => {
+      const plans = createPlansRepository(tx);
+      const current = await plans.find(userId, id);
+      if (current === undefined) return undefined;
+      // A day id must be one of this plan's: another plan's day is not taken over.
+      const own = new Set(current.days.map((day) => day.id));
+      if (input.days.some((day) => day.id !== undefined && !own.has(day.id))) {
+        throw new InputError("Uno dei giorni non esiste più. Ricarica la pagina.");
+      }
+      return plans.replace(userId, id, input);
+    })),
     delete: async (userId, id) => foundIf(await plans.delete(userId, id)),
     findDay: (userId, dayId) => plans.findDay(userId, dayId),
   };

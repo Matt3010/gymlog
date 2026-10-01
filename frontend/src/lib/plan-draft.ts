@@ -19,6 +19,8 @@ export interface DraftExercise {
 
 export interface DraftDay {
   key: number;
+  /** Il giorno già salvato: si rimanda, così il server lo cambia invece di rifarlo. */
+  id?: number;
   name: string;
   exercises: DraftExercise[];
 }
@@ -43,6 +45,7 @@ export function draftOf(plan: Plan | null): Draft {
     archived: plan.archived,
     days: plan.days.map((day) => ({
       key: newKey(),
+      id: day.id,
       name: day.name,
       exercises: day.exercises.map((exercise) => ({
         key: newKey(),
@@ -64,6 +67,7 @@ export function toInput(draft: Draft): PlanInput {
     notes: orNull(draft.notes),
     archived: draft.archived,
     days: draft.days.map((day) => ({
+      ...(day.id === undefined ? {} : { id: day.id }),
       name: day.name.trim(),
       exercises: day.exercises.map((exercise) => ({
         exerciseId: exercise.exerciseId,
@@ -73,6 +77,18 @@ export function toInput(draft: Draft): PlanInput {
       })),
     })),
   };
+}
+
+/**
+ * La scheda salvata torna con un id per ogni giorno: quelli mandati nuovi lo
+ * prendono, ciascuno dal suo posto in quello che si era mandato. Il giorno
+ * aggiunto intanto resta senza, e partirà al salvataggio dopo.
+ */
+export function learnDayIds(sent: readonly DraftDay[], saved: Plan): void {
+  sent.forEach((day, index) => {
+    const id = saved.days[index]?.id;
+    if (day.id === undefined && id !== undefined) day.id = id;
+  });
 }
 
 /** Un giorno in fondo, con la prima lettera che nessun altro giorno usa. */

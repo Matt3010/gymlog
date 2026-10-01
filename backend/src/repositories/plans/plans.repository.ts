@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { type Executor, exercises, planDays, planExercises, plans } from "../../lib";
 
 export interface PlanExerciseInput {
@@ -13,7 +13,8 @@ export interface PlanInput {
   readonly name: string;
   readonly notes: string | null;
   readonly archived: boolean;
-  readonly days: readonly { readonly name: string; readonly exercises: readonly PlanExerciseInput[] }[];
+  /** A day already saved carries its id: it is changed in place, so workouts stay linked to it. */
+  readonly days: readonly { readonly id?: number; readonly name: string; readonly exercises: readonly PlanExerciseInput[] }[];
 }
 
 export interface PlanExercise extends PlanExerciseInput {
@@ -93,11 +94,19 @@ async function daysOf(db: Executor, planIds: readonly number[]): Promise<Map<num
   return byPlan;
 }
 
-async function insertDays(db: Executor, planId: number, input: PlanInput): Promise<void> {
+/** Writes the days in order: one with an id is changed in place, the others are new. */
+async function writeDays(db: Executor, planId: number, input: PlanInput): Promise<void> {
   for (const [position, day] of input.days.entries()) {
-    const [row] = await db.insert(planDays).values({ planId, name: day.name, position }).returning({ id: planDays.id });
+    let dayId = day.id;
+    if (dayId === undefined) {
+      const [row] = await db.insert(planDays).values({ planId, name: day.name, position }).returning({ id: planDays.id });
+      dayId = row!.id;
+    } else {
+      await db.update(planDays).set({ name: day.name, position }).where(and(eq(planDays.id, dayId), eq(planDays.planId, planId)));
+      await db.delete(planExercises).where(eq(planExercises.planDayId, dayId));
+    }
     if (day.exercises.length === 0) continue;
-    await db.insert(planExercises).values(day.exercises.map((exercise, index) => ({ ...exercise, planDayId: row!.id, position: index })));
+    await db.insert(planExercises).values(day.exercises.map((exercise, index) => ({ ...exercise, planDayId: dayId, position: index })));
   }
 }
 
@@ -124,7 +133,7 @@ export function createPlansRepository(db: Executor): PlansRepository {
 
     async create(userId, input) {
       const [row] = await db.insert(plans).values({ userId, name: input.name, notes: input.notes, archived: input.archived }).returning({ id: plans.id });
-      await insertDays(db, row!.id, input);
+      await writeDays(db, row!.id, input);
       return (await load(db, userId, row!.id))!;
     },
 
@@ -132,9 +141,15 @@ export function createPlansRepository(db: Executor): PlansRepository {
       const [row] = await db.update(plans).set({ name: input.name, notes: input.notes, archived: input.archived })
         .where(mine(userId, id)).returning({ id: plans.id });
       if (row === undefined) return undefined;
-      // Days go with their exercises; workouts that followed them keep their sets, without a plan.
-      await db.delete(planDays).where(eq(planDays.planId, id));
-      await insertDays(db, id, input);
+      // Days left out go with their exercises; workouts that followed them keep their sets and names, without a plan.
+      const kept = input.days.flatMap((day) => (day.id === undefined ? [] : [day.id]));
+      await db.delete(planDays).where(and(eq(planDays.planId, id), kept.length === 0 ? undefined : notInArray(planDays.id, kept)));
+      await writeDays(db, id, input);
+      // Workouts show the names as they are now: the plan's, and their day's.
+      await db.execute(sql`
+        update workouts w set plan_name = ${input.name}, day_name = d.name
+        from plan_days d
+        where w.plan_day_id = d.id and d.plan_id = ${id}`);
       return load(db, userId, id);
     },
 

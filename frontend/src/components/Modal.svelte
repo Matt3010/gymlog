@@ -2,6 +2,10 @@
   import { tick } from 'svelte';
   import { offriIlFondo } from '../lib/fondo.svelte';
   import { ui, type ModalAction, type ModalRequest } from '../lib/ui.svelte';
+
+  /** In testata un'azione è un'icona: se il suo aspetto è distruttivo, l'icona è rossa come ogni cestino. */
+  const headTone = (azione: ModalAction): 'danger' | undefined =>
+    azione.tone ?? (azione.look === 'danger' || azione.look === 'danger-solid' ? 'danger' : undefined);
   import { swipeToClose } from '../lib/swipe';
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
@@ -146,7 +150,7 @@
     {#each inTesta as azione, at (azione.label)}
       <Button
         look="icon"
-        tone={azione.tone}
+        tone={headTone(azione)}
         title={azione.label}
         aria-label={azione.label}
         disabled={azione.disabled}
