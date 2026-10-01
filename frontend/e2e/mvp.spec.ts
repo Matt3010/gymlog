@@ -73,6 +73,14 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   // Before the door the app asks who you are and tries a renewal: two 401s the browser logs, as it should.
   errors.length = 0;
 
+  // A short page does not scroll, nor bounce like it would (on an iPhone it moved under the clock).
+  const page0 = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollHeight - window.innerHeight,
+    html: getComputedStyle(document.documentElement).overscrollBehaviorY,
+    body: getComputedStyle(document.body).overscrollBehaviorY,
+  }));
+  expect(page0).toEqual({ scroll: 0, html: 'none', body: 'none' });
+
   // Two exercises.
   await page.getByRole('link', { name: 'Esercizi' }).click();
   await expect(page.getByRole('button', { name: 'Nuovo' })).toHaveCount(0);

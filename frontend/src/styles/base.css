@@ -7,23 +7,27 @@
 /* several overlay pieces set their own display, which would beat the UA rule */
 [hidden] { display: none !important; }
 
-html, body { height: 100%; margin: 0; }
-
 /*
- * Installata su iPhone, la pagina arriva in fondo allo schermo.
+ * La pagina è lunga quanto il suo contenuto, e una corta sta ferma.
  *
- * Con la barra di stato trasparente iOS disegna la pagina da sotto
- * l'orologio, ma le dà un'altezza di schermo meno barra: `100%`, `vh` e
- * `dvh` si fermano tutti quarantasette pixel prima del fondo, e sotto resta
- * una fascia che niente riesce a riempire. Allungare un pezzo dentro la
- * pagina non basta, perché oltre quella riga non si disegna. Solo `lvh`
- * vale lo schermo intero, e va dato alla radice.
- *
- * Solo da installata: in una scheda del browser `lvh` è l'altezza a barre
- * nascoste, e la pagina finirebbe sotto la barra dell'indirizzo.
+ * L'altezza non si forza: la barra delle sezioni è fissa in fondo da sé, e il
+ * colore dello sfondo sta anche su html, così sotto a una pagina corta non
+ * resta una fascia di un altro colore. Il rimbalzo si spegne: su iPhone una
+ * pagina corta si trascinava lo stesso e il titolo finiva sotto l'orologio.
  */
-@media (display-mode: standalone) {
-  html, body { height: 100lvh; }
+html {
+  min-height: 100%;
+  background: #e8ebef;
+  overscroll-behavior-y: none;
+}
+
+body {
+  margin: 0;
+  overscroll-behavior-y: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  html { background: #0b0d10; }
 }
 
 /*
