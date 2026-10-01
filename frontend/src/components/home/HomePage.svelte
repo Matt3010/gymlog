@@ -85,7 +85,7 @@
       <span class="eyebrow">Inizia un allenamento</span>
       {#if plans.length === 0}
         <EmptyState title="Nessuna scheda, per ora." line="Scrivi una scheda con i suoi giorni, o allenati senza.">
-          <Button look="ghost" href={planPath(null)}>Scrivi una scheda</Button>
+          <Button look="primary" href={planPath(null)}>Scrivi una scheda</Button>
         </EmptyState>
       {/if}
       {#each plans as plan (plan.id)}
@@ -103,7 +103,7 @@
         </div>
       {/each}
       <span class="free">
-        <Button look="ghost" disabled={starting} onclick={() => void start(null)}>
+        <Button look="primary" disabled={starting} onclick={() => void start(null)}>
           <Icon name="plus" /> Allenamento libero
         </Button>
       </span>

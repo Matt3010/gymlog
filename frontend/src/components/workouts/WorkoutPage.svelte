@@ -262,7 +262,7 @@
 
     {#if !finished}
       <span class="more">
-        <Button look="ghost" onclick={pickExercise}>
+        <Button look="primary" onclick={pickExercise}>
           <Icon name="plus" /> Aggiungi un esercizio
         </Button>
       </span>

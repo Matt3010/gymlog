@@ -51,6 +51,7 @@ describe('the plans', () => {
     fakeApi().on('GET /plans', []);
     render(Host, { page: PlansPage });
     expect(await screen.findByRole('link', { name: 'Scrivi una scheda' })).toHaveAttribute('href', '/schede/nuova');
+    expect(screen.getByRole('link', { name: 'Scrivi una scheda' })).toHaveClass('primary');
     expect(screen.queryByRole('link', { name: 'Nuova' })).not.toBeInTheDocument();
   });
 
@@ -206,6 +207,18 @@ describe('a saved plan', () => {
     expect(screen.getAllByLabelText('Recupero (s)').map((input) => (input as HTMLInputElement).value)).toEqual(['180', '90', '90']);
     // the plan's own notes first, then each exercise's
     expect(screen.getAllByLabelText('Note').map((input) => (input as HTMLInputElement).value)).toEqual(['3 volte', '', '', 'lento']);
+  });
+
+  it('adds sets, exercises and days with primary buttons', async () => {
+    fakeApi().on('GET /plans/5', FORZA);
+    render(Host, { page: PlanEditorPage, params: { id: 5 } });
+    await screen.findByRole('heading', { name: 'Forza' });
+    const adds = [
+      ...screen.getAllByRole('button', { name: /^Aggiungi una serie a / }),
+      ...screen.getAllByRole('button', { name: 'Aggiungi esercizio' }),
+      screen.getByRole('button', { name: 'Aggiungi giorno' }),
+    ];
+    for (const button of adds) expect(button).toHaveClass('primary');
   });
 
   it('is saved whole with PUT after moving, removing and archiving', async () => {

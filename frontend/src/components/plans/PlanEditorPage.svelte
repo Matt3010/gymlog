@@ -224,7 +224,7 @@
               {/each}
             </ol>
             <span class="add-set">
-              <Button look="ghost" disabled={exercise.reps.length >= 20} aria-label="Aggiungi una serie a {exercise.exerciseName}" onclick={() => addSet(exercise)}>
+              <Button look="primary" disabled={exercise.reps.length >= 20} aria-label="Aggiungi una serie a {exercise.exerciseName}" onclick={() => addSet(exercise)}>
                 <Icon name="plus" /> Serie
               </Button>
             </span>
@@ -244,7 +244,7 @@
         {/each}
 
         <span class="add">
-          <Button look="ghost" onclick={() => pickFor(day)}>
+          <Button look="primary" onclick={() => pickFor(day)}>
             <Icon name="plus" /> Aggiungi esercizio
           </Button>
         </span>
@@ -252,7 +252,7 @@
     {/each}
 
     <div class="bottom">
-      <Button look="ghost" onclick={() => draft && addDay(draft)}>
+      <Button look="primary" onclick={() => draft && addDay(draft)}>
         <Icon name="plus" /> Aggiungi giorno
       </Button>
     </div>

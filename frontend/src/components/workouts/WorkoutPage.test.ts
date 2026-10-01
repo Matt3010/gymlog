@@ -219,6 +219,7 @@ describe('a workout in progress', () => {
     ]);
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     const user = userEvent.setup();
+    expect(await screen.findByRole('button', { name: 'Aggiungi un esercizio' })).toHaveClass('primary');
     await user.click(await screen.findByRole('button', { name: 'Aggiungi un esercizio' }));
     const picker = within(screen.getByRole('dialog', { name: 'Aggiungi un esercizio' }));
     // the ones already on the page are not proposed again

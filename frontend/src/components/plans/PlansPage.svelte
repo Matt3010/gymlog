@@ -56,7 +56,7 @@
     <PageCard>
       {#if active.length === 0}
         <EmptyState title="Nessuna scheda in uso." line="Una scheda ha i suoi giorni, e ogni giorno i suoi esercizi con serie e ripetizioni.">
-          <Button look="ghost" href={planPath(null)}>Scrivi una scheda</Button>
+          <Button look="primary" href={planPath(null)}>Scrivi una scheda</Button>
         </EmptyState>
       {:else}
         <ul class="rows">{#each active as plan (plan.id)}{@render row(plan)}{/each}</ul>

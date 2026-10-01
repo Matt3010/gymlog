@@ -51,6 +51,7 @@ describe('home', () => {
   it('starts a free workout', async () => {
     const api = fakeApi().on('GET /plans', [FORZA]).on(RECENT, []).on('POST /workouts', started(41));
     render(HomePage);
+    expect(await screen.findByRole('button', { name: 'Allenamento libero' })).toHaveClass('primary');
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Allenamento libero' }));
     expect(api.changes()).toEqual([{ route: 'POST /workouts', body: { planDayId: null } }]);
     expect(nav.path).toBe('/allenamenti/41');
