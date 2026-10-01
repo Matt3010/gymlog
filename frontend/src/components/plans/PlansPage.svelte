@@ -42,7 +42,7 @@
   {#snippet tools()}
     <!-- senza schede in uso il modo di scriverne una è quello dell'elenco vuoto: due sarebbero uno di troppo -->
     {#if active.length > 0}
-      <Button look="primary" size="sm" href={planPath(null)}>
+      <Button look="ghost" size="sm" href={planPath(null)}>
         <Icon name="plus" /> Nuova
       </Button>
     {/if}

@@ -219,7 +219,8 @@ describe('a workout in progress', () => {
     ]);
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     const user = userEvent.setup();
-    expect(await screen.findByRole('button', { name: 'Aggiungi un esercizio' })).toHaveClass('primary');
+    // outside the cards: secondary
+    expect(await screen.findByRole('button', { name: 'Aggiungi un esercizio' })).toHaveClass('ghost');
     await user.click(await screen.findByRole('button', { name: 'Aggiungi un esercizio' }));
     const picker = within(screen.getByRole('dialog', { name: 'Aggiungi un esercizio' }));
     // the ones already on the page are not proposed again
@@ -272,6 +273,8 @@ describe('a workout in progress', () => {
     expect(remove.closest('header')).not.toBeNull();
     // and not at the bottom, by Termina
     expect(screen.getByRole('button', { name: 'Termina' }).closest('header')).toBeNull();
+    // outside the cards: secondary
+    expect(screen.getByRole('button', { name: 'Termina' })).toHaveClass('ghost');
     await user.click(remove);
     const question = within(await screen.findByRole('alertdialog', { name: 'Eliminare questo allenamento?' }));
     expect(question.getByText('Si porta via le sue serie, e le statistiche non le contano più.')).toBeInTheDocument();

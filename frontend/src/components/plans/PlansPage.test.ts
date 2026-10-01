@@ -48,6 +48,8 @@ describe('the plans', () => {
     const archived = within(screen.getByText('Archiviate').parentElement!);
     expect(archived.getByRole('link', { name: 'Estate 0 giorni · 0 esercizi' })).toHaveAttribute('href', '/schede/6');
     expect(screen.getByRole('link', { name: 'Nuova' })).toHaveAttribute('href', '/schede/nuova');
+    // in the header, outside the cards: secondary
+    expect(screen.getByRole('link', { name: 'Nuova' })).toHaveClass('ghost');
   });
 
   it('with none in use offer one way to write one, and none in the header', async () => {
@@ -275,16 +277,12 @@ describe('a saved plan', () => {
     expect(screen.getAllByLabelText('Note').map((input) => (input as HTMLInputElement).value)).toEqual(['3 volte', '', '', 'lento']);
   });
 
-  it('adds sets and exercises with primary buttons, days with a secondary one under them', async () => {
+  it('adds sets inside the exercise card with a primary button; exercises and days, outside the cards, with secondary ones', async () => {
     fakeApi().on('GET /plans/5', FORZA);
     render(Host, { page: PlanEditorPage, params: { id: 5 } });
     await screen.findByRole('heading', { name: 'Forza' });
-    const adds = [
-      ...screen.getAllByRole('button', { name: /^Aggiungi una serie a / }),
-      ...screen.getAllByRole('button', { name: 'Aggiungi esercizio' }),
-    ];
-    for (const button of adds) expect(button).toHaveClass('primary');
-    // right under «Aggiungi esercizio»: two dark buttons in a row would compete
+    for (const button of screen.getAllByRole('button', { name: /^Aggiungi una serie a / })) expect(button).toHaveClass('primary');
+    for (const button of screen.getAllByRole('button', { name: 'Aggiungi esercizio' })) expect(button).toHaveClass('ghost');
     expect(screen.getByRole('button', { name: 'Aggiungi giorno' })).toHaveClass('ghost');
   });
 

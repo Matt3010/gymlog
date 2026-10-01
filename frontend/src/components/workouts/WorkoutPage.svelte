@@ -262,7 +262,7 @@
 
     {#if !finished}
       <span class="more">
-        <Button look="primary" onclick={pickExercise}>
+        <Button look="ghost" onclick={pickExercise}>
           <Icon name="plus" /> Aggiungi un esercizio
         </Button>
       </span>
@@ -286,7 +286,7 @@
           <Icon name="reopen" /> Riapri
         </Button>
       {:else}
-        <Button look="primary" disabled={working} onclick={() => void setFinished(true)}>
+        <Button look="ghost" disabled={working} onclick={() => void setFinished(true)}>
           <Icon name="finish" /> Termina
         </Button>
       {/if}

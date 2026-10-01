@@ -263,7 +263,7 @@
         {/each}
 
         <span class="add">
-          <Button look="primary" onclick={() => pickFor(day)}>
+          <Button look="ghost" onclick={() => pickFor(day)}>
             <Icon name="plus" /> Aggiungi esercizio
           </Button>
         </span>

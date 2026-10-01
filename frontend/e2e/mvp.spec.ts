@@ -115,6 +115,15 @@ async function expectRoomySheet(page: Page): Promise<void> {
  * Inside a card only the card pads: every block in it, every row and the
  * start of each row's text sit on the card's content edge, under its title.
  */
+/** Inside a card an action can be primary; outside the cards, on the page, it is secondary. */
+async function expectPrimaryOnlyInCards(page: Page): Promise<void> {
+  const outside = await page.locator('.page .btn.primary:visible').evaluateAll((buttons) =>
+    buttons
+      .filter((button) => !button.closest('section.card, [role="dialog"], [role="alertdialog"], .invito'))
+      .map((button) => (button.textContent ?? '').trim()));
+  expect(outside, 'primary buttons outside the cards').toEqual([]);
+}
+
 async function expectAligned(page: Page): Promise<void> {
   const off = await page.locator('.card:visible').evaluateAll((cards) =>
     cards.flatMap((card) => {
@@ -210,6 +219,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByRole('button', { name: 'Non ora' }).click();
   await expectFullWidth(page.getByRole('button', { name: 'Allenamento libero' }));
   await expectAligned(page);
+  await expectPrimaryOnlyInCards(page);
 
   // No plan yet: one way to write one, aligned like everything else.
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Schede' }).click();
@@ -217,6 +227,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Nuova' })).toHaveCount(0);
   await expectFullWidth(page.getByRole('link', { name: 'Scrivi una scheda' }));
   await expectAligned(page);
+  await expectPrimaryOnlyInCards(page);
 
   // Two exercises.
   await page.getByRole('link', { name: 'Esercizi' }).click();
@@ -236,6 +247,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expectRoundPress(page.locator('.row.is-flat').first());
   await expectCentredOn(page.locator('.row .open').first(), page.getByRole('button', { name: 'Modifica Panca piana' }));
   await expectAligned(page);
+  await expectPrimaryOnlyInCards(page);
   await expectNoZoomOnFocus(page);
 
   // A plan: day A with Squat 3 × 8-10 and Panca, day B with Panca.
@@ -279,6 +291,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expectRoomySheet(page);
   await page.getByRole('alertdialog').getByRole('button', { name: 'Annulla' }).click();
   await expectAligned(page);
+  await expectPrimaryOnlyInCards(page);
   await expectEvenStack(page);
   // No save button: the plan saves itself, and gets its own address once created.
   await expect(page.getByRole('button', { name: /Salva/ })).toHaveCount(0);
@@ -322,6 +335,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expectNothingLitAfterTap(page.locator('.card .head').nth(1));
   await page.locator('.card .head').first().tap();
   await expectAligned(page);
+  await expectPrimaryOnlyInCards(page);
   await expect(page.getByRole('button', { name: 'Segna la serie 2' })).toBeVisible();
   await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('60');
   await page.getByRole('button', { name: 'Peso, più 2,5' }).click();
@@ -405,6 +419,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.locator('.row')).toHaveCount(2);
   await expectFlatRows(page);
   await expectAligned(page);
+  await expectPrimaryOnlyInCards(page);
   await expectEvenStack(page);
   await page.waitForTimeout(500);
   expect(asked).toHaveLength(1);
