@@ -363,6 +363,8 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   const workoutButtons = [page.getByRole('button', { name: 'Termina' })];
   await expectClearOfTabBar(page, rest, ...workoutButtons);
   await expectUncovered(page, rest, ...workoutButtons);
+  // two banners while resting: the workout's, under the rest's, covers nothing either
+  await expectUncovered(page, page.getByRole('region', { name: 'In corso' }), ...workoutButtons);
 
   // The rest is the same bar on every page, and it survives the app reloading (an iPhone does that in the background).
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Schede' }).click();

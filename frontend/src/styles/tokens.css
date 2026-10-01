@@ -90,3 +90,6 @@
     --shadow-3: 0 4px 10px rgb(0 0 0 / 0.4), 0 28px 60px -16px rgb(0 0 0 / 0.75);
   }
 }
+
+/* due banner sopra le sezioni (l'allenamento e il recupero): le pagine lasciano più spazio in fondo */
+body.two-banners { --sopra-alla-barra: calc(var(--tab-bar) + 150px); }

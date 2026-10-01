@@ -33,7 +33,7 @@ describe('the workout in progress, on every page', () => {
     expect(await screen.findByRole('link', { name: /^In corso/ })).toHaveTextContent(/Allenamento libero\s*1 serie/);
   });
 
-  it('is the same bar for the rest, away from the workout too: the time left, and ±15 s and stop at hand', async () => {
+  it('puts the rest in a banner of its own over it, away from the workout too: the time left, and ±15 s and stop at hand', async () => {
     fakeApi().on(RECENT, [workout(9)]);
     nav.go('/esercizi');
     render(NowBar);
@@ -41,8 +41,9 @@ describe('the workout in progress, on every page', () => {
     const bar = await screen.findByRole('link', { name: /^In corso/ });
     rest.start(72);
     await vi.waitFor(() => expect(screen.getByRole('timer', { name: 'Recupero' })).toHaveTextContent(/Recupero\s*1:12/));
-    // still the workout's bar: its name stays in it
-    expect(bar).toHaveTextContent('Ciao · A');
+    // two banners, one over the other: the workout keeps saying what it is, how far, how long
+    expect(bar.textContent?.replace(/\s+/g, ' ').trim()).toBe('In corso Ciao · A 3 serie · 24 min');
+    expect(screen.getByRole('timer', { name: 'Recupero' }).closest('a')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Aggiungi 15 secondi' }));
     expect(screen.getByRole('timer', { name: 'Recupero' })).toHaveTextContent('1:27');
     await user.click(screen.getByRole('button', { name: 'Ferma il recupero' }));

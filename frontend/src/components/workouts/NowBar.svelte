@@ -8,17 +8,18 @@
   import Icon from '../Icon.svelte';
 
   /**
-   * L'allenamento in corso, da ogni pagina: una barra sola sopra le sezioni,
-   * come il «in riproduzione» di un lettore. Dice cosa è, quante serie e da
-   * quanto; durante il recupero diventa il recupero, con quanto manca, ±15 s e
-   * la ✕, e una linea che si svuota. Fuori dall'allenamento la si tocca per
+   * L'allenamento in corso, da ogni pagina: un banner sopra le sezioni, come
+   * il «in riproduzione» di un lettore. Dice cosa è, quante serie e da quanto.
+   * Durante il recupero gliene sta sopra un altro, uguale: quanto manca, ±15 s
+   * e la ✕, e una linea che si svuota. Fuori dall'allenamento lo si tocca per
    * riprenderlo; sulla sua pagina c'è lo stesso, solo non porta da nessuna parte.
    *
    * Si guarda di nuovo a ogni cambio di pagina: un allenamento cominciato,
    * terminato o tolto altrove si vede qui al passaggio successivo.
    *
-   * Alta 58px a 10px dalla barra: sta dentro lo spazio che ogni pagina lascia
-   * libero in fondo (--sopra-alla-barra), quindi non copre gli ultimi tasti.
+   * Alti 58px a 10px dalla barra: stanno dentro lo spazio che ogni pagina
+   * lascia libero in fondo (--sopra-alla-barra, più largo con due banner),
+   * quindi non coprono gli ultimi tasti.
    */
   let now = $state(Date.now());
 
@@ -37,47 +38,53 @@
 
   const open = $derived(current.workout);
   const here = $derived(open !== null && nav.route.kind === 'workout' && nav.route.id === open.id);
+  // con due banner le pagine lasciano più spazio in fondo, se no coprirebbero gli ultimi tasti
+  $effect(() => {
+    document.body.classList.toggle('two-banners', open !== null && rest.running);
+    return () => document.body.classList.remove('two-banners');
+  });
+
   const left = $derived(rest.total > 0 ? rest.remaining / rest.total : 0);
 </script>
 
 {#snippet what()}
-  {#if rest.running}
-    <span class="text">
-      <span class="eyebrow">In corso · {open!.title}</span>
-      <span class="main" role="timer" aria-label="Recupero">Recupero <strong>{formatRest(rest.remaining)}</strong></span>
-    </span>
-  {:else}
-    <span class="text">
-      <span class="eyebrow">In corso</span>
-      <span class="main title">{open!.title}</span>
-    </span>
-    <span class="how">{open!.sets === 1 ? '1 serie' : `${open!.sets} serie`} · {formatDuration(open!.startedAt, new Date(now).toISOString())}</span>
-  {/if}
+  <span class="text">
+    <span class="eyebrow">In corso</span>
+    <span class="main">{open!.title}</span>
+  </span>
+  <span class="how">{open!.sets === 1 ? '1 serie' : `${open!.sets} serie`} · {formatDuration(open!.startedAt, new Date(now).toISOString())}</span>
 {/snippet}
 
 {#if open}
-  <section class="now surface" aria-label="In corso">
-    {#if here}
-      <span class="what">{@render what()}</span>
-    {:else}
-      <a class="what" href={workoutPath(open.id)}>{@render what()}</a>
-    {/if}
+  <div class="stack">
+    <!-- il recupero, un banner suo sopra quello dell'allenamento: tutti e due a vista -->
     {#if rest.running}
-      <span class="tools">
-        <button type="button" aria-label="Togli 15 secondi" onclick={() => rest.add(-15)}>−15 s</button>
-        <button type="button" aria-label="Aggiungi 15 secondi" onclick={() => rest.add(15)}>+15 s</button>
-        <button type="button" class="stop" aria-label="Ferma il recupero" onclick={() => rest.stop()}>
-          <Icon name="close" />
-        </button>
-      </span>
-      <!-- quanto manca: si svuota da destra verso sinistra -->
-      <span class="track" aria-hidden="true"><span class="fill" style:transform="scaleX({left})"></span></span>
+      <div class="banner surface">
+        <span class="what"><span class="main" role="timer" aria-label="Recupero">Recupero <strong>{formatRest(rest.remaining)}</strong></span></span>
+        <span class="tools">
+          <button type="button" aria-label="Togli 15 secondi" onclick={() => rest.add(-15)}>−15 s</button>
+          <button type="button" aria-label="Aggiungi 15 secondi" onclick={() => rest.add(15)}>+15 s</button>
+          <button type="button" class="stop" aria-label="Ferma il recupero" onclick={() => rest.stop()}>
+            <Icon name="close" />
+          </button>
+        </span>
+        <!-- quanto manca: si svuota da destra verso sinistra -->
+        <span class="track" aria-hidden="true"><span class="fill" style:transform="scaleX({left})"></span></span>
+      </div>
     {/if}
-  </section>
+    <section class="banner surface" aria-label="In corso">
+      {#if here}
+        <span class="what">{@render what()}</span>
+      {:else}
+        <a class="what" href={workoutPath(open.id)}>{@render what()}</a>
+      {/if}
+    </section>
+  </div>
 {/if}
 
 <style>
-  .now {
+  /* appoggiati sopra le sezioni, uno sull'altro */
+  .stack {
     position: fixed;
     left: max(12px, env(safe-area-inset-left));
     right: max(12px, env(safe-area-inset-right));
@@ -85,6 +92,12 @@
     z-index: var(--z-bar);
     max-width: 616px;
     margin: 0 auto;
+    display: grid;
+    gap: 8px;
+  }
+
+  .banner {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -117,7 +130,7 @@
 
   .main { font-size: 14.5px; font-weight: 620; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .main[role='timer'] { font-size: 12.5px; font-weight: 500; color: var(--ink-2); }
+  .main[role='timer'] { flex: 1; font-size: 12.5px; font-weight: 500; color: var(--ink-2); }
 
   strong {
     margin-left: 4px;
