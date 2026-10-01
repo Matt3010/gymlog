@@ -48,17 +48,60 @@ describe('home', () => {
     await vi.waitFor(() => expect(api.changes()).toEqual([{ route: 'POST /auth/logout', body: undefined }]));
   });
 
-  it('gives each plan in use its own card, its days saying what is in them', async () => {
+  const days = () => [...document.querySelectorAll('button.day')].map((b) => b.textContent?.replace(/\s+/g, ' ').trim());
+
+  it('shows one plan at a time, chosen from a dropdown, its days saying what is in them', async () => {
     fakeApi().on('GET /plans', [FORZA, SPINTA, VECCHIA]).on(RECENT, []);
     render(HomePage);
-    const forza = (await screen.findByRole('heading', { name: 'Forza' })).closest('.card') as HTMLElement;
-    const spinta = screen.getByRole('heading', { name: 'Spinta' }).closest('.card') as HTMLElement;
-    expect(forza).not.toBe(spinta);
-    expect(within(forza).getAllByRole('button').map((b) => b.textContent?.replace(/\s+/g, ' ').trim()))
-      .toEqual(['Giorno A E0, E1', 'Giorno B E0']);
-    expect(within(spinta).getAllByRole('button').map((b) => b.textContent?.replace(/\s+/g, ' ').trim()))
-      .toEqual(['Push E0', 'Vuoto Nessun esercizio']);
-    expect(screen.queryByText('Vecchia')).not.toBeInTheDocument();
+    const user = userEvent.setup();
+    const pick = await screen.findByRole('button', { name: 'Scheda' });
+    expect(pick).toHaveTextContent('Forza');
+    expect(days()).toEqual(['Giorno A E0, E1', 'Giorno B E0']);
+    expect(pick).toHaveAttribute('aria-expanded', 'false');
+    await user.click(pick);
+    expect(pick).toHaveAttribute('aria-expanded', 'true');
+    // the list drops right under the field, a menu and not a sheet from the bottom
+    const menu = document.querySelector<HTMLElement>('[data-pop]')!;
+    expect(menu).toHaveClass('is-drop');
+    expect(within(menu).getAllByRole('button').map((one) => [one.textContent?.trim(), one.classList.contains('is-on')]))
+      .toEqual([['Forza', true], ['Spinta', false]]);
+    await user.click(within(menu).getByRole('button', { name: 'Spinta' }));
+    expect(pick).toHaveTextContent('Spinta');
+    expect(pick).toHaveAttribute('aria-expanded', 'false');
+    expect(document.querySelector('[data-pop]')).toBeNull();
+    expect(days()).toEqual(['Push E0', 'Vuoto Nessun esercizio']);
+  });
+
+  it('opens on the plan chosen last time', async () => {
+    localStorage.setItem('gymlog.home.plan', '3');
+    fakeApi().on('GET /plans', [FORZA, SPINTA]).on(RECENT, []);
+    render(HomePage);
+    expect(await screen.findByRole('button', { name: 'Scheda' })).toHaveTextContent('Spinta');
+    expect(days()).toEqual(['Push E0', 'Vuoto Nessun esercizio']);
+  });
+
+  it('falls back to the first plan when the one remembered is gone', async () => {
+    localStorage.setItem('gymlog.home.plan', '99');
+    fakeApi().on('GET /plans', [FORZA, SPINTA]).on(RECENT, []);
+    render(HomePage);
+    expect(await screen.findByRole('button', { name: 'Scheda' })).toHaveTextContent('Forza');
+  });
+
+  it('remembers the plan chosen', async () => {
+    fakeApi().on('GET /plans', [FORZA, SPINTA]).on(RECENT, []);
+    render(HomePage);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Scheda' }));
+    await user.click(screen.getByRole('button', { name: 'Spinta' }));
+    expect(localStorage.getItem('gymlog.home.plan')).toBe('3');
+  });
+
+  it('needs no dropdown with a single plan: its name is enough', async () => {
+    fakeApi().on('GET /plans', [FORZA, VECCHIA]).on(RECENT, []);
+    render(HomePage);
+    expect(await screen.findByRole('heading', { name: 'Forza' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Scheda' })).not.toBeInTheDocument();
+    expect(days()).toEqual(['Giorno A E0, E1', 'Giorno B E0']);
   });
 
   it('starts a workout from a day and opens it', async () => {

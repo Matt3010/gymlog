@@ -14,6 +14,8 @@
   import InstallHint from '../InstallHint.svelte';
   import PageCard from '../PageCard.svelte';
   import PageShell from '../PageShell.svelte';
+  import PickField from '../PickField.svelte';
+  import { readJSON, writeJSON } from '../../lib/storage';
   import Loader from '../Loader.svelte';
   import WorkoutRow from '../workouts/WorkoutRow.svelte';
 
@@ -35,6 +37,16 @@
       (failure: Error) => (error = failure.message),
     );
   });
+
+  /** La scheda che si sta facendo: si ricorda, perché in palestra si riapre sempre la stessa. */
+  const PLAN_KEY = 'gymlog.home.plan';
+  let chosen = $state(readJSON<number | null>(PLAN_KEY, null));
+  const plan = $derived(plans?.find((one) => one.id === chosen) ?? plans?.[0]);
+
+  function choose(id: string): void {
+    chosen = Number(id);
+    writeJSON(PLAN_KEY, chosen);
+  }
 
   const open = $derived(recent ? inProgress(recent) : undefined);
   const done = $derived((recent ?? []).filter((workout) => workout !== open).slice(0, 5));
@@ -97,12 +109,18 @@
         </EmptyState>
       </PageCard>
     {/if}
-    <!-- una card per scheda: il nome in testa, e ogni giorno dice cosa c'è dentro -->
-    {#each plans as plan (plan.id)}
+    <!-- una scheda alla volta: si sceglie dal menu, e sotto ci sono i suoi giorni -->
+    {#if plan}
       <PageCard>
         <div class="plan-head">
           <span class="eyebrow">Inizia un allenamento</span>
-          <h2>{plan.name}</h2>
+          {#if plans.length > 1}
+            <span class="pick">
+              <PickField value={String(plan.id)} options={plans.map((one) => ({ id: String(one.id), label: one.name }))} label="Scheda" drop onpick={choose} />
+            </span>
+          {:else}
+            <h2>{plan.name}</h2>
+          {/if}
         </div>
         <div class="days">
           {#each plan.days as day (day.id)}
@@ -116,7 +134,7 @@
           {/each}
         </div>
       </PageCard>
-    {/each}
+    {/if}
     <!-- fuori dalle card, secondario: è l'eccezione, non la prima scelta -->
     <span class="free">
       <Button disabled={starting} onclick={() => void start(null)}>
@@ -155,7 +173,19 @@
 
   .when { font-size: 12px; color: var(--ink-3); }
 
-  .plan-head { display: grid; gap: 2px; }
+  .plan-head { display: grid; gap: 6px; }
+
+  /* il menu della scheda è largo quanto la card: si tocca col pollice, e il nome ci sta intero */
+  .pick :global(.pick-field) {
+    width: 100%;
+    justify-content: space-between;
+    min-height: 44px;
+    font-size: 17px;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+  }
+
+  .pick :global(.pick-field .ico) { width: 18px; height: 18px; }
 
   .plan-head h2 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.015em; overflow-wrap: anywhere; }
 

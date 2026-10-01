@@ -39,9 +39,11 @@
     /**
      * `anchored` sotto al tasto, `beside` di fianco alla scheda quando c'è
      * spazio — che è quello che serve a un foglietto aperto dentro un pannello,
-     * per non coprire il modulo che si sta compilando.
+     * per non coprire il modulo che si sta compilando. `drop` è il menu a
+     * tendina: scende dal bordo sinistro del tasto, largo quanto lui, e resta
+     * lì anche sul telefono invece di diventare un foglio dal fondo.
      */
-    place?: 'anchored' | 'beside';
+    place?: 'anchored' | 'beside' | 'drop';
     /** Un nome, per chi deve ritrovarlo da fuori. */
     id?: string;
     /** Quando è una domanda e non un elenco, l'assistenza vocale deve saperlo. */
@@ -61,7 +63,8 @@
   let segue = $state(0);
   const at = $derived.by(() => {
     segue;
-    return place === 'beside' ? placeBeside(anchor, width, height) : placeAnchored(anchor, width, height);
+    if (place === 'beside') return placeBeside(anchor, width, height);
+    return placeAnchored(anchor, width, height, place === 'drop' ? anchor.getBoundingClientRect().left : undefined);
   });
 
   $effect(() => {
@@ -115,6 +118,7 @@
   {role}
   data-pop
   class="surface pop"
+  class:is-drop={place === 'drop'}
   aria-label={label}
   style:--pop-x="{at.left}px"
   style:--pop-y="{at.top}px"
@@ -140,6 +144,12 @@
     animation: rise 0.16s var(--ease);
   }
 
+  /* il menu a tendina copre le righe sotto: pieno, se no si leggono attraverso */
+  .pop.is-drop { background: rgb(var(--base)); padding: 6px; }
+
+  /* le voci di un menu a tendina si toccano col pollice */
+  .pop.is-drop :global(.one) { min-height: 44px; align-items: center; font-size: 15px; }
+
   /*
    * Su un telefono non insegue il suo tasto: si appoggia in fondo.
    *
@@ -152,7 +162,7 @@
    * far crescere quello che c'è dentro.
    */
   @media (max-width: 600px) {
-    .pop {
+    .pop:not(.is-drop) {
       left: 0;
       top: auto;
       bottom: 0;

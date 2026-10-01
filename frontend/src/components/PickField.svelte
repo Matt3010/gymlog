@@ -24,6 +24,7 @@
     label,
     look = 'field',
     width = 210,
+    drop = false,
   }: {
     value: string;
     options: Choice[];
@@ -34,6 +35,8 @@
     label?: string;
     look?: 'field' | 'pill';
     width?: number;
+    /** Un menu a tendina sotto al tasto, largo quanto lui, anche sul telefono (non un foglio dal fondo). */
+    drop?: boolean;
   } = $props();
 
   let open = $state(false);
@@ -62,7 +65,7 @@
 </button>
 
 {#if open && anchor}
-  <Popover {anchor} {width} height={248} onclose={() => (open = false)}>
+  <Popover {anchor} width={drop ? anchor.offsetWidth : width} height={248} place={drop ? 'drop' : 'anchored'} onclose={() => (open = false)}>
     <PickList {options} current={value} {title} onpick={choose} />
   </Popover>
 {/if}
