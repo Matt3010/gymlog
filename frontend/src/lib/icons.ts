@@ -52,6 +52,7 @@ export const ICONS = {
   check: Check,
   up: ArrowUp,
   down: ArrowDown,
+  same: ArrowRight,
   submit: ArrowRight,
   prev: ChevronLeft,
   next: ChevronRight,

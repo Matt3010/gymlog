@@ -8,9 +8,11 @@
   import { toast } from '../../lib/toast.svelte';
   import { ui } from '../../lib/ui.svelte';
   import type { Exercise, WorkoutDetail, WorkoutSet } from '../../lib/types';
+  import { trendOf } from '../../lib/trend';
   import { blocksOf, describeTarget, prefill, readSet, type Block } from '../../lib/workout';
   import Alert from '../Alert.svelte';
   import Button from '../Button.svelte';
+  import Trend from '../Trend.svelte';
   import Icon from '../Icon.svelte';
   import PageCard from '../PageCard.svelte';
   import PageShell from '../PageShell.svelte';
@@ -217,7 +219,7 @@
               <span class="eyebrow" id="past-{block.exerciseId}">L’ultima volta · {formatDay(block.previous.startedAt)}</span>
               <ol class="past" aria-labelledby="past-{block.exerciseId}">
                 {#each block.previous.sets as set, index (index)}
-                  <li><span class="nr">{index + 1}</span> {set.reps} × {formatKg(set.weightKg)}</li>
+                  <li><span class="nr">{index + 1}</span> {set.reps} × {formatKg(set.weightKg)} <Trend trend={trendOf(set, block.previous.before[index])} against="before" /></li>
                 {/each}
               </ol>
             </div>
@@ -230,6 +232,7 @@
                   <button type="button" class="set" onclick={() => editSet(done, index + 1)}>
                     <span class="nr">{index + 1}</span>
                     <span class="what">{done.reps} × {formatKg(done.weightKg)}</span>
+                    <Trend trend={trendOf(done, block.previous?.sets[index])} />
                     <Icon name="edit" />
                   </button>
                 </li>
@@ -384,6 +387,10 @@
   }
 
   .past .nr { width: 20px; height: 20px; }
+
+  /* la freccia chiude il pezzo, più piccola del numero che lo apre */
+  .past li :global(.trend) { width: 18px; height: 18px; margin-right: -6px; }
+  .past li :global(.trend .ico) { width: 12px; height: 12px; }
 
   .sets {
     display: grid;

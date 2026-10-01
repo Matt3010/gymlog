@@ -175,7 +175,7 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     expect((await repo().list(user.id, 1, 1)).map((workout) => workout.id)).toEqual([older.id]);
   });
 
-  it("finds, for each exercise, the last earlier workout with it", async () => {
+  it("finds, for each exercise, the last earlier workout with it, and the sets of the one before that", async () => {
     const { user, squat, bench } = await setup();
     const other = await setup();
     const first = await repo().create(user.id, null, new Date("2026-09-01T17:00:00Z"));
@@ -197,8 +197,8 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     await repo().setExerciseNote(first.id, squat.id, "di una sessione più vecchia");
 
     expect(await repo().previous(user.id, current.id)).toEqual(new Map([
-      [squat.id, { workoutId: second.id, startedAt: "2026-09-03T17:00:00.000Z", sets: [{ reps: 5, weightKg: 95 }, { reps: 4, weightKg: 97.5 }], note: "scendere di peso" }],
-      [bench.id, { workoutId: first.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 8, weightKg: 60 }, { reps: 6, weightKg: 65 }], note: null }],
+      [squat.id, { workoutId: second.id, startedAt: "2026-09-03T17:00:00.000Z", sets: [{ reps: 5, weightKg: 95 }, { reps: 4, weightKg: 97.5 }], note: "scendere di peso", before: [{ reps: 5, weightKg: 90 }] }],
+      [bench.id, { workoutId: first.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 8, weightKg: 60 }, { reps: 6, weightKg: 65 }], note: null, before: [] }],
     ]));
     expect(await repo().previous(user.id, first.id)).toEqual(new Map());
     expect(await repo().previous(other.user.id, current.id)).toEqual(new Map());

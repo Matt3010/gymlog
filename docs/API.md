@@ -39,11 +39,11 @@ interface Workout {
 }
 interface WorkoutSummary extends Workout { exercises: number; sets: number; volume: number }
 interface WorkoutSet { id: number; exerciseId: number; exerciseName: string; reps: number; weightKg: number; createdAt: string }
-interface PreviousSets { workoutId: number; startedAt: string; sets: { reps: number; weightKg: number }[]; note: string | null }
+interface PreviousSets { workoutId: number; startedAt: string; sets: { reps: number; weightKg: number }[]; note: string | null; before: { reps: number; weightKg: number }[] }
 interface WorkoutDetail extends Workout {
   plan: PlanExercise[];                        // gli esercizi del giorno della scheda ([] se libero)
   sets: WorkoutSet[];                          // in ordine di inserimento
-  previous: Record<string, PreviousSets>;      // per exerciseId: l'ultima sessione precedente con quell'esercizio, con la sua nota
+  previous: Record<string, PreviousSets>;      // per exerciseId: l'ultima sessione precedente con quell'esercizio, con la sua nota; in before le serie della volta prima ancora ([] se non c'è)
   exerciseNotes: Record<string, string>;       // per exerciseId: la nota scritta su quell'esercizio in questo allenamento
   previousNote: { workoutId: number; startedAt: string; note: string } | null;
                                                // la nota generale dell'ultimo allenamento dello stesso giorno della scheda

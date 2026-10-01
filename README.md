@@ -25,7 +25,10 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
 - **Statistiche:** nell'elenco degli esercizi, accanto a ognuno, peso medio, massimo,
   sessioni e l'ultima volta; aprendolo, sessione per sessione: serie, ripetizioni,
   volume (ripetizioni × kg), peso medio delle serie, peso massimo e massimale stimato
-  (formula di Epley).
+  (formula di Epley), con il grafico del massimale stimato e del peso più alto.
+- **Meglio o peggio:** una freccia verde, rossa o grigia accanto a ogni serie, rispetto
+  alla stessa serie dell'ultima volta, e a ogni sessione nelle statistiche. Chili e
+  ripetizioni contano insieme, nel massimale stimato: 9 × 60 batte 10 × 57,5.
 - **Più utenti:** ognuno vede solo i suoi dati. Ci si registra dalla pagina di
   accesso (si chiude con `ALLOW_SIGNUP=false`), e gli utenti si creano anche da
   riga di comando.

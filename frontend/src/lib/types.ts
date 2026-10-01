@@ -99,6 +99,8 @@ export interface PreviousSets {
   sets: DoneSet[];
   /** Quello che si era scritto su quell'esercizio quella volta. */
   note: string | null;
+  /** Le serie della volta prima ancora: per dire se l'ultima era andata meglio. */
+  before: DoneSet[];
 }
 
 export interface WorkoutDetail extends Workout {

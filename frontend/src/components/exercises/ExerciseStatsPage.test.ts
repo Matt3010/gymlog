@@ -23,11 +23,31 @@ describe('the stats of an exercise', () => {
     expect(await screen.findByRole('link', { name: 'Esercizi' })).toHaveAttribute('href', '/esercizi');
   });
 
-  it('draws no chart', async () => {
+  it('draws how the estimated max and the heaviest set went, the oldest session on the left', async () => {
     fakeApi().on('GET /stats/exercises/1', SQUAT);
     render(ExerciseStatsPage, { id: 1 });
+    const chart = await screen.findByRole('img', { name: /^Andamento/ });
+    expect(chart).toHaveAccessibleName('Andamento di Squat in 2 sessioni: 1RM stimato da 116,67 a 121 kg, massimo da 95 a 110 kg.');
+    const values = (series: string) => [...chart.querySelectorAll(`circle[data-series="${series}"]`)].map((dot) => Number(dot.getAttribute('data-value')));
+    expect(values('e1rm')).toEqual([116.67, 121]);
+    expect(values('max')).toEqual([95, 110]);
+  });
+
+  it('draws no chart from a single session: a dot is not a trend', async () => {
+    fakeApi().on('GET /stats/exercises/1', { ...SQUAT, sessions: SQUAT.sessions.slice(0, 1) });
+    render(ExerciseStatsPage, { id: 1 });
     await screen.findByRole('table');
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /^Andamento/ })).not.toBeInTheDocument();
+  });
+
+  it('marks each session’s estimated max against the one before it', async () => {
+    const older = { ...SQUAT.sessions[1]!, workoutId: 2, startedAt: '2026-09-15T17:00:00.000Z' };
+    fakeApi().on('GET /stats/exercises/1', { ...SQUAT, sessions: [...SQUAT.sessions, older] });
+    render(ExerciseStatsPage, { id: 1 });
+    const table = await screen.findByRole('table');
+    const arrows = within(table).getAllByRole('row').slice(1)
+      .map((row) => within(row).queryByRole('img')?.getAttribute('aria-label') ?? null);
+    expect(arrows).toEqual(['Meglio della volta prima', 'Come la volta prima', null]);
   });
 
   it('shows its numbers of always', async () => {

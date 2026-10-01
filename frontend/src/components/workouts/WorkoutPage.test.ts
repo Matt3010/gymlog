@@ -23,7 +23,8 @@ const DETAIL: WorkoutDetail = {
   plan: [target(1, 1, 'Squat', ['10', '8-10', '6'], 90), target(2, 2, 'Panca piana', ['10', '10', '10'], null)],
   sets: [set(100, 1, 'Squat', 8, 60)],
   previous: {
-    1: { workoutId: 3, startedAt: '2026-09-20T17:00:00.000Z', sets: [{ reps: 8, weightKg: 60 }, { reps: 8, weightKg: 60 }, { reps: 6, weightKg: 62.5 }], note: 'ginocchio un po’ dentro' },
+    1: { workoutId: 3, startedAt: '2026-09-20T17:00:00.000Z', sets: [{ reps: 8, weightKg: 60 }, { reps: 8, weightKg: 60 }, { reps: 6, weightKg: 62.5 }], note: 'ginocchio un po’ dentro',
+      before: [{ reps: 8, weightKg: 57.5 }, { reps: 8, weightKg: 60 }] },
   },
   exerciseNotes: { 1: 'scendere più lento' },
   previousNote: { workoutId: 3, startedAt: '2026-09-20T17:00:00.000Z', note: 'poco riposo fra le serie' },
@@ -66,6 +67,9 @@ describe('a workout in progress', () => {
     const last = screen.getByRole('list', { name: 'L’ultima volta · dom 20 set' });
     expect(within(last).getAllByRole('listitem').map((item) => item.textContent?.replace(/\s+/g, ' ').trim()))
       .toEqual(['1 8 × 60 kg', '2 8 × 60 kg', '3 6 × 62,5 kg']);
+    // and each against the time before that: better, the same, nothing to compare
+    expect(within(last).getAllByRole('listitem').map((item) => within(item).queryByRole('img')?.getAttribute('aria-label') ?? null))
+      .toEqual(['Meglio della volta prima', 'Come la volta prima', null]);
     expect(screen.getByRole('button', { name: /^Squat/ })).toHaveTextContent('1/3');
     expect(screen.getByRole('button', { name: /^Panca piana/ })).toHaveTextContent('0/3');
     expect(doneSets()).toEqual(['8 × 60 kg']);
@@ -96,6 +100,38 @@ describe('a workout in progress', () => {
     expect(screen.getByRole('button', { name: /^Squat/ })).toHaveTextContent('2/3');
     // the next set starts from what the plan asks for it
     expect(reps()).toHaveValue('6');
+  });
+
+  it('says by each set whether it went better than the same set last time: kilos and reps together', async () => {
+    server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    await screen.findByRole('button', { name: 'Segna la serie 2' });
+    const trends = () => [...document.querySelectorAll('.set')].map((row) => {
+      const arrow = within(row as HTMLElement).queryByRole('img');
+      return arrow && [arrow.getAttribute('aria-label'), arrow.className.match(/\b(up|down|same)\b/)?.[0]];
+    });
+    // set 1: 8 × 60 against 8 × 60
+    expect(trends()).toEqual([['Come l’ultima volta', 'same']]);
+    // set 2: 7 × 62,5 against 8 × 60 — fewer reps, but heavier enough to be better
+    await user.click(screen.getByRole('button', { name: 'Peso, più 2,5' }));
+    await user.click(screen.getByRole('button', { name: 'Ripetizioni, meno 1' }));
+    await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
+    await screen.findByRole('button', { name: 'Segna la serie 3' });
+    // set 3: 4 × 62,5 against 6 × 62,5
+    await user.clear(reps());
+    await user.type(reps(), '4');
+    await user.click(screen.getByRole('button', { name: 'Segna la serie 3' }));
+    await screen.findByRole('button', { name: 'Segna la serie 4' });
+    // set 4: none last time, so no arrow
+    await user.click(screen.getByRole('button', { name: 'Segna la serie 4' }));
+    await vi.waitFor(() => expect(doneSets()).toHaveLength(4));
+    expect(trends()).toEqual([
+      ['Come l’ultima volta', 'same'],
+      ['Meglio dell’ultima volta', 'up'],
+      ['Peggio dell’ultima volta', 'down'],
+      null,
+    ]);
   });
 
   it('counts every quick tap on +, none lost', async () => {

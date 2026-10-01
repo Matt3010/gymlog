@@ -9,6 +9,9 @@
   import PageShell from '../PageShell.svelte';
   import Loader from '../Loader.svelte';
   import Table from '../Table.svelte';
+  import Trend from '../Trend.svelte';
+  import { trendOf } from '../../lib/trend';
+  import LineChart from './LineChart.svelte';
   import type { Column } from '../../lib/table';
 
   /**
@@ -62,9 +65,17 @@
         </dl>
       </PageCard>
 
+      {#if stats.sessions.length > 1}
+        <PageCard>
+          <span class="eyebrow">Andamento</span>
+          <!-- le sessioni arrivano dalla più recente: il grafico le vuole in ordine di tempo -->
+          <LineChart name={stats.exercise.name} sessions={[...stats.sessions].reverse()} />
+        </PageCard>
+      {/if}
+
       <PageCard>
         <span class="eyebrow">Sessione per sessione</span>
-        <Table inRiga columns={COLUMNS} rows={stats.sessions.map((session) => ({ ...session, id: String(session.workoutId) }))} label="Le sessioni di {stats.exercise.name}">
+        <Table inRiga columns={COLUMNS} rows={stats.sessions.map((session, index) => ({ ...session, id: String(session.workoutId), before: stats!.sessions[index + 1]?.bestE1rm }))} label="Le sessioni di {stats.exercise.name}">
           {#snippet row(session)}
             <td><a href={workoutPath(session.workoutId)}>{formatDay(session.startedAt)}</a></td>
             <td>{session.sets}</td>
@@ -72,7 +83,8 @@
             <td>{formatNumber(session.volume)}</td>
             <td>{formatNumber(session.avgWeight)}</td>
             <td>{formatNumber(session.maxWeight)}</td>
-            <td>{formatNumber(session.bestE1rm)}</td>
+            <!-- la freccia dice se il massimale stimato è salito dalla sessione prima -->
+            <td><span class="e1rm">{formatNumber(session.bestE1rm)}<Trend trend={trendOf(session.bestE1rm, session.before)} against="before" /></span></td>
           {/snippet}
         </Table>
         <p class="unit">Pesi e volume in kg.</p>
@@ -104,6 +116,11 @@
   @media (hover: hover) {
   td a:hover { text-decoration: underline; }
 }
+
+  .e1rm { display: inline-flex; align-items: center; gap: 6px; }
+
+  .e1rm :global(.trend) { width: 18px; height: 18px; }
+  .e1rm :global(.trend .ico) { width: 12px; height: 12px; }
 
   .unit { margin: 0; font-size: 11.5px; color: var(--ink-3); }
 </style>

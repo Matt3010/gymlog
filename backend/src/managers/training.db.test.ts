@@ -118,7 +118,7 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const workout = await workouts.start(user.id, null);
       expect(workout).toMatchObject({ planDayId: null, planName: null, dayName: null, plan: [], sets: [] });
       expect(workout.previous).toEqual({
-        [squat.id]: { workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 5, weightKg: 90 }], note: null },
+        [squat.id]: { workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 5, weightKg: 90 }], note: null, before: [] },
       });
       expect(workout.exerciseNotes).toEqual({});
       expect(workout.previousNote).toBeNull();

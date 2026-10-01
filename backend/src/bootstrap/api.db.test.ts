@@ -330,7 +330,7 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect((await call("GET", "/api/workouts")).body[0]).toMatchObject({ id: again.id, planName: "Forza 3", dayName: "Gambe" });
       expect(again.previousNote).toEqual({ workoutId: workout.id, startedAt: workout.startedAt, note: "bene" });
       expect(await call("DELETE", `/api/workouts/${again.id}`)).toMatchObject({ status: 200 });
-      expect(next.previous).toEqual({ [squat.id]: { workoutId: workout.id, startedAt: workout.startedAt, sets: [{ reps: 5, weightKg: 102.5 }], note: "ginocchio ok" } });
+      expect(next.previous).toEqual({ [squat.id]: { workoutId: workout.id, startedAt: workout.startedAt, sets: [{ reps: 5, weightKg: 102.5 }], note: "ginocchio ok", before: [] } });
 
       const stats = (await call("GET", `/api/stats/exercises/${squat.id}`)).body;
       expect(stats).toMatchObject({ exercise: { id: squat.id }, overall: { sessions: 1, maxWeight: 102.5 }, sessions: [{ workoutId: workout.id, volume: 512.5 }] });

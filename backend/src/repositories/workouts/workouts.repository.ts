@@ -43,6 +43,8 @@ export interface PreviousSets {
   readonly sets: { readonly reps: number; readonly weightKg: number }[];
   /** What was written about the exercise that time. */
   readonly note: string | null;
+  /** The sets of the time before that, to say whether the last time went better. */
+  readonly before: { readonly reps: number; readonly weightKg: number }[];
 }
 
 /** The plan day a workout follows, names copied so the history keeps them. */
@@ -185,7 +187,7 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
 
     async previous(userId, workoutId) {
       // Raw rows: Drizzle leaves timestamps as Postgres writes them ("2026-09-03 17:00:00+00").
-      const { rows } = await db.execute<{ exercise_id: number; workout_id: number; started_at: string; reps: number; weight_kg: number; note: string | null }>(sql`
+      const { rows } = await db.execute<{ exercise_id: number; workout_id: number; started_at: string; rank: number; reps: number; weight_kg: number; note: string | null }>(sql`
         with done as (
           select s.exercise_id, w.id as workout_id, w.started_at,
                  row_number() over (partition by s.exercise_id order by w.started_at desc, w.id desc) as rank
@@ -195,18 +197,20 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
             and w.started_at < (select started_at from workouts where id = ${workoutId} and user_id = ${userId})
           group by s.exercise_id, w.id, w.started_at
         )
-        select d.exercise_id, d.workout_id, d.started_at, s.reps, s.weight_kg, n.note
+        select d.exercise_id, d.workout_id, d.started_at, d.rank::int as rank, s.reps, s.weight_kg, n.note
         from done d
         join workout_sets s on s.workout_id = d.workout_id and s.exercise_id = d.exercise_id
         left join workout_exercise_notes n on n.workout_id = d.workout_id and n.exercise_id = d.exercise_id
-        where d.rank = 1
-        order by s.id`);
+        where d.rank <= 2
+        order by d.rank, s.id`);
+      // The last time first (rank 1), then the time before it (rank 2) goes under it.
       const previous = new Map<number, PreviousSets>();
       for (const row of rows) {
-        const entry = previous.get(row.exercise_id)
-          ?? { workoutId: row.workout_id, startedAt: new Date(row.started_at).toISOString(), sets: [], note: row.note };
-        entry.sets.push({ reps: row.reps, weightKg: row.weight_kg });
-        previous.set(row.exercise_id, entry);
+        const set = { reps: row.reps, weightKg: row.weight_kg };
+        const entry = previous.get(row.exercise_id);
+        if (row.rank === 2) entry?.before.push(set);
+        else if (entry) entry.sets.push(set);
+        else previous.set(row.exercise_id, { workoutId: row.workout_id, startedAt: new Date(row.started_at).toISOString(), sets: [set], note: row.note, before: [] });
       }
       return previous;
     },
