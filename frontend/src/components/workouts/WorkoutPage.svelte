@@ -308,14 +308,15 @@
 
   .head:active { background: var(--sunken); }
 
+  /* la luce della pressione esce di 10px dal testo, che resta allineato alla card */
   .head {
     display: flex;
     align-items: center;
     gap: 10px;
-    width: 100%;
+    width: calc(100% + 20px);
     min-height: 44px;
-    margin: 0;
-    padding: 0;
+    margin: 0 -10px;
+    padding: 0 10px;
     border: 0;
     border-radius: var(--r-md);
     background: transparent;

@@ -173,10 +173,12 @@
   }
 
   /* piatta, dentro una card: il tratto la separa, la pressione la accende */
+  /* la luce della pressione esce di 10px dal testo, che resta allineato alla card */
   .row.is-flat,
   .row.is-flat.is-dashed {
     position: relative;
-    padding: 4px 0;
+    margin: 0 -10px;
+    padding: 4px 10px;
     border: 0;
     /* la pressione si accende con gli angoli tondi, mai a spigolo vivo */
     border-radius: var(--r-md);
@@ -188,8 +190,8 @@
   .row.is-flat::after {
     content: "";
     position: absolute;
-    left: 0;
-    right: 0;
+    left: 10px;
+    right: 10px;
     bottom: 0;
     height: 1px;
     background: var(--hairline-soft);

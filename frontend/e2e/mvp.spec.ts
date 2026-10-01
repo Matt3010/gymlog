@@ -126,7 +126,8 @@ async function expectAligned(page: Page): Promise<void> {
       // where the content starts: a block's padding counts, a button's or a field's is its own
       const start = (element: Element) => {
         const box = element.getBoundingClientRect().left;
-        if (element.matches('button, input, textarea, .btn')) return box;
+        // an exercise's head is a whole-width row whose light bleeds past the text: its text start counts
+        if (element.matches('button:not(.head), input, textarea, .btn')) return box;
         const style = getComputedStyle(element);
         return box + parseFloat(style.paddingLeft) + parseFloat(style.borderLeftWidth);
       };
@@ -150,6 +151,15 @@ async function expectNotSqueezed(text: Locator, button: Locator): Promise<void> 
 async function expectRoundPress(row: Locator): Promise<void> {
   const radius = await row.evaluate((element) => parseFloat(getComputedStyle(element).borderTopLeftRadius));
   expect(radius, `${(await row.textContent())?.trim().slice(0, 20)} has round corners`).toBeGreaterThan(0);
+  // the light has room around the text, and the text still starts where the card's content does
+  const [inside, offset] = await row.evaluate((element) => {
+    const card = element.closest('section.card')!;
+    const pad = parseFloat(getComputedStyle(element).paddingLeft);
+    const contentLeft = card.getBoundingClientRect().left + parseFloat(getComputedStyle(card).paddingLeft);
+    return [pad, Math.abs(element.getBoundingClientRect().left + pad - contentLeft)];
+  });
+  expect(inside, 'room inside the light').toBeGreaterThanOrEqual(8);
+  expect(offset, 'text aligned with the card').toBeLessThanOrEqual(1);
 }
 
 async function expectNothingLitAfterTap(row: Locator): Promise<void> {
@@ -246,17 +256,25 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await page.getByRole('button', { name: 'Aggiungi esercizio' }).nth(1).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Panca piana' }).click();
   await expectNoZoomOnFocus(page);
-  for (const add of await page.locator('.add').all()) await expectDivided(add);
+  // «Aggiungi esercizio» stands under its day's cards, outside any card: no line needed.
+  for (const add of await page.locator('.add').all()) expect(await add.evaluate((el) => el.closest('section.card') === null)).toBe(true);
   for (const name of ['Aggiungi esercizio', 'Aggiungi giorno', 'Aggiungi una serie a Squat']) await expectFullWidth(page.getByRole('button', { name }).first());
   // Room in the editor: "Recupero" stands apart from "+ Serie", and each exercise from the one before.
   const addSet = await page.getByRole('button', { name: 'Aggiungi una serie a Squat' }).boundingBox();
   const restLabel = await page.getByText('Recupero (s)').first().boundingBox();
   expect(restLabel!.y - (addSet!.y + addSet!.height)).toBeGreaterThanOrEqual(20);
-  const gapAbove = await page.getByText('Panca piana', { exact: true }).first().evaluate((name) => {
-    const block = name.closest('.exercise')!;
-    return name.getBoundingClientRect().top - block.getBoundingClientRect().top;
+  // Each exercise of a plan is a card of its own, next to (not inside) its day's card.
+  const cards = await page.evaluate(() => {
+    const cardOf = (text: string) => [...document.querySelectorAll('.exercise-name')].find((one) => one.textContent === text)!.closest('section.card')!;
+    const squat = cardOf('Squat');
+    const panca = cardOf('Panca piana');
+    const day = document.querySelector('.day-name')!.closest('section.card')!;
+    return {
+      separate: squat !== panca && squat !== day && panca !== day,
+      nested: [squat, panca, day].some((card) => card.parentElement!.closest('section.card') !== null),
+    };
   });
-  expect(gapAbove).toBeGreaterThanOrEqual(18);
+  expect(cards).toEqual({ separate: true, nested: false });
   await page.getByRole('button', { name: 'Elimina la scheda «Forza»' }).click();
   await expectRoomySheet(page);
   await page.getByRole('alertdialog').getByRole('button', { name: 'Annulla' }).click();

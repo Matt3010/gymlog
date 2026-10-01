@@ -190,6 +190,8 @@
     </PageCard>
 
     {#each draft.days as day, dayIndex (day.key)}
+      <!-- un giorno è un gruppo: la sua card, una card per esercizio, e il tasto per aggiungerne -->
+      <div class="day" role="group" aria-label="Giorno {dayName(day)}">
       <PageCard>
         <div class="day-head">
           <label class="field day-name">
@@ -208,8 +210,10 @@
             </Button>
           </span>
         </div>
+      </PageCard>
 
         {#each day.exercises as exercise, index (exercise.key)}
+          <PageCard>
           <div class="exercise">
             <div class="exercise-head">
               <span class="exercise-name">{exercise.exerciseName}</span>
@@ -255,6 +259,7 @@
             </div>
             <TextField bind:value={exercise.notes} placeholder="Note, per esempio il tempo o la presa" maxlength={1000} label="Note" />
           </div>
+          </PageCard>
         {/each}
 
         <span class="add">
@@ -262,7 +267,7 @@
             <Icon name="plus" /> Aggiungi esercizio
           </Button>
         </span>
-      </PageCard>
+      </div>
     {/each}
 
     <div class="bottom">
@@ -296,13 +301,11 @@
 
   .tools { display: flex; align-items: center; gap: 2px; flex: none; }
 
-  /* ogni esercizio è un blocco a sé: aria sopra e sotto, il tratto in mezzo */
-  .exercise {
-    display: grid;
-    gap: 8px;
-    padding: 20px 0 16px;
-    border-top: 1px solid var(--hairline-soft);
-  }
+  /* un giorno: la sua card, le card degli esercizi e il tasto, con lo stesso spazio della pagina */
+  .day { display: grid; gap: 14px; }
+
+  /* ogni esercizio è una card sua */
+  .exercise { display: grid; gap: 8px; }
 
   .exercise-head {
     display: flex;
@@ -346,6 +349,6 @@
 
 
 
-  /* l'azione che aggiunge chiude l'elenco, separata dal tratto come una riga */
-  .add { display: block; padding-top: 10px; border-top: 1px solid var(--hairline-soft); }
+  /* «Aggiungi esercizio» sta sotto le card del giorno, fuori da ogni card */
+  .add { display: block; }
 </style>
