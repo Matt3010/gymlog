@@ -35,7 +35,6 @@ describe('the warm-up before the working sets', () => {
   });
 
   it('is nothing without a working weight', () => {
-    expect(warmupFor(null)).toEqual([]);
     expect(warmupFor(0)).toEqual([]);
   });
 });

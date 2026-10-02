@@ -27,6 +27,10 @@ describe('a draft', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
+  it('has empty notes when the plan has none', () => {
+    expect(draftOf({ ...plan, notes: null }).notes).toBe('');
+  });
+
   it('starts empty for a new plan, with a first day', () => {
     expect(draftOf(null)).toMatchObject({ name: '', notes: '', archived: false, days: [{ name: 'A', exercises: [] }] });
   });
@@ -87,6 +91,20 @@ describe('a saved plan coming back', () => {
 });
 
 describe('a new day', () => {
+  it('counts a letter as taken even written with spaces around', () => {
+    const draft = draftOf(plan);
+    draft.days[0]!.name = ' A ';
+    draft.days[1]!.name = 'B ';
+    addDay(draft);
+    expect(draft.days[2]!.name).toBe('C');
+  });
+
+  it('has no name once every letter is taken', () => {
+    const draft = draftOf({ ...plan, days: [...'ABCDEFGHIJKLMN'].map((name, position) => ({ id: position + 1, name, position, exercises: [] })) });
+    addDay(draft);
+    expect(draft.days.at(-1)!.name).toBe('');
+  });
+
   it('takes the next free letter', () => {
     const draft = draftOf(plan);
     addDay(draft);
@@ -119,10 +137,10 @@ describe('what stops a draft from being saved', () => {
     expect(problemOf(draftOf(plan))).toBeNull();
   });
 
-  it('is a missing name, of the plan or a day', () => {
+  it('is a missing name, of the plan or a day (only spaces is missing too)', () => {
     expect(problemOf({ ...draftOf(plan), name: ' ' })).toBe('La scheda ha bisogno di un nome.');
     const draft = draftOf(plan);
-    draft.days[1]!.name = '';
+    draft.days[1]!.name = '  ';
     expect(problemOf(draft)).toBe('Ogni giorno ha bisogno di un nome, come «A» o «Gambe».');
   });
 
@@ -132,6 +150,15 @@ describe('what stops a draft from being saved', () => {
     expect(problemOf(draft)).toBe('Nel giorno «A» la serie 2 dell’esercizio «Squat» non ha ripetizioni. Scrivi quante, anche «max».');
   });
 
+  it('is the first set without reps too, and names the day without its spaces', () => {
+    const draft = draftOf(plan);
+    draft.days[0]!.name = ' A ';
+    draft.days[0]!.exercises[0]!.reps[0] = '';
+    expect(problemOf(draft)).toBe('Nel giorno «A» la serie 1 dell’esercizio «Squat» non ha ripetizioni. Scrivi quante, anche «max».');
+    draft.days[0]!.exercises[0]!.reps = [];
+    expect(problemOf(draft)).toBe('Nel giorno «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
+  });
+
   it('is an exercise with no sets, or more than 20', () => {
     const draft = draftOf(plan);
     draft.days[0]!.exercises[0]!.reps = [];
@@ -139,6 +166,9 @@ describe('what stops a draft from being saved', () => {
     draft.days[0]!.exercises[0]!.reps = Array.from({ length: 21 }, () => '5');
     expect(problemOf(draft)).toBe('Nel giorno «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
     draft.days[0]!.exercises[0]!.reps = Array.from({ length: 20 }, () => '5');
+    expect(problemOf(draft)).toBeNull();
+    // one set is enough
+    draft.days[0]!.exercises[0]!.reps = ['5'];
     expect(problemOf(draft)).toBeNull();
   });
 });

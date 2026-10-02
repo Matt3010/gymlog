@@ -22,9 +22,8 @@ const HEAVY = { from: 100, step: { share: 0.9, reps: 1 } };
 /** Al 2,5 sotto: quello che dischi e manubri permettono. */
 const PLATE = 2.5;
 
-/** Le serie di riscaldamento per arrivare a `working` kg; nessuna senza un peso. */
-export function warmupFor(working: number | null): WarmupSet[] {
-  if (!working) return [];
+/** Le serie di riscaldamento per arrivare a `working` kg; nessuna senza un peso (0 kg). */
+export function warmupFor(working: number): WarmupSet[] {
   const steps = working >= HEAVY.from ? [...STEPS, HEAVY.step] : STEPS;
   const sets: WarmupSet[] = [];
   for (const { share, reps } of steps) {

@@ -33,6 +33,7 @@ export interface Draft {
 }
 
 let lastKey = 0;
+// Stryker disable next-line UpdateOperator: going down or up, every key is new all the same
 export const newKey = (): number => ++lastKey;
 
 const LETTERS = 'ABCDEFGHIJKLMN';
@@ -90,9 +91,9 @@ export function toInput(draft: Draft): PlanInput {
  * esiste più.
  */
 export function learnDayIds(sent: readonly DraftDay[], input: PlanInput, saved: Plan): void {
+  // what was sent, what was saved and the days kept aside are the same days, in the same order
   sent.forEach((day, index) => {
-    const id = saved.days[index]?.id;
-    if (input.days[index]?.id === undefined && id !== undefined) day.id = id;
+    if (input.days[index]!.id === undefined) day.id = saved.days[index]!.id;
   });
 }
 

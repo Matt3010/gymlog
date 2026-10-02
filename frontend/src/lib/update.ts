@@ -10,7 +10,8 @@ export function keepUpToDate(sw: ServiceWorkerContainer, page: Document, reload:
   let controlled = sw.controller !== null;
   let fresh = false;
   page.addEventListener('visibilitychange', () => {
-    if (page.visibilityState === 'visible') void sw.getRegistration().then((registration) => registration?.update());
+    // senza rete il controllo fallisce: si riprova la prossima volta, senza dire niente
+    if (page.visibilityState === 'visible') sw.ready.then((registration) => registration.update()).catch(() => undefined);
     else if (fresh) reload();
   });
   sw.addEventListener('controllerchange', () => {

@@ -18,21 +18,21 @@ export interface OpenWorkout {
 class Current {
   workout = $state<OpenWorkout | null>(null);
 
-  /* quante volte la pagina dell'allenamento l'ha cambiato: una risposta del
+  /* cambia a ogni volta che la pagina dell'allenamento lo cambia: una risposta del
      server partita prima di una serie segnata non la cancella */
-  #changes = 0;
+  #version = {};
 
   /** Dalla pagina dell'allenamento: quello che sa lei è il più fresco. */
   set(workout: OpenWorkout | null): void {
-    this.#changes += 1;
+    this.#version = {};
     this.workout = workout;
   }
 
   async refresh(): Promise<void> {
-    const asked = this.#changes;
+    const asked = this.#version;
     try {
       const open = inProgress(await workoutsApi.list(6));
-      if (asked !== this.#changes) return;
+      if (asked !== this.#version) return;
       this.workout = open === undefined ? null : {
         id: open.id,
         title: open.dayName ? `${open.planName} · ${open.dayName}` : 'Allenamento libero',

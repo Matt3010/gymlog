@@ -147,3 +147,71 @@ describe('a guard over leaving', () => {
     expect(nav.path).toBe('/esercizi');
   });
 });
+
+describe('problems Stryker found unchecked', () => {
+  it('leaves a link for a new tab or a download to the browser', () => {
+    const blank = document.createElement('a');
+    blank.href = '/schede';
+    blank.target = '_blank';
+    const download = document.createElement('a');
+    download.href = '/schede';
+    download.setAttribute('download', '');
+    for (const link of [blank, download]) {
+      document.body.append(link);
+      let taken = true;
+      const after = (event: Event) => {
+        taken = event.defaultPrevented;
+        event.preventDefault();
+      };
+      window.addEventListener('click', after);
+      link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+      window.removeEventListener('click', after);
+      link.remove();
+      expect(taken).toBe(false);
+    }
+  });
+
+  it('is not bothered by a click on plain text', () => {
+    const text = document.createTextNode('ciao');
+    document.body.append(text);
+    expect(() => text.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))).not.toThrow();
+    text.remove();
+  });
+
+  it('opens a new page from its top', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    nav.go('/esercizi');
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+    scrollTo.mockRestore();
+  });
+
+  it('keeps going in place after the guard said yes, when the going was in place', () => {
+    nav.go('/schede');
+    const before = history.length;
+    let go = () => undefined as void;
+    nav.custodisci((vai) => {
+      go = vai;
+      return true;
+    });
+    nav.go('/storico', { replace: true });
+    nav.custodisci(() => false);
+    go();
+    expect(nav.path).toBe('/storico');
+    expect(history.length).toBe(before);
+  });
+
+  it('writes an address of the app the right way as it opens', async () => {
+    history.replaceState({}, '', '/schede/');
+    vi.resetModules();
+    const fresh = (await import('./nav.svelte')).nav;
+    expect(fresh.path).toBe('/schede');
+    expect(window.location.pathname).toBe('/schede');
+    // an address already right is left as it is
+    history.replaceState({}, '', '/storico');
+    vi.resetModules();
+    const replaced = vi.spyOn(history, 'replaceState');
+    expect((await import('./nav.svelte')).nav.path).toBe('/storico');
+    expect(replaced).not.toHaveBeenCalled();
+    replaced.mockRestore();
+  });
+});

@@ -47,4 +47,9 @@ describe('the trend of a set against one before', () => {
     expect(trendOf({ reps: 6, weightKg: 0 }, { reps: 8, weightKg: 0 })).toBe('down');
     expect(trendOf({ reps: 8, weightKg: 0 }, { reps: 8, weightKg: 0 })).toBe('same');
   });
+
+  it('compares a bodyweight set with a weighted one by the estimated max, not by the reps', () => {
+    expect(trendOf({ reps: 8, weightKg: 0 }, { reps: 8, weightKg: 60 })).toBe('down');
+    expect(trendOf({ reps: 8, weightKg: 60 }, { reps: 8, weightKg: 0 })).toBe('up');
+  });
 });

@@ -96,7 +96,7 @@
     const proposed = prefill(block);
     reps = proposed.reps === null ? '' : String(proposed.reps);
     kg = proposed.weightKg === null ? '' : String(proposed.weightKg).replace('.', ',');
-    tab = block.sets.length === 0 && warmupFor(proposed.weightKg).length > 0 ? 'warmup' : 'sets';
+    tab = block.sets.length === 0 && warmupFor(proposed.weightKg ?? 0).length > 0 ? 'warmup' : 'sets';
     error = '';
   }
 
@@ -241,7 +241,7 @@
           <Tabs value={tab} options={TABS} label="Riscaldamento o serie di {block.name}" onpick={(picked) => (tab = picked)} />
         {/if}
         {#if isOpen && !finished && tab === 'warmup'}
-          {@const ramp = warmupFor(workingKg())}
+          {@const ramp = warmupFor(workingKg() ?? 0)}
           {#if ramp.length === 0}
             <p class="hint">Scrivi il peso della prima serie: il riscaldamento si calcola da lì.</p>
           {:else}

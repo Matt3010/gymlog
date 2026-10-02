@@ -27,6 +27,7 @@ class Nav {
     // un indirizzo scritto in un altro modo si apre lo stesso, ma nella barra ci va quello buono
     const buono = canonical(this.path);
     if (buono !== this.path) {
+      // Stryker disable next-line StringLiteral: the second argument is a title browsers ignore
       history.replaceState({}, '', buono);
       this.path = buono;
     }
@@ -35,6 +36,7 @@ class Nav {
     window.addEventListener('popstate', () => {
       const dove = window.location.pathname;
       if (this.#prima?.(() => this.go(dove))) {
+        // Stryker disable next-line StringLiteral: the second argument is a title browsers ignore
         history.pushState({}, '', this.path);
         return;
       }
@@ -65,7 +67,9 @@ class Nav {
     if (dove === this.path) return;
     if (this.#prima?.(() => this.go(path, { replace, user }))) return;
     if (user) toast.hide();
+    // Stryker disable next-line StringLiteral: the second argument is a title browsers ignore
     if (replace) history.replaceState({}, '', dove);
+    // Stryker disable next-line StringLiteral: as above
     else history.pushState({}, '', dove);
     this.path = dove;
     // una pagina nuova si legge dall'alto, non da dove stava l'altra
@@ -76,7 +80,8 @@ class Nav {
     if (event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 
-    const link = (event.target as HTMLElement | null)?.closest?.('a');
+    // a click always has a target; plain text has no `closest`
+    const link = (event.target as Partial<Element>).closest?.('a');
     if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
 
     const url = new URL(link.href, window.location.origin);

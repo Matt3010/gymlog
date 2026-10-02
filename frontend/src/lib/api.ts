@@ -34,7 +34,7 @@ function motivo(status: number): string {
 
 /** Quando la richiesta non è nemmeno arrivata: la rete del telefono, o il server. */
 const senzaRisposta = (): string =>
-  typeof navigator !== 'undefined' && navigator.onLine === false
+  navigator.onLine === false
     ? 'Il telefono è senza rete, e la richiesta non è partita.'
     : 'Il server non risponde, e la richiesta non è arrivata. Controlla la rete e riprova.';
 
@@ -52,7 +52,7 @@ const senzaRisposta = (): string =>
  * così un modulo su un altro sito non può scrivere a nome tuo.
  */
 export function createClient({ fetch, onSignedOut }: { fetch: Fetch; onSignedOut: () => void }): Client {
-  let renewing: Promise<'renewed' | 'refused' | 'unreachable'> | null = null;
+  let renewing: Promise<boolean | null> | null = null;
 
   async function send(path: string, method: string, payload?: unknown): Promise<Response> {
     const headers: Record<string, string> = {};
@@ -63,7 +63,8 @@ export function createClient({ fetch, onSignedOut }: { fetch: Fetch; onSignedOut
         method,
         headers,
         credentials: 'same-origin',
-        body: payload === undefined ? undefined : JSON.stringify(payload),
+        // nessun corpo resta nessun corpo: JSON.stringify(undefined) è undefined
+        body: JSON.stringify(payload),
       });
     } catch {
       throw new ApiError(senzaRisposta());
@@ -72,15 +73,16 @@ export function createClient({ fetch, onSignedOut }: { fetch: Fetch; onSignedOut
 
   /**
    * Uno solo alla volta: chi arriva mentre è in corso aspetta quello. Dice
-   * `refused` solo se il server rifiuta davvero (401): senza risposta, o col
-   * server fermo, non si sa ancora niente (`unreachable`), e chi è entrato
+   * «rifiutato» solo se il server rifiuta davvero (401): senza risposta, o col
+   * server fermo, non si sa ancora niente (null), e chi è entrato
    * resta dentro: uscire per un buco di rete butterebbe via il lavoro.
    */
-  function renew(): Promise<'renewed' | 'refused' | 'unreachable'> {
+  function renew(): Promise<boolean | null> {
+    // vero: rinnovato; falso: rifiutato; null: non si sa (senza risposta o server fermo)
     renewing ??= send('/auth/refresh', 'POST')
       .then(
-        (response) => (response.ok ? 'renewed' : response.status === 401 ? 'refused' : 'unreachable'),
-        () => 'unreachable' as const,
+        (response) => (response.ok ? true : response.status === 401 ? false : null),
+        () => null,
       )
       .finally(() => (renewing = null));
     return renewing;
@@ -97,8 +99,8 @@ export function createClient({ fetch, onSignedOut }: { fetch: Fetch; onSignedOut
     if (response.status === 401 && !path.startsWith('/auth/')) {
       const renewal = await renew();
       // come una richiesta senza risposta: si dice che manca la rete, senza far uscire nessuno
-      if (renewal === 'unreachable') throw new ApiError(senzaRisposta());
-      if (renewal === 'renewed') response = await send(path, method, payload);
+      if (renewal === null) throw new ApiError(senzaRisposta());
+      if (renewal) response = await send(path, method, payload);
       if (response.status === 401) {
         onSignedOut();
         throw await failure(response);

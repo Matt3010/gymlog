@@ -19,7 +19,8 @@ export const estimatedMax = ({ reps, weightKg }: DoneSet): number =>
 export function trendOf(now: DoneSet | number, before: DoneSet | number | undefined): Trend | undefined {
   if (before === undefined) return undefined;
   // a corpo libero (0 kg) il massimale stimato è sempre zero: contano le ripetizioni
-  const bodyweight = typeof now !== 'number' && typeof before !== 'number' && now.weightKg === 0 && before.weightKg === 0;
+  // (un numero non ha chili: non è mai a corpo libero)
+  const bodyweight = (now as DoneSet).weightKg === 0 && (before as DoneSet).weightKg === 0;
   const value = (one: DoneSet | number) => (typeof one === 'number' ? one : bodyweight ? one.reps : estimatedMax(one));
   const delta = value(now) - value(before);
   return delta > 0 ? 'up' : delta < 0 ? 'down' : 'same';

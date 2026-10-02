@@ -25,6 +25,16 @@ function server(replies: Record<string, (Response | (() => Response) | Error)[]>
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
+describe('a server that is down', () => {
+  it('says so for 502, 503 and 504 alike', async () => {
+    for (const status of [502, 503, 504]) {
+      const { fetch } = server({ '/api/plans': [json(status, {})] });
+      await expect(createClient({ fetch, onSignedOut: vi.fn() }).get('/plans'))
+        .rejects.toThrow('Il server non si raggiunge adesso. Riprova fra poco.');
+    }
+  });
+});
+
 describe('a request', () => {
   it('goes to /api with the cookies, and gives back the JSON', async () => {
     const { fetch, calls } = server({ '/api/exercises': [json(200, [{ id: 1 }])] });

@@ -19,8 +19,30 @@ function client(answers: Record<string, () => unknown>): Client & { calls: strin
 const refused = () => { throw new ApiError('Accesso richiesto.', 401); };
 
 describe('the session', () => {
-  it('is being checked until it knows', () => {
-    expect(new Session(client({})).status).toBe('checking');
+  it('is being checked until it knows, with nothing to say yet', () => {
+    const session = new Session(client({}));
+    expect([session.status, session.problem]).toEqual(['checking', '']);
+  });
+
+  it('says the server is unreachable when the renewal has no answer or a server error, not that you are out', async () => {
+    for (const renewal of [() => { throw new ApiError('Il server non risponde.'); }, () => { throw new ApiError('Inceppato.', 500); }]) {
+      const session = new Session(client({ 'GET /auth/me': refused, 'POST /auth/refresh': renewal }));
+      await session.check();
+      expect(session.status).toBe('unreachable');
+    }
+  });
+
+  it('forgets the problem once it gets in', async () => {
+    let up = false;
+    const session = new Session(client({ 'GET /auth/me': () => {
+      if (!up) throw new ApiError('Il server non risponde.');
+      return { user: anna };
+    } }));
+    await session.check();
+    expect(session.problem).toBe('Il server non risponde.');
+    up = true;
+    await session.check();
+    expect([session.status, session.problem]).toEqual(['in', '']);
   });
 
   it('is in when the login is still good', async () => {
