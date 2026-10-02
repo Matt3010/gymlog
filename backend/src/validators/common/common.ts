@@ -20,8 +20,14 @@ export function object(value: unknown): Body {
   return value as Body;
 }
 
+/** The database takes no NUL character: refused here, with a reason, instead of a failure there. */
+function noNul(key: string, value: string): string {
+  if (value.includes("\u0000")) throw new InputError(`${field(key)}: valore non valido.`);
+  return value;
+}
+
 export function text(body: Body, key: string, max = 100): string {
-  const value = typeof body[key] === "string" ? body[key].trim() : "";
+  const value = typeof body[key] === "string" ? noNul(key, body[key]).trim() : "";
   if (value === "" || value.length > max) throw new InputError(`${field(key)}: manca o è troppo lungo.`);
   return value;
 }
@@ -31,6 +37,7 @@ export function optionalText(body: Body, key: string, max = 1000): string | null
   const value = body[key];
   if (value === undefined || value === null) return null;
   if (typeof value !== "string" || value.trim().length > max) throw new InputError(`${field(key)}: troppo lungo.`);
+  noNul(key, value);
   return value.trim() === "" ? null : value.trim();
 }
 

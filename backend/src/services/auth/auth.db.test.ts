@@ -73,6 +73,29 @@ describe.skipIf(SERVER === undefined)("the auth service", () => {
     expect(await auth().refresh(second!.refresh)).toBeDefined();
   });
 
+  it("ends every session of a user when an old refresh token comes back later: it was stolen", async () => {
+    const name = newName();
+    await auth().createUser(name, PASSWORD);
+    const strict = createAuthService(handle.db, createTokenManager(new Uint8Array(32).fill(1)), { reuseGraceSeconds: 0 });
+    const phone = (await strict.login(name, PASSWORD))!;
+    const laptop = (await strict.login(name, PASSWORD))!;
+    // the thief renews first with a copied token…
+    const thief = (await strict.refresh(phone.refresh))!;
+    // …and the owner's phone comes back with the same, now old, token: everyone is out, the thief too
+    expect(await strict.refresh(phone.refresh)).toBeUndefined();
+    expect(await strict.refresh(thief.refresh)).toBeUndefined();
+    expect(await strict.refresh(laptop.refresh)).toBeUndefined();
+  });
+
+  it("does not end the sessions for an old token back within moments: two tabs renewing together", async () => {
+    const name = newName();
+    await auth().createUser(name, PASSWORD);
+    const first = (await auth().login(name, PASSWORD))!;
+    const second = (await auth().refresh(first.refresh))!;
+    expect(await auth().refresh(first.refresh)).toBeUndefined();
+    expect(await auth().refresh(second.refresh)).toBeDefined();
+  });
+
   it("ends the session at logout", async () => {
     const name = newName();
     await auth().createUser(name, PASSWORD);

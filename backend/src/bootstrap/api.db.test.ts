@@ -126,6 +126,25 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect((await browser.call("POST", "/api/auth/login", { username, password: PASSWORD }, { "x-gymlog": "1", "x-real-ip": "203.0.113.10" })).status).toBe(200);
     });
 
+    it("cannot be reset with an account of one's own: a success clears only that name's count", async () => {
+      const victim = await signedIn();
+      const attacker = await signedIn();
+      const browser = client(() => base);
+      const headers = { "x-gymlog": "1", "x-real-ip": "203.0.113.20" };
+      for (let round = 0; round < 2; round++) {
+        for (let i = 0; i < 2; i++) await browser.call("POST", "/api/auth/login", { username: victim.username, password: "wrong password" }, headers);
+        expect((await browser.call("POST", "/api/auth/login", { username: attacker.username, password: PASSWORD }, headers)).status).toBe(200);
+      }
+      expect(await browser.call("POST", "/api/auth/login", { username: victim.username, password: PASSWORD }, headers))
+        .toMatchObject({ status: 429 });
+    });
+
+    it("writes a username in the log as it is, quoted: a newline in it cannot forge a line", async () => {
+      await client(() => base).call("POST", "/api/auth/login", { username: "x\n[gymlog] new account", password: "wrong password" });
+      // quoted as JSON: the newline stays a visible \n inside the quotes, on the same line
+      expect(lines).toContain(String.raw`[gymlog] failed login for "x\n[gymlog] new account" from 127.0.0.1`);
+    });
+
     it("renews the tokens with the refresh cookie, once", async () => {
       const { call, jar, user } = await signedIn();
       const oldRefresh = jar.get("gymlog_rt")!.value;

@@ -87,6 +87,9 @@ export interface WorkoutsRepository {
   /** For each exercise done before this workout started, the sets of the last workout with it. */
   previous(userId: number, workoutId: number): Promise<Map<number, PreviousSets>>;
   addSet(workoutId: number, input: SetInput): Promise<WorkoutSet>;
+  /** How many sets a workout has; and the one under a key, if it is there. */
+  countSets(workoutId: number): Promise<number>;
+  findSetByKey(workoutId: number, key: string): Promise<WorkoutSet | undefined>;
   /** One note per exercise in a workout; null takes it away. */
   setExerciseNote(workoutId: number, exerciseId: number, note: string | null): Promise<void>;
   /** By exercise id. */
@@ -278,6 +281,17 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
       const [kept] = await db.select({ id: workoutSets.id }).from(workoutSets)
         .where(and(eq(workoutSets.workoutId, workoutId), eq(workoutSets.clientKey, key!)));
       return findSet(kept!.id);
+    },
+
+    async countSets(workoutId) {
+      const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(workoutSets).where(eq(workoutSets.workoutId, workoutId));
+      return row!.count;
+    },
+
+    async findSetByKey(workoutId, key) {
+      const [row] = await db.select({ id: workoutSets.id }).from(workoutSets)
+        .where(and(eq(workoutSets.workoutId, workoutId), eq(workoutSets.clientKey, key)));
+      return row === undefined ? undefined : findSet(row.id);
     },
 
     async updateSet(userId, setId, change) {

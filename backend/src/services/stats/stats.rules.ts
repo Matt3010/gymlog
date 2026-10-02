@@ -43,8 +43,9 @@ export function setStats(sets: readonly DoneSet[]): SetStats {
     reps: sum(sets.map((set) => set.reps)),
     volume: round(sum(sets.map((set) => set.reps * set.weightKg))),
     avgWeight: sets.length === 0 ? 0 : round(sum(weights) / sets.length),
-    maxWeight: Math.max(0, ...weights),
-    bestE1rm: Math.max(0, ...sets.map((set) => estimatedMax(set.weightKg, set.reps))),
+    // a loop and not Math.max(...): spread over a hundred thousand sets runs out of stack
+    maxWeight: weights.reduce((best, weight) => Math.max(best, weight), 0),
+    bestE1rm: sets.reduce((best, set) => Math.max(best, estimatedMax(set.weightKg, set.reps)), 0),
   };
 }
 
@@ -76,7 +77,12 @@ export interface ExerciseSummary {
  */
 export function exerciseSummaries(sets: readonly StatSet[]): ExerciseSummary[] {
   const byExercise = new Map<number, StatSet[]>();
-  for (const set of sets) byExercise.set(set.exerciseId, [...(byExercise.get(set.exerciseId) ?? []), set]);
+  // pushed, not copied: copying the list at each set made many sets slow as their square
+  for (const set of sets) {
+    const done = byExercise.get(set.exerciseId);
+    if (done) done.push(set);
+    else byExercise.set(set.exerciseId, [set]);
+  }
 
   return [...byExercise.values()]
     .map((done) => {

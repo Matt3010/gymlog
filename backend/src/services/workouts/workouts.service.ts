@@ -1,5 +1,6 @@
 import { ConflictError, found, foundIf } from "../../errors";
 import type { Executor } from "../../lib";
+import { InputError } from "../../validators";
 import {
   createWorkoutsRepository, type PreviousNote, type PreviousSets, type SetInput, type Workout, type WorkoutChange, type WorkoutSet, type WorkoutStart,
   type WorkoutSummary,
@@ -27,6 +28,9 @@ export interface WorkoutsService {
   deleteSet(userId: number, setId: number): Promise<void>;
 }
 
+/** The most sets one workout holds. */
+const MAX_SETS = 200;
+
 export function createWorkoutsService(db: Executor): WorkoutsService {
   const workouts = createWorkoutsRepository(db);
   return {
@@ -52,7 +56,19 @@ export function createWorkoutsService(db: Executor): WorkoutsService {
     delete: async (userId, id) => foundIf(await workouts.delete(userId, id)),
     sets: (workoutId) => workouts.sets(workoutId),
     previous: async (userId, workoutId) => Object.fromEntries(await workouts.previous(userId, workoutId)),
-    addSet: (workoutId, input) => workouts.addSet(workoutId, input),
+    addSet: async (workoutId, input) => {
+      // a cap no real session reaches: with open sign-ups, the server's card cannot be filled
+      if (await workouts.countSets(workoutId) >= MAX_SETS) {
+        const again = input.key === undefined ? undefined : await workouts.findSetByKey(workoutId, input.key);
+        if (again === undefined) throw new InputError(`Al più ${MAX_SETS} serie in un allenamento.`);
+      }
+      const set = await workouts.addSet(workoutId, input);
+      // a key already used: the same set sent again, unless it says something else
+      if (input.key !== undefined && (set.exerciseId !== input.exerciseId || set.reps !== input.reps || set.weightKg !== input.weightKg)) {
+        throw new ConflictError("Questa serie è già segnata con altri numeri. Ricarica la pagina.");
+      }
+      return set;
+    },
     setExerciseNote: (workoutId, exerciseId, note) => workouts.setExerciseNote(workoutId, exerciseId, note),
     exerciseNotes: async (workoutId) => Object.fromEntries(await workouts.exerciseNotes(workoutId)),
     previousNote: (userId, workoutId) => workouts.previousNote(userId, workoutId),

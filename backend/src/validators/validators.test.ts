@@ -191,6 +191,12 @@ describe("a change to a workout", () => {
   });
 });
 
+describe("a text", () => {
+  it("refuses an invisible NUL character, that the database would not take", () => {
+    expect(() => parseSet({ exerciseId: 2, reps: 8, weightKg: 60, key: "a\u0000b" })).toThrow("Chiave: valore non valido.");
+  });
+});
+
 describe("a set", () => {
   it("has an exercise, reps and kg", () => {
     expect(parseSet({ exerciseId: 2, reps: 8, weightKg: 62.5 })).toEqual({ exerciseId: 2, reps: 8, weightKg: 62.5 });

@@ -29,9 +29,12 @@ ssh "$host" "set -e
   # with the running code and the database as they were. Skipped on a first deploy.
   stamp=\$(date +%Y%m%d-%H%M%S)
   mkdir -p ~/$dir-backups
+  # Dumps hold password and session hashes: readable by this user only, the old ones too.
+  chmod 700 ~/$dir-backups
+  chmod 600 ~/$dir-backups/*.sql.gz 2>/dev/null || true
   if docker compose ps --status running --services 2>/dev/null | grep -qx postgres; then
     dump=~/$dir-backups/\$stamp.sql
-    if ! docker compose exec -T postgres pg_dump -U gymlog gymlog > \$dump || ! test -s \$dump; then
+    if ! (umask 077 && docker compose exec -T postgres pg_dump -U gymlog gymlog > \$dump) || ! test -s \$dump; then
       rm -f \$dump
       rm -rf ~/$dir.new
       echo 'Database backup failed: deploy stopped; the code, the running app and the database are unchanged.' >&2
@@ -60,4 +63,6 @@ ssh "$host" "set -e
   docker ps --filter name=gymlog --format '{{.Names}} {{.Status}}'"
 
 echo "Deployed $(git rev-parse --short HEAD) to $host:~/$dir"
-echo "Rollback: on the Pi, docker tag gymlog-api:prev gymlog-api:latest && docker tag gymlog-web:prev gymlog-web:latest && docker compose up -d --no-build; database dumps in ~/$dir-backups"
+echo "Rollback: on the Pi, docker tag gymlog-api:prev gymlog-api:latest && docker tag gymlog-web:prev gymlog-web:latest && docker compose up -d --no-build"
+echo "  if this release changed the database (a new migration), restore the dump taken just before it too:"
+echo "  gunzip -c ~/$dir-backups/<latest>.sql.gz | docker compose exec -T postgres sh -c 'dropdb --force -U gymlog gymlog && createdb -U gymlog gymlog && psql -q -U gymlog gymlog'"

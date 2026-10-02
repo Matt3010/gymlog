@@ -26,15 +26,17 @@ export function authController({ auth, limiter, secureCookie, allowSignup, log }
   return [
     route("POST", "/api/auth/login", async (context) => {
       const { username, password } = parseLogin(await context.body());
-      // Blocked per address: guessing from elsewhere never locks the owner out.
-      const key = addressKey(context.ip);
+      // Blocked per address and name together: guessing from elsewhere never locks the owner out,
+      // and a success with an account of one's own does not wipe the count for someone else's.
+      const key = `${addressKey(context.ip)}|${username.toLowerCase()}`;
       if (limiter.blocked(key)) throw new HttpError(429, "Troppi tentativi. Riprova tra un quarto d'ora.");
 
       // Counted before checking, so parallel attempts cannot all slip through.
       limiter.fail(key);
       const tokens = await auth.login(username, password);
       if (tokens === undefined) {
-        log(`[gymlog] failed login for "${username.slice(0, 50)}" from ${context.ip}`);
+        // quoted as JSON: a newline in the name cannot start a line of its own in the log
+        log(`[gymlog] failed login for ${JSON.stringify(username.slice(0, 50))} from ${context.ip}`);
         throw new HttpError(401, "Utente o password errati.");
       }
       limiter.succeed(key);

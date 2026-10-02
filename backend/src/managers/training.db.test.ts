@@ -128,6 +128,25 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       await expect(workouts.start(other.user.id, null)).resolves.toMatchObject({ finishedAt: null });
     });
 
+    it("take a set sent again with its key once, and refuse the same key with something else", async () => {
+      const { user, squat, workouts } = await setup();
+      const workout = await workouts.start(user.id, null);
+      const first = await workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100, key: "k-1" });
+      expect(await workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100, key: "k-1" })).toEqual(first);
+      await expect(workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 6, weightKg: 100, key: "k-1" }))
+        .rejects.toThrow(new ConflictError("Questa serie è già segnata con altri numeri. Ricarica la pagina."));
+    });
+
+    it("hold at most 200 sets: no session has more, and the server's card does not fill up", async () => {
+      const { user, squat, workouts, workoutsRepo } = await setup();
+      const workout = await workouts.start(user.id, null);
+      for (let i = 0; i < 200; i++) await workoutsRepo.addSet(workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100 });
+      await expect(workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100 }))
+        .rejects.toThrow(new InputError("Al più 200 serie in un allenamento."));
+      // the same set sent again with its key is still the same set, not one more
+      await expect(workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100, key: "x" })).rejects.toThrow(InputError);
+    });
+
     it("are one at a time even when two starts arrive together", async () => {
       const { user, workouts } = await setup();
       const both = await Promise.allSettled([workouts.start(user.id, null), workouts.start(user.id, null)]);

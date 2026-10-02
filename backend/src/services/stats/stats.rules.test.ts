@@ -95,3 +95,22 @@ describe("the summary of each exercise", () => {
     expect(exerciseSummaries([])).toEqual([]);
   });
 });
+
+describe("many sets", () => {
+  // years of training, or someone filling the server on purpose: the stats must not stop it for everyone
+  const many = Array.from({ length: 200_000 }, (_, i) => ({
+    exerciseId: 1 + (i % 2), exerciseName: i % 2 ? "Panca" : "Squat", workoutId: 1 + Math.floor(i / 20),
+    startedAt: new Date(Date.UTC(2020, 0, 1) + Math.floor(i / 20) * 86_400_000).toISOString(), reps: 5 + (i % 6), weightKg: 50 + (i % 40),
+  }));
+
+  it("are summed up in a moment, without running out of stack", () => {
+    const started = performance.now();
+    const summaries = exerciseSummaries(many);
+    // all the squat sets in one session: the heaviest case for a single session
+    const squat = exerciseStats([{ workoutId: 1, startedAt: many[0]!.startedAt, sets: many.filter((set) => set.exerciseId === 1) }]);
+    expect(performance.now() - started).toBeLessThan(1500);
+    expect(summaries).toHaveLength(2);
+    expect(squat.overall.maxWeight).toBe(88);
+    expect(squat.overall.sets).toBe(100_000);
+  });
+});

@@ -1,4 +1,4 @@
-import { and, eq, gt, lt, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { type Executor, sessions, users } from "../../lib";
 
 export interface User {
@@ -14,8 +14,10 @@ export interface UsersRepository {
   deleteSessionsOf(userId: number): Promise<void>;
 
   createSession(tokenHash: string, userId: number, days: number): Promise<void>;
-  /** Deletes a valid session and returns its user: a refresh token works once. */
+  /** Marks a valid session as used and returns its user: a refresh token works once. */
   consumeSession(tokenHash: string): Promise<User | undefined>;
+  /** The user of a token already used more than `seconds` ago, if it is one. */
+  reusedAfter(tokenHash: string, seconds: number): Promise<number | undefined>;
   deleteSession(tokenHash: string): Promise<void>;
   deleteExpiredSessions(): Promise<void>;
 }
@@ -47,17 +49,23 @@ export function createUsersRepository(db: Executor): UsersRepository {
     },
 
     async consumeSession(tokenHash) {
-      // One statement: the delete is the lock, so two renewals with the same token cannot both win.
+      // One statement: the update is the lock, so two renewals with the same token cannot both win.
       const [row] = await db
         .with(db.$with("used").as(
-          db.delete(sessions)
-            .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, sql`now()`)))
+          db.update(sessions).set({ usedAt: sql`now()` })
+            .where(and(eq(sessions.tokenHash, tokenHash), isNull(sessions.usedAt), gt(sessions.expiresAt, sql`now()`)))
             .returning({ userId: sessions.userId }),
         ))
         .select(user)
         .from(users)
         .where(sql`${users.id} in (select user_id from used)`);
       return row;
+    },
+
+    async reusedAfter(tokenHash, seconds) {
+      const [row] = await db.select({ userId: sessions.userId }).from(sessions)
+        .where(and(eq(sessions.tokenHash, tokenHash), sql`${sessions.usedAt} <= now() - make_interval(secs => ${seconds})`));
+      return row?.userId;
     },
 
     async deleteSession(tokenHash) {
