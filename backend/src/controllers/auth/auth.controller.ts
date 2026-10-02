@@ -31,6 +31,7 @@ export function authController({ auth, limiter, addressLimiter, secureCookie, al
       // Blocked per address and name together: guessing from elsewhere never locks the owner out,
       // and a success with an account of one's own does not wipe the count for someone else's.
       const address = addressKey(context.ip);
+      // Stryker disable next-line MethodExpression: folded to upper or to lower case, «Bob» and «bob» are one name all the same
       const key = `${address}|${username.toLowerCase()}`;
       // and per address alone, higher: many names tried from one place (and every try costs a hash)
       if (limiter.blocked(key) || addressLimiter.blocked(address)) throw new HttpError(429, "Troppi tentativi. Riprova tra un quarto d'ora.");

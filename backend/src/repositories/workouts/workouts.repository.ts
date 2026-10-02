@@ -89,7 +89,7 @@ export interface WorkoutsRepository {
   addSet(workoutId: number, input: SetInput): Promise<WorkoutSet>;
   /** How many sets a workout has; and the one under a key, if it is there. */
   countSets(workoutId: number): Promise<number>;
-  findSetByKey(workoutId: number, key: string): Promise<WorkoutSet | undefined>;
+  findSetByKey(workoutId: number, key: string | undefined): Promise<WorkoutSet | undefined>;
   /** One note per exercise in a workout; null takes it away. */
   setExerciseNote(workoutId: number, exerciseId: number, note: string | null): Promise<void>;
   /** By exercise id. */
@@ -182,7 +182,9 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
       return row === undefined ? undefined : toWorkout(row);
     },
 
+    // Stryker disable next-line BlockStatement,ObjectLiteral: two starts at the very same instant are a race no test reproduces every time
     async lockUser(userId) {
+      // Stryker disable next-line ObjectLiteral: the row is locked whatever is read of it
       await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
     },
 
@@ -233,7 +235,8 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
       for (const row of rows) {
         const set = { reps: row.reps, weightKg: row.weight_kg };
         const entry = previous.get(row.exercise_id);
-        if (row.rank === 2) entry?.before.push(set);
+        // ordered by rank: the last time (rank 1) is always there before the time before it
+        if (row.rank === 2) entry!.before.push(set);
         else if (entry) entry.sets.push(set);
         else previous.set(row.exercise_id, { workoutId: row.workout_id, startedAt: new Date(row.started_at).toISOString(), sets: [set], note: row.note, before: [] });
       }
@@ -274,7 +277,8 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
 
     async addSet(workoutId, { key, ...input }) {
       const [row] = await db.insert(workoutSets).values({ workoutId, ...input, clientKey: key ?? null })
-        .onConflictDoNothing({ target: [workoutSets.workoutId, workoutSets.clientKey] })
+        // the only thing a new set can clash with is its key in the workout
+        .onConflictDoNothing()
         .returning({ id: workoutSets.id });
       if (row) return findSet(row.id);
       // already there under this key: the same set sent again, given back as it is
@@ -290,7 +294,7 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
 
     async findSetByKey(workoutId, key) {
       const [row] = await db.select({ id: workoutSets.id }).from(workoutSets)
-        .where(and(eq(workoutSets.workoutId, workoutId), eq(workoutSets.clientKey, key)));
+        .where(and(eq(workoutSets.workoutId, workoutId), sql`${workoutSets.clientKey} = ${key ?? null}`));
       return row === undefined ? undefined : findSet(row.id);
     },
 

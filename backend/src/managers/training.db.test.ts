@@ -147,6 +147,32 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       await expect(workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100, key: "x" })).rejects.toThrow(InputError);
     });
 
+    it("give back at the cap a set already there under its key, sent again", async () => {
+      const { user, squat, workouts, workoutsRepo } = await setup();
+      const workout = await workouts.start(user.id, null);
+      const kept = await workoutsRepo.addSet(workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100, key: "kept" });
+      for (let i = 0; i < 199; i++) await workoutsRepo.addSet(workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100 });
+      expect(await workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100, key: "kept" })).toEqual(kept);
+    });
+
+    it("refuse a key again with another exercise or weight, not only other reps", async () => {
+      const { user, squat, bench, workouts } = await setup();
+      const workout = await workouts.start(user.id, null);
+      await workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100, key: "k" });
+      await expect(workouts.addSet(user.id, workout.id, { exerciseId: bench.id, reps: 5, weightKg: 100, key: "k" })).rejects.toThrow(ConflictError);
+      await expect(workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 5, weightKg: 102.5, key: "k" })).rejects.toThrow(ConflictError);
+    });
+
+    it("can be reopened while open already (nothing to do), and closed or noted with old ones left open", async () => {
+      const { user, workouts, workoutsRepo } = await setup();
+      // two left open from before the one-at-a-time rule
+      const older = await workoutsRepo.create(user.id, null, new Date("2026-09-01T17:00:00Z"));
+      const newer = await workoutsRepo.create(user.id, null, new Date("2026-09-02T17:00:00Z"));
+      await expect(workouts.update(user.id, newer.id, { notes: "ok" })).resolves.toMatchObject({ notes: "ok" });
+      await expect(workouts.update(user.id, newer.id, { finished: true })).resolves.toMatchObject({ finishedAt: expect.any(String) });
+      expect((await workouts.update(user.id, older.id, { finished: false })).finishedAt).toBeNull();
+    });
+
     it("are one at a time even when two starts arrive together", async () => {
       const { user, workouts } = await setup();
       const both = await Promise.allSettled([workouts.start(user.id, null), workouts.start(user.id, null)]);

@@ -126,6 +126,16 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect((await browser.call("POST", "/api/auth/login", { username, password: PASSWORD }, { "x-gymlog": "1", "x-real-ip": "203.0.113.10" })).status).toBe(200);
     });
 
+    it("forgets the failures of a name once it gets in", async () => {
+      const { username } = await signedIn();
+      const browser = client(() => base);
+      const headers = { "x-gymlog": "1", "x-real-ip": "203.0.113.40" };
+      for (let i = 0; i < 2; i++) await browser.call("POST", "/api/auth/login", { username, password: "wrong password" }, headers);
+      expect((await browser.call("POST", "/api/auth/login", { username, password: PASSWORD }, headers)).status).toBe(200);
+      for (let i = 0; i < 2; i++) await browser.call("POST", "/api/auth/login", { username, password: "wrong password" }, headers);
+      expect((await browser.call("POST", "/api/auth/login", { username, password: PASSWORD }, headers)).status).toBe(200);
+    });
+
     it("cannot be reset with an account of one's own: a success clears only that name's count", async () => {
       const victim = await signedIn();
       const attacker = await signedIn();
@@ -163,7 +173,10 @@ describe.skipIf(SERVER === undefined)("the API", () => {
     it("renews the access with the session cookie, as often as needed, keeping the same session", async () => {
       const { call, jar, user } = await signedIn();
       const session = jar.get("gymlog_rt")!.value;
-      expect(await call("POST", "/api/auth/refresh")).toMatchObject({ status: 200, body: { user } });
+      const renewed = await call("POST", "/api/auth/refresh");
+      expect(renewed).toMatchObject({ status: 200, body: { user } });
+      // a new access comes with it
+      expect(renewed.setCookies).toEqual(expect.arrayContaining([expect.stringMatching(/^gymlog_at=[^;]+;/)]));
       expect(jar.get("gymlog_rt")!.value).toBe(session);
       expect(await call("POST", "/api/auth/refresh")).toMatchObject({ status: 200, body: { user } });
     });

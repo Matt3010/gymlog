@@ -59,12 +59,14 @@ export function createWorkoutsService(db: Executor): WorkoutsService {
     addSet: async (workoutId, input) => {
       // a cap no real session reaches: with open sign-ups, the server's card cannot be filled
       if (await workouts.countSets(workoutId) >= MAX_SETS) {
-        const again = input.key === undefined ? undefined : await workouts.findSetByKey(workoutId, input.key);
+        // without a key there is nothing to find: no set is the same one sent again
+        const again = await workouts.findSetByKey(workoutId, input.key);
         if (again === undefined) throw new InputError(`Al più ${MAX_SETS} serie in un allenamento.`);
       }
       const set = await workouts.addSet(workoutId, input);
       // a key already used: the same set sent again, unless it says something else
-      if (input.key !== undefined && (set.exerciseId !== input.exerciseId || set.reps !== input.reps || set.weightKg !== input.weightKg)) {
+      // a set just made has the numbers it was given: only one already there under the key can differ
+      if (set.exerciseId !== input.exerciseId || set.reps !== input.reps || set.weightKg !== input.weightKg) {
         throw new ConflictError("Questa serie è già segnata con altri numeri. Ricarica la pagina.");
       }
       return set;
