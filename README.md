@@ -132,5 +132,6 @@ migrazioni mancanti a ogni avvio.
    `http://localhost:8091`.
 4. Dal telefono apri l'indirizzo e scegli "Aggiungi a schermata Home".
 
-Ogni deploy spedisce solo il codice committato (`git archive`) e tagga le immagini in
-uso come `:prev` per tornare indietro. Il database non viene copiato. L'app Svelte si compila sul Pi, dentro Docker, in pochi secondi.
+Ogni deploy spedisce solo il codice committato (`git archive`), fa prima un dump del
+database in `~/gymlog-backups` (ne tiene 10) e tagga le immagini in uso come `:prev`
+per tornare indietro. L'app Svelte si compila sul Pi, dentro Docker, in pochi secondi.
