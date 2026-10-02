@@ -62,38 +62,25 @@ describe.skipIf(SERVER === undefined)("the auth service", () => {
     expect(rows).toEqual([]);
   });
 
-  it("trades a refresh token once for new tokens", async () => {
+  it("renews with the same session, again and again, thirty more days from each renewal", async () => {
     const name = newName();
     const user = await auth().createUser(name, PASSWORD);
     const first = (await auth().login(name, PASSWORD))!;
-    const second = await auth().refresh(first.refresh);
-    expect(second?.user).toEqual(user);
-    expect(second?.refresh).not.toBe(first.refresh);
-    expect(await auth().refresh(first.refresh)).toBeUndefined();
-    expect(await auth().refresh(second!.refresh)).toBeDefined();
+    await handle.db.$client.query("update sessions set expires_at = now() + interval '2 days' where token_hash = $1", [refreshTokenHash(first.refresh)]);
+    const renewed = await auth().refresh(first.refresh);
+    expect(renewed?.user).toEqual(user);
+    // the same ticket: an answer lost on the way costs nothing, the next renewal works the same
+    expect(renewed?.refresh).toBe(first.refresh);
+    expect(await sessionDays(first.refresh)).toBe(30);
+    expect(await auth().refresh(first.refresh)).toBeDefined();
   });
 
-  it("ends every session of a user when an old refresh token comes back later: it was stolen", async () => {
-    const name = newName();
-    await auth().createUser(name, PASSWORD);
-    const strict = createAuthService(handle.db, createTokenManager(new Uint8Array(32).fill(1)), { reuseGraceSeconds: 0 });
-    const phone = (await strict.login(name, PASSWORD))!;
-    const laptop = (await strict.login(name, PASSWORD))!;
-    // the thief renews first with a copied token…
-    const thief = (await strict.refresh(phone.refresh))!;
-    // …and the owner's phone comes back with the same, now old, token: everyone is out, the thief too
-    expect(await strict.refresh(phone.refresh)).toBeUndefined();
-    expect(await strict.refresh(thief.refresh)).toBeUndefined();
-    expect(await strict.refresh(laptop.refresh)).toBeUndefined();
-  });
-
-  it("does not end the sessions for an old token back within moments: two tabs renewing together", async () => {
+  it("does not renew a session past its end", async () => {
     const name = newName();
     await auth().createUser(name, PASSWORD);
     const first = (await auth().login(name, PASSWORD))!;
-    const second = (await auth().refresh(first.refresh))!;
+    await handle.db.$client.query("update sessions set expires_at = now() - interval '1 minute' where token_hash = $1", [refreshTokenHash(first.refresh)]);
     expect(await auth().refresh(first.refresh)).toBeUndefined();
-    expect(await auth().refresh(second.refresh)).toBeDefined();
   });
 
   it("ends the session at logout", async () => {

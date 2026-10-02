@@ -21,24 +21,24 @@ describe.skipIf(SERVER === undefined)("the users repository", () => {
     await expect(repo().create("bruno", "y")).rejects.toMatchObject({ cause: { code: "23505" } });
   });
 
-  it("lets a session be used once", async () => {
+  it("renews a valid session as many times as asked, with the same token", async () => {
     const bea = await repo().create("bea", "x");
     await repo().createSession("token-1", bea.id, 30);
-    expect(await repo().consumeSession("token-1")).toEqual(bea);
-    expect(await repo().consumeSession("token-1")).toBeUndefined();
+    expect(await repo().renewSession("token-1", 30)).toEqual(bea);
+    expect(await repo().renewSession("token-1", 30)).toEqual(bea);
   });
 
-  it("does not let an expired session be used", async () => {
+  it("does not renew an expired session", async () => {
     const carlo = await repo().create("carlo", "x");
     await repo().createSession("token-old", carlo.id, -1);
-    expect(await repo().consumeSession("token-old")).toBeUndefined();
+    expect(await repo().renewSession("token-old", 30)).toBeUndefined();
   });
 
   it("ends a session", async () => {
     const dario = await repo().create("dario", "x");
     await repo().createSession("token-2", dario.id, 30);
     await repo().deleteSession("token-2");
-    expect(await repo().consumeSession("token-2")).toBeUndefined();
+    expect(await repo().renewSession("token-2", 30)).toBeUndefined();
   });
 
   it("clears expired sessions only", async () => {
@@ -62,7 +62,7 @@ describe.skipIf(SERVER === undefined)("the users repository", () => {
     await repo().createSession("token-ivo", ivo.id, 30);
     await repo().createSession("token-gino", gino.id, 30);
     await repo().deleteSessionsOf(ivo.id);
-    expect(await repo().consumeSession("token-ivo")).toBeUndefined();
-    expect(await repo().consumeSession("token-gino")).toEqual(gino);
+    expect(await repo().renewSession("token-ivo", 30)).toBeUndefined();
+    expect(await repo().renewSession("token-gino", 30)).toEqual(gino);
   });
 });

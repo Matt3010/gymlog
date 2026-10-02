@@ -41,7 +41,7 @@ describe.skipIf(SERVER === undefined)("the API", () => {
 
   beforeAll(async () => {
     server = createApiServer({
-      db: handle.db, jwtSecret: SECRET, secureCookie: true, limiter: createLoginLimiter(3),
+      db: handle.db, jwtSecret: SECRET, secureCookie: true, limiter: createLoginLimiter(3), addressLimiter: createLoginLimiter(6),
       logError: (_line, error) => errors.push(error),
       log: (line) => lines.push(line),
     });
@@ -139,19 +139,33 @@ describe.skipIf(SERVER === undefined)("the API", () => {
         .toMatchObject({ status: 429 });
     });
 
+    it("stops an address trying many names, however each one goes: a ceiling for the address alone", async () => {
+      const own = await signedIn();
+      const browser = client(() => base);
+      const headers = { "x-gymlog": "1", "x-real-ip": "203.0.113.30" };
+      for (let i = 0; i < 6; i++) {
+        await browser.call("POST", "/api/auth/login", { username: `nessuno${i}`, password: "wrong password" }, headers);
+        // a success of one's own does not lower it
+        if (i === 2) expect((await browser.call("POST", "/api/auth/login", { username: own.username, password: PASSWORD }, headers)).status).toBe(200);
+      }
+      expect(await browser.call("POST", "/api/auth/login", { username: "altro", password: "wrong password" }, headers))
+        .toMatchObject({ status: 429 });
+      // another address is not stopped
+      expect((await browser.call("POST", "/api/auth/login", { username: own.username, password: PASSWORD }, { "x-gymlog": "1", "x-real-ip": "203.0.113.31" })).status).toBe(200);
+    });
+
     it("writes a username in the log as it is, quoted: a newline in it cannot forge a line", async () => {
       await client(() => base).call("POST", "/api/auth/login", { username: "x\n[gymlog] new account", password: "wrong password" });
       // quoted as JSON: the newline stays a visible \n inside the quotes, on the same line
       expect(lines).toContain(String.raw`[gymlog] failed login for "x\n[gymlog] new account" from 127.0.0.1`);
     });
 
-    it("renews the tokens with the refresh cookie, once", async () => {
+    it("renews the access with the session cookie, as often as needed, keeping the same session", async () => {
       const { call, jar, user } = await signedIn();
-      const oldRefresh = jar.get("gymlog_rt")!.value;
+      const session = jar.get("gymlog_rt")!.value;
       expect(await call("POST", "/api/auth/refresh")).toMatchObject({ status: 200, body: { user } });
-      expect(jar.get("gymlog_rt")!.value).not.toBe(oldRefresh);
-      jar.set("gymlog_rt", { value: oldRefresh, path: "/api/auth" });
-      expect(await call("POST", "/api/auth/refresh")).toMatchObject({ status: 401, body: { error: "Accesso richiesto." } });
+      expect(jar.get("gymlog_rt")!.value).toBe(session);
+      expect(await call("POST", "/api/auth/refresh")).toMatchObject({ status: 200, body: { user } });
     });
 
     it("refuses a renewal without the refresh cookie, and logs out without one", async () => {

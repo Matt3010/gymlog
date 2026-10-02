@@ -5,7 +5,8 @@ Tutto sotto `/api`, JSON. nginx serve il frontend e passa `/api` al backend.
 - **Errori:** `{ "error": "messaggio in italiano" }` con lo status (400 input, 401 non loggato,
   403 vietato, 404 non trovato, 409 conflitto, 429 troppi tentativi).
 - **Auth:** cookie HttpOnly `gymlog_at` (JWT 15 min, Path `/api`) e `gymlog_rt`
-  (refresh 30 giorni, Path `/api/auth`, cambia a ogni uso). Con un 401, il frontend
+  (sessione 30 giorni, Path `/api/auth`: resta la stessa e si allunga di 30 giorni a ogni rinnovo;
+  il logout la chiude, una password nuova le chiude tutte). Con un 401, il frontend
   chiama `POST /api/auth/refresh` una volta e riprova; se fallisce, va al login.
 - **CSRF:** ogni richiesta non-GET deve avere l'header `x-gymlog: 1`.
 - **Date:** stringhe ISO 8601. **Pesi:** kg, numeri con al più 2 decimali.

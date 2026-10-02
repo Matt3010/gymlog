@@ -7,6 +7,8 @@ import { parseLogin, parseRegister } from "../../validators";
 export interface AuthControllerDeps {
   readonly auth: AuthService;
   readonly limiter: LoginLimiter;
+  /** Failed logins of an address whatever the name: a ceiling, never cleared by a success. */
+  readonly addressLimiter: LoginLimiter;
   /** False only for trying the app over plain http on a laptop. */
   readonly secureCookie: boolean;
   /** Whether the login page offers to make an account. */
@@ -15,7 +17,7 @@ export interface AuthControllerDeps {
 }
 
 /** Login, token renewal, logout, who is signed in. */
-export function authController({ auth, limiter, secureCookie, allowSignup, log }: AuthControllerDeps): Route[] {
+export function authController({ auth, limiter, addressLimiter, secureCookie, allowSignup, log }: AuthControllerDeps): Route[] {
   function setTokens(context: Context, tokens: Tokens | undefined): void {
     context.response.setHeader("set-cookie", [
       cookieHeader(ACCESS_COOKIE, "/api", tokens?.access ?? "", tokens === undefined ? 0 : ACCESS_SECONDS, secureCookie),
@@ -28,8 +30,10 @@ export function authController({ auth, limiter, secureCookie, allowSignup, log }
       const { username, password } = parseLogin(await context.body());
       // Blocked per address and name together: guessing from elsewhere never locks the owner out,
       // and a success with an account of one's own does not wipe the count for someone else's.
-      const key = `${addressKey(context.ip)}|${username.toLowerCase()}`;
-      if (limiter.blocked(key)) throw new HttpError(429, "Troppi tentativi. Riprova tra un quarto d'ora.");
+      const address = addressKey(context.ip);
+      const key = `${address}|${username.toLowerCase()}`;
+      // and per address alone, higher: many names tried from one place (and every try costs a hash)
+      if (limiter.blocked(key) || addressLimiter.blocked(address)) throw new HttpError(429, "Troppi tentativi. Riprova tra un quarto d'ora.");
 
       // Counted before checking, so parallel attempts cannot all slip through.
       limiter.fail(key);
@@ -37,6 +41,7 @@ export function authController({ auth, limiter, secureCookie, allowSignup, log }
       if (tokens === undefined) {
         // quoted as JSON: a newline in the name cannot start a line of its own in the log
         log(`[gymlog] failed login for ${JSON.stringify(username.slice(0, 50))} from ${context.ip}`);
+        addressLimiter.fail(address);
         throw new HttpError(401, "Utente o password errati.");
       }
       limiter.succeed(key);

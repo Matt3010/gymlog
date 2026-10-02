@@ -33,12 +33,7 @@ export interface AuthService {
  * database; the refresh token is random, stored hashed and replaced at every
  * use, so logging out really ends a session (at most one access token later).
  */
-/**
- * `reuseGraceSeconds`: an old refresh token back within this is two tabs
- * renewing at once, not a copy; later, it was copied, and the user's
- * sessions all end (the thief's too).
- */
-export function createAuthService(db: Executor, tokens: TokenManager, { reuseGraceSeconds = 30 } = {}): AuthService {
+export function createAuthService(db: Executor, tokens: TokenManager): AuthService {
   const users = createUsersRepository(db);
 
   async function issue(executor: Executor, user: User): Promise<Tokens> {
@@ -67,18 +62,15 @@ export function createAuthService(db: Executor, tokens: TokenManager, { reuseGra
       return tokens.verify(token);
     },
 
-    refresh(token) {
-      // The old session goes and the new one comes together: a failure in between logs nobody out.
-      return db.transaction(async (tx) => {
-        const sessions = createUsersRepository(tx);
-        const hash = refreshTokenHash(token);
-        const user = await sessions.consumeSession(hash);
-        if (user !== undefined) return issue(tx, user);
-        // used already, and not a moment ago: someone else has it; everyone out
-        const stolen = await sessions.reusedAfter(hash, reuseGraceSeconds);
-        if (stolen !== undefined) await sessions.deleteSessionsOf(stolen);
-        return undefined;
-      });
+    /*
+     * A session as on most sites: the same ticket for as long as it is used,
+     * thirty days more at each renewal. An answer lost on the way costs
+     * nothing (the next renewal works the same); logout ends it, a new
+     * password ends them all.
+     */
+    async refresh(token) {
+      const user = await users.renewSession(refreshTokenHash(token), REFRESH_DAYS);
+      return user === undefined ? undefined : { access: await tokens.sign(user), refresh: token, user };
     },
 
     async logout(refreshToken) {

@@ -1,0 +1,1 @@
+ALTER TABLE "sessions" DROP COLUMN "used_at";
