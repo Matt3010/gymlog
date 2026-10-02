@@ -12,8 +12,7 @@ export class ApiError extends Error {
 }
 
 export interface Client {
-  /** `fresh`: solo la risposta del server, mai la copia (per chi deve sapere com'è adesso). */
-  get<T>(path: string, options?: { fresh?: boolean }): Promise<T>;
+  get<T>(path: string): Promise<T>;
   post<T>(path: string, payload?: unknown): Promise<T>;
   put<T>(path: string, payload: unknown): Promise<T>;
   patch<T>(path: string, payload: unknown): Promise<T>;
@@ -21,12 +20,6 @@ export interface Client {
 }
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
-
-/** Dove stanno le copie delle letture, per indirizzo. */
-export interface Copies {
-  read(path: string): unknown;
-  write(path: string, value: unknown): void;
-}
 
 /**
  * Cosa dire quando il server non ha scritto il motivo. «errore 500» e
@@ -58,7 +51,7 @@ const senzaRisposta = (): string =>
  * Le modifiche portano l'header `x-gymlog`: il server rifiuta quelle senza,
  * così un modulo su un altro sito non può scrivere a nome tuo.
  */
-export function createClient({ fetch, onSignedOut, copies }: { fetch: Fetch; onSignedOut: () => void; copies?: Copies }): Client {
+export function createClient({ fetch, onSignedOut }: { fetch: Fetch; onSignedOut: () => void }): Client {
   let renewing: Promise<'renewed' | 'refused' | 'unreachable'> | null = null;
 
   async function send(path: string, method: string, payload?: unknown): Promise<Response> {
@@ -103,7 +96,7 @@ export function createClient({ fetch, onSignedOut, copies }: { fetch: Fetch; onS
     // la porta stessa non si rinnova: una password sbagliata è solo un errore
     if (response.status === 401 && !path.startsWith('/auth/')) {
       const renewal = await renew();
-      // come una richiesta senza risposta: chi aspetta (la coda delle modifiche) riprova dopo
+      // come una richiesta senza risposta: si dice che manca la rete, senza far uscire nessuno
       if (renewal === 'unreachable') throw new ApiError(senzaRisposta());
       if (renewal === 'renewed') response = await send(path, method, payload);
       if (response.status === 401) {
@@ -115,26 +108,8 @@ export function createClient({ fetch, onSignedOut, copies }: { fetch: Fetch; onS
     return (await response.json()) as T;
   }
 
-  /*
-   * In palestra la rete va e viene: ogni lettura che arriva lascia una copia,
-   * e quando la rete manca (nessuna risposta, non un errore del server) si
-   * mostra quella. Le porte (/auth) no: chi è entrato lo dice il server.
-   */
-  async function read<T>(path: string, fresh: boolean): Promise<T> {
-    const keep = copies !== undefined && !path.startsWith('/auth/');
-    try {
-      const value = await request<T>(path, 'GET');
-      if (keep) copies.write(path, value);
-      return value;
-    } catch (error) {
-      const copy = keep && !fresh && error instanceof ApiError && error.status === undefined ? copies.read(path) : undefined;
-      if (copy === undefined) throw error;
-      return copy as T;
-    }
-  }
-
   return {
-    get: (path, options) => read(path, options?.fresh ?? false),
+    get: (path) => request(path, 'GET'),
     post: (path, payload) => request(path, 'POST', payload),
     put: (path, payload) => request(path, 'PUT', payload),
     patch: (path, payload) => request(path, 'PATCH', payload),

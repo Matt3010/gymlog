@@ -2,7 +2,6 @@ import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { current } from '../../lib/current.svelte';
-import { outbox } from '../../lib/sync';
 import { install } from '../../lib/install.svelte';
 import { nav } from '../../lib/nav.svelte';
 import type { Plan, WorkoutDetail, WorkoutSummary } from '../../lib/types';
@@ -118,18 +117,6 @@ describe('home', () => {
     current.set(null);
     await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Allenamento libero' })).toBeEnabled());
     expect(screen.queryByText(/terminalo per iniziarne un altro/)).not.toBeInTheDocument();
-  });
-
-  it('says, before logging out, that the changes still waiting stay on the phone until coming back in', async () => {
-    fakeApi().on('GET /workouts', []).on('GET /plans', []);
-    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    outbox.add({ kind: 'note', workoutId: 7, exerciseId: 1, note: 'a' });
-    outbox.add({ kind: 'note', workoutId: 7, exerciseId: 2, note: 'b' });
-    render(Host, { page: HomePage });
-    await userEvent.setup().click(await screen.findByRole('button', { name: /^Esci/ }));
-    expect(await screen.findByRole('alertdialog', { name: 'Uscire da gymlog?' }))
-      .toHaveTextContent('2 modifiche fatte senza rete non sono ancora partite: restano sul telefono e partono quando rientri.');
-    vi.restoreAllMocks();
   });
 
   it('starts a workout from a day and opens it', async () => {

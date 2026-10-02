@@ -1,6 +1,5 @@
 import { createClient } from './api';
 import { settled } from './autosave.svelte';
-import { copies } from './copies';
 import { Session } from './session.svelte';
 
 /*
@@ -15,7 +14,6 @@ export const api = createClient({
     return fetch(url, init);
   },
   onSignedOut: () => session.signedOut(),
-  copies,
 });
 
-export const session = new Session(api, () => copies.forgetAll());
+export const session = new Session(api);

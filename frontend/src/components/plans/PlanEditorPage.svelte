@@ -77,11 +77,15 @@
 
   /* Con un campo non valido la scheda non si salva: quello cambiato dopo andrebbe perso
      uscendo, e prima di uscire lo si chiede, accanto al motivo. */
-  $effect(() => ui.trattieni(() => {
-    if (!draft || !problem || JSON.stringify(toInput(draft)) === sent) return null;
+  /* eliminata la scheda non c'è più niente da salvare: la domanda si toglie prima di andarsene */
+  let release = () => {};
+  $effect(() => (release = ui.trattieni(() => {
     const anchor = document.querySelector<HTMLElement>('.page [role="alert"]') ?? document.body;
+    // l'ultimo salvataggio non è arrivato (la rete, il server fermo): uscendo andrebbe perso
+    if (saver.status === 'error') return { anchor, detail: 'L’ultima modifica non è arrivata al server: uscendo si perde.' };
+    if (!draft || !problem || JSON.stringify(toInput(draft)) === sent) return null;
     return { anchor, detail: `${problem} Quello che hai cambiato non è ancora salvato.` };
-  }));
+  })));
 
   $effect(() => {
     if (!draft) return;
@@ -132,6 +136,7 @@
     working = true;
     try {
       await plansApi.remove(id);
+      release();
       toast.show('Scheda eliminata. Gli allenamenti fatti restano nello storico.');
       nav.go(PLANS_PATH, { replace: true });
     } catch (failure) {

@@ -35,37 +35,21 @@ const DETAIL: WorkoutDetail = {
 function server(detail: WorkoutDetail = DETAIL) {
   let nextId = 200;
   const names: Record<number, string> = { 1: 'Squat', 2: 'Panca piana', 9: 'Curl' };
-  // like a real server, it keeps what it is sent: the next reading of the workout has it
-  const state: WorkoutDetail = structuredClone(detail);
-  const note = (exerciseId: number) => (call: Call) => {
-    const text = (call.body as { note: string | null }).note;
-    if (text) state.exerciseNotes[exerciseId] = text;
-    else delete state.exerciseNotes[exerciseId];
-    return { exerciseId, note: text };
-  };
   return fakeApi()
-    .on('GET /workouts/7', () => structuredClone(state))
+    .on('GET /workouts/7', detail)
     .on('POST /workouts/7/sets', (call: Call) => {
       const body = call.body as { exerciseId: number; reps: number; weightKg: number };
-      const added = set(nextId++, body.exerciseId, names[body.exerciseId]!, body.reps, body.weightKg);
-      state.sets.push(added);
-      return added;
+      return set(nextId++, body.exerciseId, names[body.exerciseId]!, body.reps, body.weightKg);
     })
-    .on('PATCH /sets/100', (call: Call) => {
-      state.sets = state.sets.map((one) => (one.id === 100 ? { ...one, ...(call.body as object) } : one));
-      return state.sets.find((one) => one.id === 100);
-    })
-    .on('DELETE /sets/100', () => {
-      state.sets = state.sets.filter((one) => one.id !== 100);
-      return { ok: true };
-    })
-    .on('PUT /workouts/7/exercises/1/note', note(1))
-    .on('PUT /workouts/7/exercises/2/note', note(2))
+    .on('PATCH /sets/100', (call: Call) => ({ ...detail.sets[0], ...(call.body as object) }))
+    .on('DELETE /sets/100', { ok: true })
     .on('PATCH /workouts/7', (call: Call) => {
       const body = call.body as { notes?: string | null; finished?: boolean };
-      if ('notes' in body) state.notes = body.notes ?? null;
-      if ('finished' in body) state.finishedAt = body.finished ? '2026-10-01T18:10:00.000Z' : null;
-      return structuredClone(state);
+      return {
+        ...detail,
+        ...('notes' in body ? { notes: body.notes } : {}),
+        ...('finished' in body ? { finishedAt: body.finished ? '2026-10-01T18:10:00.000Z' : null } : {}),
+      };
     });
 }
 
@@ -111,7 +95,7 @@ describe('a workout in progress', () => {
     expect(kg()).toHaveValue('62,5');
     expect(reps()).toHaveValue('7');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 7, weightKg: 62.5, key: expect.any(String) } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 7, weightKg: 62.5 } }]);
     expect(await screen.findByRole('button', { name: 'Segna la serie 3' })).toBeInTheDocument();
     expect(doneSets()).toEqual(['8 × 60 kg', '7 × 62,5 kg']);
     expect(screen.getByRole('button', { name: /^Squat/ })).toHaveTextContent('2/3');
@@ -211,7 +195,7 @@ describe('a workout in progress', () => {
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     const user = userEvent.setup();
     const bar = await screen.findByRole('region', { name: 'In corso' });
-    await vi.waitFor(() => expect(bar).toHaveTextContent(/Forza · A\s*1 serie/));
+    expect(bar).toHaveTextContent(/Forza · A\s*1 serie/);
     // on its own page it is not a link to itself
     expect(screen.queryByRole('link', { name: /^In corso/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
@@ -226,6 +210,7 @@ describe('a workout in progress', () => {
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     const user = userEvent.setup();
     await user.dblClick(await screen.findByRole('button', { name: 'Segna la serie 2' }));
+    await screen.findByRole('button', { name: 'Segna la serie 3' });
     expect(api.changes().filter((change) => change.route === 'POST /workouts/7/sets')).toHaveLength(1);
     expect(doneSets()).toEqual(['8 × 60 kg', '8 × 60 kg']);
   });
@@ -247,7 +232,7 @@ describe('a workout in progress', () => {
     await user.clear(kg());
     await user.type(kg(), '61,25');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 61.25, key: expect.any(String) } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 61.25 } }]);
   });
 
   it('takes a weight typed a key at a time with the comma, saying nothing on the way', async () => {
@@ -262,7 +247,7 @@ describe('a workout in progress', () => {
     }
     expect(kg()).toHaveValue('22,5');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 22.5, key: expect.any(String) } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 22.5 } }]);
   });
 
   it('takes a weight ending in a separator as the whole number', async () => {
@@ -273,7 +258,7 @@ describe('a workout in progress', () => {
     await user.clear(kg());
     await user.type(kg(), '22,');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 22, key: expect.any(String) } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 22 } }]);
   });
 
   it('puts reps and weight on two rows, each with big buttons', async () => {
@@ -367,7 +352,7 @@ describe('a workout in progress', () => {
     await user.type(kg(), '12');
     await user.type(reps(), '12');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 1' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 9, reps: 12, weightKg: 12, key: expect.any(String) } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 9, reps: 12, weightKg: 12 } }]);
     expect(await screen.findByRole('button', { name: /^Curl/ })).toHaveTextContent('1 serie');
   });
 
@@ -605,16 +590,16 @@ describe('a note on an exercise', () => {
     expect(api.changes()).toEqual([{ route: 'PUT /workouts/7/exercises/1/note', body: { note: null } }]);
   });
 
-  it('refused by the server keeps the text and says why', async () => {
+  it('refused keeps the text and says why', async () => {
     server().on('PUT /workouts/7/exercises/1/note', { status: 400, body: { error: 'Testo della nota: troppo lungo.' } });
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     const user = userEvent.setup();
     await screen.findByText('«ginocchio un po’ dentro»');
     await user.type(note('Squat'), ' e poi');
     await user.tab();
-    // saved on the phone at once; the server's refusal comes back later, as a message, and the text stays
-    await vi.waitFor(() => expect(toast.message).toBe('Una modifica non è stata salvata: Testo della nota: troppo lungo.'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Testo della nota: troppo lungo.');
     expect(note('Squat')).toHaveValue('scendere più lento e poi');
+    expect(screen.queryByText('Salvata')).not.toBeInTheDocument();
   });
 
   it('of last time is not shown when there was none', async () => {

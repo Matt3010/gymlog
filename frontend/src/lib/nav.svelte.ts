@@ -30,9 +30,16 @@ class Nav {
       history.replaceState({}, '', buono);
       this.path = buono;
     }
+    // anche il tasto indietro (e la strisciata indietro dell'iPhone) passa da chi deve dire la sua:
+    // se trattiene, l'indirizzo torna dov'era; se poi dice di andare, si va
     window.addEventListener('popstate', () => {
+      const dove = window.location.pathname;
+      if (this.#prima?.(() => this.go(dove))) {
+        history.pushState({}, '', this.path);
+        return;
+      }
       toast.hide();
-      this.path = window.location.pathname;
+      this.path = dove;
     });
     document.addEventListener('click', (event) => this.#maybe(event));
   }

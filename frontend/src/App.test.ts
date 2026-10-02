@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App.svelte';
 import { nav } from './lib/nav.svelte';
-import { outbox } from './lib/sync';
 import { ui } from './lib/ui.svelte';
 import { fakeApi } from './test/fake-api';
 import Probe from './test/Probe.svelte';
@@ -99,19 +98,8 @@ describe('the network', () => {
   it('missing is said on every page, until it is back', async () => {
     await signedIn();
     window.dispatchEvent(new Event('offline'));
-    expect(await screen.findByRole('status')).toHaveTextContent('Il telefono è senza rete. Quello che segni resta sul telefono e parte quando torna.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Il telefono è senza rete. Quello che segni adesso non arriva.');
     window.dispatchEvent(new Event('online'));
     await vi.waitFor(() => expect(screen.queryByText(/senza rete/)).not.toBeInTheDocument());
-  });
-
-  it('missing, says how many changes wait to leave', async () => {
-    await signedIn();
-    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    window.dispatchEvent(new Event('offline'));
-    outbox.add({ kind: 'note', workoutId: 7, exerciseId: 1, note: 'a' });
-    expect(await screen.findByRole('status')).toHaveTextContent(/1 modifica in attesa\.$/);
-    outbox.add({ kind: 'note', workoutId: 7, exerciseId: 2, note: 'b' });
-    await vi.waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/2 modifiche in attesa\.$/));
-    vi.restoreAllMocks();
   });
 });

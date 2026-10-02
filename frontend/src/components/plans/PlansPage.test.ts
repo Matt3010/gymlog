@@ -224,6 +224,33 @@ describe('leaving a plan with something not valid', () => {
     expect(nav.path).toBe('/schede');
   });
 
+  it('asks first when the last change did not reach the server', async () => {
+    fakeApi().on('GET /plans/9', NUOVA).on('GET /exercises', []).on('PUT /plans/9', { status: 503 });
+    nav.go('/schede/9');
+    render(Host, { page: PlanEditorPage, params: { id: 9 } });
+    const user = userEvent.setup();
+    const name = await screen.findByPlaceholderText('Forza, autunno');
+    await user.type(name, ' 2');
+    await vi.waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument(), { timeout: 3000 });
+    nav.go('/schede');
+    const question = within(await screen.findByRole('alertdialog', { name: 'Uscire senza salvare?' }));
+    expect(question.getByText(/non è arrivata/)).toBeInTheDocument();
+    await user.click(question.getByRole('button', { name: 'Resta' }));
+    expect(nav.path).toBe('/schede/9');
+  });
+
+  it('does not ask once the plan has been deleted: there is nothing left to save', async () => {
+    fakeApi().on('GET /plans/9', NUOVA).on('GET /exercises', []).on('DELETE /plans/9', { ok: true });
+    nav.go('/schede/9');
+    render(Host, { page: PlanEditorPage, params: { id: 9 } });
+    const user = userEvent.setup();
+    await user.clear(await screen.findByPlaceholderText('Forza, autunno'));
+    await user.click(screen.getByRole('button', { name: /^Elimina la scheda/ }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Elimina' }));
+    await vi.waitFor(() => expect(nav.path).toBe('/schede'));
+    expect(screen.queryByRole('alertdialog', { name: 'Uscire senza salvare?' })).not.toBeInTheDocument();
+  });
+
   it('lets go without asking when everything is saved', async () => {
     fakeApi().on('GET /plans/9', NUOVA).on('GET /exercises', []);
     nav.go('/schede/9');

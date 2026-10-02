@@ -22,12 +22,8 @@ export const plansApi = {
 
 export const workoutsApi = {
   list: (limit: number, offset = 0) => api.get<WorkoutSummary[]>(`/workouts?limit=${limit}&offset=${offset}`),
-  /** Gli ultimi, come sono adesso sul server: mai la copia del telefono. */
-  latest: (limit: number) => api.get<WorkoutSummary[]>(`/workouts?limit=${limit}&offset=0`, { fresh: true }),
   start: (planDayId: number | null) => api.post<WorkoutDetail>('/workouts', { planDayId }),
   get: (id: number) => api.get<WorkoutDetail>(`/workouts/${id}`),
-  /** Com'è adesso sul server, mai la copia del telefono: senza risposta è un errore. */
-  fresh: (id: number) => api.get<WorkoutDetail>(`/workouts/${id}`, { fresh: true }),
   update: (id: number, change: { notes?: string | null; finished?: boolean }) => api.patch<WorkoutDetail>(`/workouts/${id}`, change),
   remove: (id: number) => api.delete<{ ok: true }>(`/workouts/${id}`),
   addSet: (workoutId: number, set: { exerciseId: number; reps: number; weightKg: number }) =>

@@ -110,6 +110,24 @@ describe('a guard over leaving', () => {
     expect(nav.path).toBe('/');
   });
 
+  it('holds the back button too (and the swipe back on an iPhone): the address stays, and goes on when it says so', () => {
+    nav.go('/schede/9');
+    let go = () => undefined as void;
+    nav.custodisci((vai) => {
+      go = vai;
+      return true;
+    });
+    // the browser has already moved the address back
+    history.replaceState({}, '', '/schede');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    expect(nav.path).toBe('/schede/9');
+    expect(window.location.pathname).toBe('/schede/9');
+    nav.custodisci(() => false);
+    go();
+    expect(nav.path).toBe('/schede');
+    expect(window.location.pathname).toBe('/schede');
+  });
+
   it('goes on when it says so', () => {
     let go = () => undefined as void;
     nav.custodisci((vai) => {

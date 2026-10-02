@@ -1,11 +1,6 @@
 import { session } from './client';
-import { copies } from './copies';
 import { workoutsApi } from './endpoints';
-import { outbox } from './sync';
 import { inProgress } from './workout';
-
-/** Dove sta, fra le copie del telefono. */
-const KEPT = 'in-corso';
 
 /** L'allenamento in corso, come lo mostra la barra sopra le sezioni. */
 export interface OpenWorkout {
@@ -21,8 +16,7 @@ export interface OpenWorkout {
  * aggiornato lei, serie per serie, così la barra non aspetta.
  */
 class Current {
-  /* sul telefono anche lui, fra le copie: senza rete, riaprendo l'app, la barra c'è ancora */
-  workout = $state<OpenWorkout | null>((copies.read(KEPT) as OpenWorkout | null | undefined) ?? null);
+  workout = $state<OpenWorkout | null>(null);
 
   /* quante volte la pagina dell'allenamento l'ha cambiato: una risposta del
      server partita prima di una serie segnata non la cancella */
@@ -31,27 +25,20 @@ class Current {
   /** Dalla pagina dell'allenamento: quello che sa lei è il più fresco. */
   set(workout: OpenWorkout | null): void {
     this.#changes += 1;
-    this.#keep(workout);
-  }
-
-  #keep(workout: OpenWorkout | null): void {
     this.workout = workout;
-    copies.write(KEPT, workout);
   }
 
   async refresh(): Promise<void> {
     const asked = this.#changes;
-    // prima parte quello che aspetta: un allenamento appena eliminato o terminato non torna indietro
-    await outbox.flush();
     try {
-      const open = inProgress(await workoutsApi.latest(6));
+      const open = inProgress(await workoutsApi.list(6));
       if (asked !== this.#changes) return;
-      this.#keep(open === undefined ? null : {
+      this.workout = open === undefined ? null : {
         id: open.id,
         title: open.dayName ? `${open.planName} · ${open.dayName}` : 'Allenamento libero',
         startedAt: open.startedAt,
         sets: open.sets,
-      });
+      };
     } catch {
       // senza rete resta quello che si sapeva
     }
