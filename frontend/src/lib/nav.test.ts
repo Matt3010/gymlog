@@ -197,6 +197,7 @@ describe('problems Stryker found unchecked', () => {
     nav.custodisci(() => false);
     go();
     expect(nav.path).toBe('/storico');
+    expect(window.location.pathname).toBe('/storico');
     expect(history.length).toBe(before);
   });
 

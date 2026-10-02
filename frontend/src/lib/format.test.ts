@@ -37,6 +37,11 @@ describe('a weight', () => {
 });
 
 describe('a big number', () => {
+  it('keeps two decimals at most, rounded', () => {
+    expect(formatKg(62.125)).toBe('62,13 kg');
+    expect(formatNumber(116.666)).toBe('116,67');
+  });
+
   it('groups thousands with a dot', () => {
     expect(formatNumber(12500)).toBe('12.500');
     expect(formatNumber(512.5)).toBe('512,5');

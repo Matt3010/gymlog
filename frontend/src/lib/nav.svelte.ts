@@ -68,9 +68,7 @@ class Nav {
     if (this.#prima?.(() => this.go(path, { replace, user }))) return;
     if (user) toast.hide();
     // Stryker disable next-line StringLiteral: the second argument is a title browsers ignore
-    if (replace) history.replaceState({}, '', dove);
-    // Stryker disable next-line StringLiteral: as above
-    else history.pushState({}, '', dove);
+    history[replace ? 'replaceState' : 'pushState']({}, '', dove);
     this.path = dove;
     // una pagina nuova si legge dall'alto, non da dove stava l'altra
     window.scrollTo({ top: 0 });

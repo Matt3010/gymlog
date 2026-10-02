@@ -47,8 +47,7 @@ export function formatDay(iso: string, now = new Date()): string {
   if (days === 0) return 'Oggi';
   if (days === 1) return 'Ieri';
   const year = date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' as const };
-  // qualche browser mette la virgola dopo il giorno della settimana («lun, 28 set»): una sola
-  return new Intl.DateTimeFormat('it-IT', { weekday: 'short', day: 'numeric', month: 'short', ...year }).format(date).replace(',', '');
+  return new Intl.DateTimeFormat('it-IT', { weekday: 'short', day: 'numeric', month: 'short', ...year }).format(date);
 }
 
 export const formatClock = (iso: string): string =>
