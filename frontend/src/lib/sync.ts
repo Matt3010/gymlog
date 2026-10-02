@@ -4,12 +4,13 @@ import { toast } from './toast.svelte';
 
 /*
  * La coda delle modifiche dell'app, una sola (lib/outbox). Quello che il
- * server rifiuta si dice con un messaggio; uscendo, la coda di chi esce se
- * ne va con lui.
+ * server rifiuta si dice con un messaggio. La coda è di chi è entrato:
+ * resta anche uscendo, e parte quando rientra lui.
  */
 export const outbox = new Outbox((message) => toast.show(message));
 
-session.whenLeaving(() => outbox.forget());
+// la coda è di chi è entrato: resta sul telefono anche uscendo, e se entra un altro si butta
+session.whenEntering((user) => outbox.claim(user.id));
 
 /**
  * La coda parte da sé: subito, quando la rete torna, e ogni mezzo minuto
@@ -19,7 +20,8 @@ session.whenLeaving(() => outbox.forget());
 export function startSync(): () => void {
   const flush = () => void outbox.flush();
   window.addEventListener('online', flush);
-  const ticker = setInterval(() => outbox.pending > 0 && flush(), 30_000);
+  // il telefono può dire «senza rete» sbagliando: il controllo periodico prova lo stesso
+  const ticker = setInterval(() => outbox.pending > 0 && void outbox.flush({ evenOffline: true }), 30_000);
   flush();
   return () => {
     window.removeEventListener('online', flush);

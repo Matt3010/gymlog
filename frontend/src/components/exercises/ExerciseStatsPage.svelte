@@ -41,6 +41,8 @@
     statsApi.exercise(id).then((result) => (stats = result), (failure: Error) => (error = failure.message));
   });
 
+  const bodyweight = $derived(stats !== null && stats.sessions.every((session) => session.maxWeight === 0));
+
   /** Il ritorno in cima alla pagina: un oggetto qui e non nel markup, che Stryker non sa leggere. */
   const back = { href: EXERCISES_PATH, label: 'Esercizi' };
 </script>
@@ -77,7 +79,12 @@
 
       <PageCard>
         <span class="eyebrow">Sessione per sessione</span>
-        <Table inRiga columns={COLUMNS} rows={stats.sessions.map((session, index) => ({ ...session, id: String(session.workoutId), before: stats!.sessions[index + 1]?.bestE1rm }))} label="Le sessioni di {stats.exercise.name}">
+        <!-- senza peso (trazioni) il massimale è sempre zero: la freccia guarda le ripetizioni -->
+        {@const measure = (one: { reps: number; bestE1rm: number }) => (bodyweight ? one.reps : one.bestE1rm)}
+        <Table inRiga columns={COLUMNS} rows={stats.sessions.map((session, index) => {
+          const before = stats!.sessions[index + 1];
+          return { ...session, id: String(session.workoutId), now: measure(session), before: before && measure(before) };
+        })} label="Le sessioni di {stats.exercise.name}">
           {#snippet row(session)}
             <td><a href={workoutPath(session.workoutId)}>{formatDay(session.startedAt)}</a></td>
             <!-- i numeri a destra, come le loro intestazioni: uno più corto finisce lo stesso sotto di lei -->
@@ -88,7 +95,7 @@
             <td class="end">{formatNumber(session.maxWeight)}</td>
             <td class="end">{formatNumber(session.bestE1rm)}</td>
             <!-- la freccia dice se il massimale stimato è salito dalla sessione prima -->
-            <td class="trend-cell"><Trend trend={trendOf(session.bestE1rm, session.before)} against="before" /></td>
+            <td class="trend-cell"><Trend trend={trendOf(session.now, session.before)} against="before" /></td>
           {/snippet}
         </Table>
         <p class="unit">Pesi e volume in kg.</p>

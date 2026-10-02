@@ -1,3 +1,4 @@
+import { session } from './client';
 import { copies } from './copies';
 import { workoutsApi } from './endpoints';
 import { outbox } from './sync';
@@ -58,3 +59,6 @@ class Current {
 }
 
 export const current = new Current();
+
+// uscendo, la barra di chi esce non resta a chi entra dopo sullo stesso telefono
+session.whenLeaving(() => current.set(null));

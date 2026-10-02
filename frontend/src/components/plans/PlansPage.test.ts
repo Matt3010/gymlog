@@ -206,6 +206,34 @@ describe('a plan being written', () => {
   });
 });
 
+describe('leaving a plan with something not valid', () => {
+  it('asks first: what changed after it is not saved yet', async () => {
+    fakeApi().on('GET /plans/9', NUOVA).on('GET /exercises', []).on('PUT /plans/9', (call: Call) => ({ ...NUOVA, ...(call.body as object) }));
+    nav.go('/schede/9');
+    render(Host, { page: PlanEditorPage, params: { id: 9 } });
+    const user = userEvent.setup();
+    const name = await screen.findByPlaceholderText('Forza, autunno');
+    await user.clear(name);
+    nav.go('/schede');
+    const question = within(await screen.findByRole('alertdialog', { name: 'Uscire senza salvare?' }));
+    expect(question.getByText(/La scheda ha bisogno di un nome\./)).toBeInTheDocument();
+    await user.click(question.getByRole('button', { name: 'Resta' }));
+    expect(nav.path).toBe('/schede/9');
+    nav.go('/schede');
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Esci' }));
+    expect(nav.path).toBe('/schede');
+  });
+
+  it('lets go without asking when everything is saved', async () => {
+    fakeApi().on('GET /plans/9', NUOVA).on('GET /exercises', []);
+    nav.go('/schede/9');
+    render(Host, { page: PlanEditorPage, params: { id: 9 } });
+    await screen.findByPlaceholderText('Forza, autunno');
+    nav.go('/schede');
+    expect(nav.path).toBe('/schede');
+  });
+});
+
 describe('a day added to a saved plan', () => {
   it('is sent without an id once, then with the id the server gave it', async () => {
     const api = fakeApi()

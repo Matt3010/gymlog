@@ -233,6 +233,42 @@ class Ui {
    * davanti e torna `true`: `poi` parte solo con un «Butta», e le finestre
    * di cui si è risposto non la rifanno.
    */
+  /*
+   * Una pagina che non può salvare quello che hai cambiato (un campo non
+   * valido) lo dice qui: andandosene, prima si chiede. Uno solo alla volta,
+   * quello della pagina aperta.
+   */
+  #pagina: (() => { anchor: HTMLElement; detail: string } | null) | null = null;
+
+  /** La pagina dice cosa andrebbe perso uscendo, e dove chiederlo; restituisce come smettere. */
+  trattieni(check: () => { anchor: HTMLElement; detail: string } | null): () => void {
+    this.#pagina = check;
+    return () => {
+      if (this.#pagina === check) this.#pagina = null;
+    };
+  }
+
+  /** Prima di cambiare pagina: le finestre con del lavoro non salvato, poi la pagina stessa. */
+  primaDiAndare(vai: () => void): boolean {
+    return this.chiediPrima(this.modals, vai) || this.#chiediPagina(vai);
+  }
+
+  #chiediPagina(vai: () => void): boolean {
+    const question = this.#pagina?.();
+    if (!question) return false;
+    this.askSure(question.anchor, {
+      title: 'Uscire senza salvare?',
+      detail: question.detail,
+      verb: 'Esci',
+      no: 'Resta',
+      onYes: () => {
+        this.#pagina = null;
+        vai();
+      },
+    });
+    return true;
+  }
+
   chiediPrima(quali: ModalRequest[], poi: () => void): boolean {
     const sporche = quali.filter((one) => this.#sporca(one));
     if (!sporche.length) return false;

@@ -60,16 +60,29 @@ describe('a saved plan coming back', () => {
     const draft = draftOf(plan);
     addDay(draft);
     const sent = [...draft.days];
+    const input = toInput(draft);
     // meanwhile a day is added at the end, not sent yet
     addDay(draft);
-    learnDayIds(sent, { ...plan, days: [...plan.days, { id: 12, name: 'C', position: 2, exercises: [] }] });
+    learnDayIds(sent, input, { ...plan, days: [...plan.days, { id: 12, name: 'C', position: 2, exercises: [] }] });
     expect(draft.days.map((day) => day.id)).toEqual([10, 11, 12, undefined]);
   });
 
   it('leaves alone a day that already has its id', () => {
     const draft = draftOf(plan);
-    learnDayIds([...draft.days], { ...plan, days: [{ ...plan.days[0]!, id: 99 }, plan.days[1]!] });
+    learnDayIds([...draft.days], toInput(draft), { ...plan, days: [{ ...plan.days[0]!, id: 99 }, plan.days[1]!] });
     expect(draft.days.map((day) => day.id)).toEqual([10, 11]);
+  });
+
+  it('takes the id the server gave to a day sent without one, even if it had learned another meanwhile', () => {
+    const draft = draftOf(plan);
+    addDay(draft);
+    // a save went out before the new day's id was known…
+    const input = toInput(draft);
+    const sent = [...draft.days];
+    // …while an earlier answer had already given it 12: the server deleted that and made it 13
+    draft.days[2]!.id = 12;
+    learnDayIds(sent, input, { ...plan, days: [...plan.days, { id: 13, name: 'C', position: 2, exercises: [] }] });
+    expect(draft.days.map((day) => day.id)).toEqual([10, 11, 13]);
   });
 });
 

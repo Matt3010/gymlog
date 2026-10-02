@@ -41,4 +41,12 @@ describe('without network, the session', () => {
     await broken.check();
     expect(broken.status).toBe('unreachable');
   });
+
+  it('tells who came in to whoever needs to know (the queue of changes is theirs)', async () => {
+    const session = new Session(client(() => Promise.resolve({ user: ANNA })));
+    const entered = vi.fn();
+    session.whenEntering(entered);
+    await session.check();
+    expect(entered).toHaveBeenCalledWith(ANNA);
+  });
 });

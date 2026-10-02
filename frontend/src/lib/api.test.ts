@@ -143,6 +143,21 @@ describe('an expired login', () => {
     expect(calls).toHaveLength(2);
   });
 
+  it('does not sign out when the renewal gets no answer, or the server is down: it is the network, try later', async () => {
+    for (const renewal of [new TypeError('Failed to fetch'), json(502, {}), json(500, {})]) {
+      const { fetch } = server({
+        '/api/workouts': [json(401, { error: 'Accesso richiesto.' })],
+        '/api/auth/refresh': [renewal],
+      });
+      const onSignedOut = vi.fn();
+      const failure = await createClient({ fetch, onSignedOut }).get('/workouts').catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(ApiError);
+      // like no answer at all: whoever waits (the queue of changes) tries again later
+      expect((failure as ApiError).status).toBeUndefined();
+      expect(onSignedOut).not.toHaveBeenCalled();
+    }
+  });
+
   it('signs out when the request is refused again after the renewal', async () => {
     const { fetch } = server({
       '/api/workouts': [json(401, {}), json(401, { error: 'Accesso richiesto.' })],

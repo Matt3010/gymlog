@@ -110,6 +110,10 @@
     error = '';
   }
 
+  /* segnata una serie, il tasto si spegne un momento: il secondo tocco di un doppio tocco cade
+     su un tasto spento, e due serie in mezzo secondo non si fanno */
+  let resting = $state(false);
+
   function addSet(block: Block): void {
     const typed = readSet(reps, kg);
     if ('error' in typed) {
@@ -117,6 +121,8 @@
       return;
     }
     error = '';
+    resting = true;
+    setTimeout(() => (resting = false), 600);
     outbox.add({
       kind: 'addSet', workoutId: id, setId: outbox.tempId(), exerciseName: block.name,
       body: { exerciseId: block.exerciseId, ...typed, key: outbox.newKey() },
@@ -292,7 +298,7 @@
                 <Stepper label="Peso" unit="kg" step={2.5} decimals bind:value={kg} />
               </div>
               {#if error}<Alert message={error} />{/if}
-              <Button look="primary" extra="log" onclick={() => addSet(block)}>
+              <Button look="primary" extra="log" disabled={resting} onclick={() => addSet(block)}>
                 <Icon name="check" /> Segna la serie {block.sets.length + 1}
               </Button>
             </div>

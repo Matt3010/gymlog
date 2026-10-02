@@ -36,9 +36,17 @@ interface Kept {
   ids: Record<string, number>;
   /** Il prossimo numero provvisorio. */
   next: number;
+  /** Di chi è la coda: un altro che entra sullo stesso telefono non la manda a nome suo. */
+  owner?: number;
 }
 
 const KEY = 'gymlog.outbox';
+
+/** Il server fermo un momento (il proxy che non lo trova, un riavvio): si riprova, non si butta. */
+const TRANSIENT = new Set([502, 503, 504]);
+
+/** Quanti numeri provvisori già arrivati si ricordano. */
+const KEEP_IDS = 100;
 
 type Synced = (workoutId: number, fresh: WorkoutDetail) => void;
 
@@ -47,6 +55,7 @@ export class Outbox {
   sent = $state<Op[]>([]);
   #ids: Record<string, number>;
   #next: number;
+  #owner: number | undefined;
   #onRejected: (message: string) => void;
   #listeners = new Set<Synced>();
   #running: Promise<void> | null = null;
@@ -61,7 +70,19 @@ export class Outbox {
     this.sent = kept.sent ?? [];
     this.#ids = kept.ids;
     this.#next = kept.next;
+    this.#owner = kept.owner;
     this.#onRejected = onRejected;
+  }
+
+  /**
+   * Chi è entrato. La coda resta sul telefono anche uscendo, e parte quando
+   * rientra la stessa persona; se entra qualcun altro, quella di prima si butta.
+   */
+  claim(owner: number): void {
+    if (this.#owner !== undefined && this.#owner !== owner) this.forget();
+    this.#owner = owner;
+    this.#keep();
+    void this.flush();
   }
 
   /** Quante modifiche aspettano di partire. */
@@ -102,6 +123,9 @@ export class Outbox {
     const sameSet = (setId: number) => (one: Op) => (one.kind === 'updateSet' || one.kind === 'deleteSet' || one.kind === 'addSet') && one.setId === setId;
 
     if (op.kind === 'updateSet') {
+      // una serie già tolta (in coda o partita) non si corregge più: sarebbe un errore falso
+      const taken = (one: Op) => one.kind === 'deleteSet' && one.setId === op.setId;
+      if (ops.some(taken) || this.sent.some(taken)) return;
       const added = findIndex((one) => one.kind === 'addSet' && one.setId === op.setId);
       if (added >= 0) {
         const pending = ops[added] as Extract<Op, { kind: 'addSet' }>;
@@ -140,10 +164,19 @@ export class Outbox {
     return () => this.#listeners.delete(listener);
   }
 
-  /** Manda la coda; una sola alla volta, chi chiama mentre va aspetta quella. */
-  flush(): Promise<void> {
-    this.#running ??= this.#drain().finally(() => (this.#running = null));
-    return this.#running;
+  /**
+   * Manda la coda; una sola alla volta, chi chiama mentre va aspetta quella.
+   * `evenOffline`: prova anche se il telefono dice che la rete non c'è, che
+   * a volte si sbaglia (il controllo di ogni mezzo minuto).
+   */
+  flush({ evenOffline = false } = {}): Promise<void> {
+    if (this.#running) return this.#running;
+    const running: Promise<void> = this.#drain(evenOffline).finally(() => {
+      // solo se è ancora lei: dopo un `forget` ne può essere partita un'altra
+      if (this.#running === running) this.#running = null;
+    });
+    this.#running = running;
+    return running;
   }
 
   /** Uscendo, la coda di chi esce se ne va con lui. */
@@ -157,9 +190,9 @@ export class Outbox {
     this.#keep();
   }
 
-  async #drain(): Promise<void> {
+  async #drain(evenOffline: boolean): Promise<void> {
     // il telefono dice che la rete non c'è: non si prova nemmeno, si aspetta che torni
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    if (!evenOffline && typeof navigator !== 'undefined' && navigator.onLine === false) return;
     const era = this.#era;
     const touched = new Set<number>();
     const gone = new Set<number>();
@@ -174,8 +207,9 @@ export class Outbox {
         this.sent = [...this.sent, op];
       } catch (error) {
         if (era !== this.#era) return;
-        // senza risposta: la rete manca, si riprova dopo, nello stesso ordine
-        if (error instanceof ApiError && error.status === undefined) break;
+        // senza risposta (la rete manca) o il server fermo un momento (502-504, un riavvio):
+        // si riprova dopo, nello stesso ordine, senza perdere niente
+        if (error instanceof ApiError && (error.status === undefined || TRANSIENT.has(error.status))) break;
         this.#onRejected(`Una modifica non è stata salvata: ${(error as Error).message}`);
       } finally {
         if (era === this.#era) this.#inFlight = false;
@@ -188,16 +222,34 @@ export class Outbox {
     for (const workoutId of touched) {
       if (gone.has(workoutId)) continue;
       try {
-        const fresh = await workoutsApi.get(workoutId);
+        // la copia del server com'è adesso: quella vecchia del telefono non conterrebbe quello appena partito
+        const fresh = await workoutsApi.fresh(workoutId);
         if (era !== this.#era) return;
         // la copia nuova le contiene: non servono più sopra
         this.sent = this.sent.filter((op) => op.workoutId !== workoutId);
+        this.#forgetIds();
         this.#keep();
         for (const listener of this.#listeners) listener(workoutId, fresh);
-      } catch {
-        /* la copia resta quella che era: la prossima lettura la rifà */
+      } catch (error) {
+        if (era !== this.#era) return;
+        // il server quell'allenamento non ce l'ha più (tolto altrove): niente da tenere sopra
+        if (error instanceof ApiError && error.status === 404) {
+          this.sent = this.sent.filter((op) => op.workoutId !== workoutId);
+          this.#keep();
+        }
+        /* senza risposta la copia resta quella che era: la prossima lettura la rifà */
       }
     }
+  }
+
+  /**
+   * Solo gli ultimi numeri provvisori: una finestra aperta poco fa può ancora
+   * nominarne uno, ma tenerli tutti, serie dopo serie per mesi, riempirebbe
+   * il telefono. I provvisori vanno all'indietro: i più recenti sono i più bassi.
+   */
+  #forgetIds(): void {
+    const temps = Object.keys(this.#ids).map(Number).sort((a, b) => a - b);
+    for (const old of temps.slice(KEEP_IDS)) delete this.#ids[old];
   }
 
   async #send(op: Op): Promise<void> {
@@ -229,7 +281,7 @@ export class Outbox {
   }
 
   #keep(): void {
-    writeJSON(KEY, { ops: $state.snapshot(this.ops), sent: $state.snapshot(this.sent), ids: this.#ids, next: this.#next } satisfies Kept);
+    writeJSON(KEY, { ops: $state.snapshot(this.ops), sent: $state.snapshot(this.sent), ids: this.#ids, next: this.#next, owner: this.#owner } satisfies Kept);
   }
 }
 

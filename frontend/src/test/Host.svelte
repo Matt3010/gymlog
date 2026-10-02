@@ -5,6 +5,7 @@
   import SurePopover from '../components/SurePopover.svelte';
   import Toast from '../components/Toast.svelte';
   import NowBar from '../components/workouts/NowBar.svelte';
+  import { nav } from '../lib/nav.svelte';
   import { ui } from '../lib/ui.svelte';
 
   /**
@@ -14,6 +15,9 @@
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let { page: Page, params = {} }: { page: Component<any>; params?: Record<string, unknown> } = $props();
+
+  // leaving a page asks first, as in App.svelte
+  nav.custodisci((vai) => ui.primaDiAndare(vai));
 
   function onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') ui.escape();

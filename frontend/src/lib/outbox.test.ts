@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeApi } from '../test/fake-api';
+import { copies } from './copies';
 import { applyPending, Outbox, type Op } from './outbox.svelte';
 import type { WorkoutDetail, WorkoutSet } from './types';
 
@@ -253,5 +254,128 @@ describe('a workout as it is on the phone', () => {
     expect(shown.sets).toEqual([]);
     expect(shown.exerciseNotes).toEqual({});
     expect(shown.finishedAt).toBeNull();
+  });
+});
+
+describe('problems found reviewing', () => {
+  const added = (box: Outbox, reps = 8): Extract<Op, { kind: 'addSet' }> => ({ kind: 'addSet', workoutId: 7, setId: box.tempId(), exerciseName: 'Squat', body: { exerciseId: 1, reps, weightKg: 60 } });
+
+  it('do not take the old copy on the phone for the fresh one: a set just sent does not vanish', async () => {
+    copies.write('/workouts/7', DETAIL);
+    fakeApi()
+      .on('POST /workouts/7/sets', set(201, 8, 60))
+      // the network drops right after the set went: the reading gets no answer at all
+      .on('GET /workouts/7', () => Promise.reject(new TypeError('Failed to fetch')) as never);
+    const box = new Outbox();
+    const seen = vi.fn();
+    box.onSynced(seen);
+    const op = added(box);
+    box.add(op);
+    await box.flush();
+    expect(seen).not.toHaveBeenCalled();
+    expect(box.shown(DETAIL).sets).toHaveLength(2);
+  });
+
+  it('wait and retry when the server is down for a moment (502, 503, 504), losing nothing', async () => {
+    const said = vi.fn();
+    fakeApi().on('POST /workouts/7/sets', { status: 502, body: {} });
+    const box = new Outbox(said);
+    box.add(added(box));
+    await box.flush();
+    expect(said).not.toHaveBeenCalled();
+    expect(box.pending).toBe(1);
+  });
+
+  it('drop a correction of a set already taken away: no false error', async () => {
+    offline();
+    const box = new Outbox();
+    box.add({ kind: 'deleteSet', workoutId: 7, setId: 100 });
+    box.add({ kind: 'updateSet', workoutId: 7, setId: 100, body: { reps: 9, weightKg: 60 } });
+    expect(box.ops).toEqual([{ kind: 'deleteSet', workoutId: 7, setId: 100 }]);
+  });
+
+  it('try anyway on the timer even when the phone says there is no network, as it can be wrong', async () => {
+    connected = false;
+    const api = fakeApi().on('PUT /workouts/7/exercises/1/note', { exerciseId: 1, note: 'a' }).on('GET /workouts/7', DETAIL);
+    const box = new Outbox();
+    box.add({ kind: 'note', workoutId: 7, exerciseId: 1, note: 'a' });
+    await box.flush();
+    expect(api.changes()).toEqual([]);
+    await box.flush({ evenOffline: true });
+    expect(api.changes()).toHaveLength(1);
+  });
+
+  it('after leaving and coming back in, send each change once: an old send ending does not start a second sender', async () => {
+    const answers: ((value: Response) => void)[] = [];
+    const sent: string[] = [];
+    vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit = {}) => {
+      if ((init.method ?? 'GET') === 'GET') return Promise.resolve(new Response(JSON.stringify(DETAIL), { status: 200 }));
+      sent.push(String(init.body));
+      return new Promise<Response>((resolve) => answers.push(resolve));
+    }));
+    const ok = () => new Response(JSON.stringify({ exerciseId: 1, note: 'x' }), { status: 200 });
+    const box = new Outbox();
+    box.add({ kind: 'note', workoutId: 7, exerciseId: 1, note: 'old' });
+    box.forget();
+    box.add({ kind: 'note', workoutId: 8, exerciseId: 1, note: 'b1' });
+    answers[0]!(ok());
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    box.add({ kind: 'note', workoutId: 8, exerciseId: 2, note: 'b2' });
+    for (let i = 1; i < 5; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      answers[i]?.(ok());
+    }
+    await box.flush();
+    expect(sent.filter((body) => body.includes('b1'))).toHaveLength(1);
+    expect(sent.filter((body) => body.includes('b2'))).toHaveLength(1);
+  });
+
+  it('let go of changes on a workout the server no longer has (deleted elsewhere)', async () => {
+    fakeApi().on('PUT /workouts/7/exercises/1/note', { exerciseId: 1, note: 'a' })
+      .on('GET /workouts/7', { status: 404, body: { error: 'Non trovato.' } });
+    const box = new Outbox();
+    box.add({ kind: 'note', workoutId: 7, exerciseId: 1, note: 'a' });
+    await box.flush();
+    expect(box.sent).toEqual([]);
+  });
+
+  it('remember only the last numbers of sets already arrived: the phone does not fill up', async () => {
+    let next = 200;
+    fakeApi().on('POST /workouts/7/sets', () => set(next++, 8, 60)).on('GET /workouts/7', DETAIL);
+    const box = new Outbox();
+    const first = box.tempId();
+    box.add({ ...added(box), setId: first });
+    await box.flush();
+    for (let i = 0; i < 105; i++) box.add(added(box));
+    await box.flush();
+    const ids = JSON.parse(localStorage.getItem('gymlog.outbox')!).ids as Record<string, number>;
+    expect(Object.keys(ids)).toHaveLength(100);
+    // the most recent are kept, the oldest go
+    expect(box.realId(first)).toBe(first);
+  });
+});
+
+describe('whose the queue is', () => {
+  it('stays on the phone for the same person after leaving, and goes when they come back in', () => {
+    offline();
+    const box = new Outbox();
+    box.claim(1);
+    box.add({ kind: 'note', workoutId: 7, exerciseId: 1, note: 'mia' });
+    box.claim(1);
+    expect(box.pending).toBe(1);
+    // the app reloads: still theirs
+    const again = new Outbox();
+    again.claim(1);
+    expect(again.pending).toBe(1);
+  });
+
+  it('is dropped when someone else comes in on the same phone: never sent in their name', () => {
+    offline();
+    const box = new Outbox();
+    box.claim(1);
+    box.add({ kind: 'note', workoutId: 7, exerciseId: 1, note: 'di anna' });
+    box.claim(2);
+    expect(box.pending).toBe(0);
   });
 });

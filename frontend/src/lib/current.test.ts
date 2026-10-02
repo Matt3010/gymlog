@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fakeApi } from '../test/fake-api';
 import { copies } from './copies';
+import { session } from './client';
 import { current } from './current.svelte';
 import { outbox } from './sync';
 
@@ -49,6 +50,12 @@ describe('the workout in progress', () => {
     current.set(null);
     await current.refresh();
     expect(order).toEqual(['DELETE', 'GET']);
+    expect(current.workout).toBeNull();
+  });
+
+  it('goes away on leaving: whoever comes in next on the same phone does not see it', () => {
+    current.set(OPEN);
+    session.signedOut();
     expect(current.workout).toBeNull();
   });
 });

@@ -25,6 +25,7 @@ export class Session {
   #api: Client;
   #onLeave: () => void;
   #leaving: (() => void)[] = [];
+  #entering: ((user: User) => void)[] = [];
 
   /** `onLeave`: uscendo, quello che va dimenticato con lui (le copie dei suoi dati). */
   constructor(api: Client, onLeave: () => void = () => undefined) {
@@ -73,7 +74,12 @@ export class Session {
     this.signedOut();
   }
 
-  /** Qualcos'altro da dimenticare uscendo (la coda delle modifiche). */
+  /** Chi deve sapere chi è entrato (la coda delle modifiche è sua). */
+  whenEntering(listener: (user: User) => void): void {
+    this.#entering.push(listener);
+  }
+
+  /** Qualcos'altro da dimenticare uscendo (l'allenamento in corso della barra). */
   whenLeaving(forget: () => void): void {
     this.#leaving.push(forget);
   }
@@ -89,6 +95,7 @@ export class Session {
   #enter(user: User): void {
     writeJSON(LAST_USER, user);
     this.user = user;
+    for (const listener of this.#entering) listener(user);
     this.status = 'in';
     this.problem = '';
   }

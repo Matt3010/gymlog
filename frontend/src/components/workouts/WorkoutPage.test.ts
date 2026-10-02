@@ -121,6 +121,8 @@ describe('a workout in progress', () => {
 
   it('says by each set whether it went better than the same set last time: kilos and reps together', async () => {
     server();
+    // after a set the button rests a moment (a double tap is not a second set): wait for it, as a person does
+    const later = () => vi.waitFor(() => expect(screen.getByRole('button', { name: /^Segna la serie/ })).toBeEnabled());
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     const user = userEvent.setup();
     await screen.findByRole('button', { name: 'Segna la serie 2' });
@@ -133,14 +135,17 @@ describe('a workout in progress', () => {
     // set 2: 7 × 62,5 against 8 × 60 — fewer reps, but heavier enough to be better
     await user.click(screen.getByRole('button', { name: 'Peso, più 2,5' }));
     await user.click(screen.getByRole('button', { name: 'Ripetizioni, meno 1' }));
+    await later();
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
     await screen.findByRole('button', { name: 'Segna la serie 3' });
     // set 3: 4 × 62,5 against 6 × 62,5
     await user.clear(reps());
     await user.type(reps(), '4');
+    await later();
     await user.click(screen.getByRole('button', { name: 'Segna la serie 3' }));
     await screen.findByRole('button', { name: 'Segna la serie 4' });
     // set 4: none last time, so no arrow
+    await later();
     await user.click(screen.getByRole('button', { name: 'Segna la serie 4' }));
     await vi.waitFor(() => expect(doneSets()).toHaveLength(4));
     expect(trends()).toEqual([
@@ -214,6 +219,15 @@ describe('a workout in progress', () => {
     await vi.waitFor(() => expect(bar).toHaveTextContent('2 serie'));
     await user.click(screen.getByRole('button', { name: 'Termina' }));
     await vi.waitFor(() => expect(screen.queryByRole('region', { name: 'In corso' })).not.toBeInTheDocument());
+  });
+
+  it('logs one set for a quick double tap on «Segna la serie»', async () => {
+    const api = server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    await user.dblClick(await screen.findByRole('button', { name: 'Segna la serie 2' }));
+    expect(api.changes().filter((change) => change.route === 'POST /workouts/7/sets')).toHaveLength(1);
+    expect(doneSets()).toEqual(['8 × 60 kg', '8 × 60 kg']);
   });
 
   it('counts every quick tap on +, none lost', async () => {
@@ -513,6 +527,8 @@ describe('the rest after a set', () => {
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     const user = await logSquat();
     vi.advanceTimersByTime(60_000);
+    // after a set the button rests a moment (a double tap is not a second set)
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Segna la serie 3' })).toBeEnabled());
     await user.click(screen.getByRole('button', { name: 'Segna la serie 3' }));
     await screen.findByRole('button', { name: 'Segna la serie 4' });
     expect(bar()).toHaveTextContent('Recupero 1:30');

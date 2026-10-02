@@ -33,7 +33,7 @@
    * una pagina che non c'è più. Se dentro c'è del lavoro non salvato, prima
    * di cambiare si chiede (`ui.chiediPrima`).
    */
-  nav.custodisci((vai) => ui.chiediPrima(ui.modals, vai));
+  nav.custodisci((vai) => ui.primaDiAndare(vai));
 
   let eravamo = nav.path;
   $effect(() => {

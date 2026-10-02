@@ -55,8 +55,9 @@
   /** Quello che parte, con i giorni com'erano allora: la risposta dà l'id ai nuovi. */
   interface Sending { json: string; days: DraftDay[] }
   const saver = new Autosave<Sending>(async ({ json, days }) => {
-    const saved = await plansApi.save(id!, JSON.parse(json) as PlanInput);
-    learnDayIds(days, saved);
+    const input = JSON.parse(json) as PlanInput;
+    const saved = await plansApi.save(id!, input);
+    learnDayIds(days, input, saved);
     // Se nient'altro è cambiato intanto, gli id imparati non sono una modifica da rimandare.
     if (sent === json && draft) sent = JSON.stringify(toInput(draft));
   });
@@ -73,6 +74,14 @@
   });
 
   const problem = $derived(draft ? problemOf(draft) : null);
+
+  /* Con un campo non valido la scheda non si salva: quello cambiato dopo andrebbe perso
+     uscendo, e prima di uscire lo si chiede, accanto al motivo. */
+  $effect(() => ui.trattieni(() => {
+    if (!draft || !problem || JSON.stringify(toInput(draft)) === sent) return null;
+    const anchor = document.querySelector<HTMLElement>('.page [role="alert"]') ?? document.body;
+    return { anchor, detail: `${problem} Quello che hai cambiato non è ancora salvato.` };
+  }));
 
   $effect(() => {
     if (!draft) return;

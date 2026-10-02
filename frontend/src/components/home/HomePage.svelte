@@ -54,11 +54,11 @@
 
   /** Uscire chiede prima, come ogni tasto rosso: un tocco per sbaglio in palestra costa un nuovo accesso. */
   function askOut(anchor: HTMLElement): void {
-    // quello che è ancora in coda (fatto senza rete) uscendo si perde: lo si dice prima
+    // quello che è ancora in coda (fatto senza rete) resta sul telefono finché non si rientra: lo si dice prima
     const waiting = outbox.pending;
     const detail = waiting === 0 ? undefined
-      : waiting === 1 ? '1 modifica fatta senza rete non è ancora partita: uscendo si perde.'
-      : `${waiting} modifiche fatte senza rete non sono ancora partite: uscendo si perdono.`;
+      : waiting === 1 ? '1 modifica fatta senza rete non è ancora partita: resta sul telefono e parte quando rientri.'
+      : `${waiting} modifiche fatte senza rete non sono ancora partite: restano sul telefono e partono quando rientri.`;
     ui.askSure(anchor, { title: 'Uscire da gymlog?', detail, verb: 'Esci', onYes: () => void session.logout() });
   }
 

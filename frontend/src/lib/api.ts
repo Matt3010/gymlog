@@ -59,7 +59,7 @@ const senzaRisposta = (): string =>
  * così un modulo su un altro sito non può scrivere a nome tuo.
  */
 export function createClient({ fetch, onSignedOut, copies }: { fetch: Fetch; onSignedOut: () => void; copies?: Copies }): Client {
-  let renewing: Promise<boolean> | null = null;
+  let renewing: Promise<'renewed' | 'refused' | 'unreachable'> | null = null;
 
   async function send(path: string, method: string, payload?: unknown): Promise<Response> {
     const headers: Record<string, string> = {};
@@ -77,10 +77,18 @@ export function createClient({ fetch, onSignedOut, copies }: { fetch: Fetch; onS
     }
   }
 
-  /** Uno solo alla volta: chi arriva mentre è in corso aspetta quello. */
-  function renew(): Promise<boolean> {
+  /**
+   * Uno solo alla volta: chi arriva mentre è in corso aspetta quello. Dice
+   * `refused` solo se il server rifiuta davvero (401): senza risposta, o col
+   * server fermo, non si sa ancora niente (`unreachable`), e chi è entrato
+   * resta dentro: uscire per un buco di rete butterebbe via il lavoro.
+   */
+  function renew(): Promise<'renewed' | 'refused' | 'unreachable'> {
     renewing ??= send('/auth/refresh', 'POST')
-      .then((response) => response.ok, () => false)
+      .then(
+        (response) => (response.ok ? 'renewed' : response.status === 401 ? 'refused' : 'unreachable'),
+        () => 'unreachable' as const,
+      )
       .finally(() => (renewing = null));
     return renewing;
   }
@@ -94,7 +102,10 @@ export function createClient({ fetch, onSignedOut, copies }: { fetch: Fetch; onS
     let response = await send(path, method, payload);
     // la porta stessa non si rinnova: una password sbagliata è solo un errore
     if (response.status === 401 && !path.startsWith('/auth/')) {
-      if (await renew()) response = await send(path, method, payload);
+      const renewal = await renew();
+      // come una richiesta senza risposta: chi aspetta (la coda delle modifiche) riprova dopo
+      if (renewal === 'unreachable') throw new ApiError(senzaRisposta());
+      if (renewal === 'renewed') response = await send(path, method, payload);
       if (response.status === 401) {
         onSignedOut();
         throw await failure(response);

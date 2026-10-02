@@ -1,3 +1,5 @@
+import { ApiError } from './api';
+
 /** I salvataggi in viaggio, di tutta l'app. */
 const inFlight = new Set<Promise<void>>();
 
@@ -22,8 +24,17 @@ export async function settled(): Promise<void> {
  * un campo o la pagina, perché niente vada perso.
  *
  * Se il server rifiuta, lo si dice (`status` e `error`) e il valore resta a
- * chi lo sta scrivendo: si riprova al prossimo cambiamento.
+ * chi lo sta scrivendo: si riprova al prossimo cambiamento. Se invece non è
+ * arrivato (senza rete, o il server fermo un momento) non si butta: si
+ * riprova da sé dopo un po', quando la rete torna, e lasciando la pagina.
  */
+/** Fra un tentativo non arrivato e il prossimo. */
+const RETRY_MS = 10_000;
+
+/** Senza risposta, o col server fermo un momento: non rifiutato, solo non arrivato. */
+const notArrived = (failure: unknown): boolean =>
+  failure instanceof ApiError && (failure.status === undefined || [502, 503, 504].includes(failure.status));
+
 export class Autosave<T> {
   status = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
   error = $state('');
@@ -33,6 +44,8 @@ export class Autosave<T> {
   #pending: { value: T } | null = null;
   #timer: ReturnType<typeof setTimeout> | undefined;
   #running: Promise<void> | null = null;
+  #retry: ReturnType<typeof setTimeout> | undefined;
+  #waitingOnline = false;
 
   constructor(save: (value: T) => Promise<unknown>, delay = 600) {
     this.#save = save;
@@ -74,7 +87,24 @@ export class Autosave<T> {
       } catch (failure) {
         this.error = failure instanceof Error ? failure.message : String(failure);
         this.status = 'error';
+        if (notArrived(failure)) {
+          // non arrivato: resta da mandare (se nel frattempo non ne è arrivato uno più nuovo)
+          this.#pending ??= { value };
+          this.#retryLater();
+          return;
+        }
       }
     }
+  }
+
+  #retryLater(): void {
+    clearTimeout(this.#retry);
+    this.#retry = setTimeout(() => void this.#run(), RETRY_MS);
+    if (this.#waitingOnline || typeof window === 'undefined') return;
+    this.#waitingOnline = true;
+    window.addEventListener('online', () => {
+      this.#waitingOnline = false;
+      void this.#run();
+    }, { once: true });
   }
 }

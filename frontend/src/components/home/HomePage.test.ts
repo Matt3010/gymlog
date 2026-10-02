@@ -120,7 +120,7 @@ describe('home', () => {
     expect(screen.queryByText(/terminalo per iniziarne un altro/)).not.toBeInTheDocument();
   });
 
-  it('warns, before logging out, that the changes still waiting would be lost', async () => {
+  it('says, before logging out, that the changes still waiting stay on the phone until coming back in', async () => {
     fakeApi().on('GET /workouts', []).on('GET /plans', []);
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     outbox.add({ kind: 'note', workoutId: 7, exerciseId: 1, note: 'a' });
@@ -128,7 +128,7 @@ describe('home', () => {
     render(Host, { page: HomePage });
     await userEvent.setup().click(await screen.findByRole('button', { name: /^Esci/ }));
     expect(await screen.findByRole('alertdialog', { name: 'Uscire da gymlog?' }))
-      .toHaveTextContent('2 modifiche fatte senza rete non sono ancora partite: uscendo si perdono.');
+      .toHaveTextContent('2 modifiche fatte senza rete non sono ancora partite: restano sul telefono e partono quando rientri.');
     vi.restoreAllMocks();
   });
 

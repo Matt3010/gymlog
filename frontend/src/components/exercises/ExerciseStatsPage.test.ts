@@ -33,6 +33,23 @@ describe('the stats of an exercise', () => {
     expect(values('max')).toEqual([95, 110]);
   });
 
+  it('for an exercise without weight (pull-ups) draws and compares the reps, not a flat 0 kg', async () => {
+    const session = (workoutId: number, day: number, reps: number) => ({
+      workoutId, startedAt: `2026-09-${day}T17:00:00.000Z`, sets: 3, reps, volume: 0, avgWeight: 0, maxWeight: 0, bestE1rm: 0,
+    });
+    fakeApi().on('GET /stats/exercises/1', {
+      exercise: { id: 1, name: 'Trazioni', muscleGroup: null, notes: null },
+      overall: { sessions: 3, sets: 9, reps: 75, volume: 0, avgWeight: 0, maxWeight: 0, bestE1rm: 0 },
+      sessions: [session(9, 20, 30), session(5, 18, 25), session(2, 15, 25)],
+    });
+    render(ExerciseStatsPage, { id: 1 });
+    const chart = await screen.findByRole('img', { name: /^Andamento/ });
+    expect(chart).toHaveAccessibleName('Andamento di Trazioni in 3 sessioni: ripetizioni da 25 a 30.');
+    const arrows = within(screen.getByRole('table')).getAllByRole('row').slice(1)
+      .map((row) => within(row).queryByRole('img')?.getAttribute('aria-label') ?? null);
+    expect(arrows).toEqual(['Meglio della volta prima', 'Come la volta prima', null]);
+  });
+
   it('draws no chart from a single session: a dot is not a trend', async () => {
     fakeApi().on('GET /stats/exercises/1', { ...SQUAT, sessions: SQUAT.sessions.slice(0, 1) });
     render(ExerciseStatsPage, { id: 1 });

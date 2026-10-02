@@ -83,11 +83,16 @@ export function toInput(draft: Draft): PlanInput {
  * La scheda salvata torna con un id per ogni giorno: quelli mandati nuovi lo
  * prendono, ciascuno dal suo posto in quello che si era mandato. Il giorno
  * aggiunto intanto resta senza, e partirà al salvataggio dopo.
+ *
+ * Conta com'era il giorno *nel salvataggio partito* (`input`), non com'è
+ * adesso: un giorno partito senza id il server lo rifà nuovo, anche se nel
+ * frattempo una risposta prima gliene aveva dato uno, e quello di prima non
+ * esiste più.
  */
-export function learnDayIds(sent: readonly DraftDay[], saved: Plan): void {
+export function learnDayIds(sent: readonly DraftDay[], input: PlanInput, saved: Plan): void {
   sent.forEach((day, index) => {
     const id = saved.days[index]?.id;
-    if (day.id === undefined && id !== undefined) day.id = id;
+    if (input.days[index]?.id === undefined && id !== undefined) day.id = id;
   });
 }
 

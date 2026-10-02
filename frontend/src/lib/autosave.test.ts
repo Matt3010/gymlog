@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from './api';
 import { Autosave, settled } from './autosave.svelte';
 
 /* Saving as you go: after a pause, one at a time, the latest wins, nothing left behind. */
@@ -9,12 +10,12 @@ afterEach(() => vi.useRealTimers());
 /** A save that waits until told, to see what happens while one is on its way. */
 function server() {
   const sent: string[] = [];
-  const answers: { ok: () => void; fail: (message: string) => void }[] = [];
+  const answers: { ok: () => void; fail: (message: string) => void; lost: () => void; down: () => void }[] = [];
   const save = vi.fn(
     (value: string) =>
       new Promise<void>((resolve, reject) => {
         sent.push(value);
-        answers.push({ ok: resolve, fail: (message) => reject(new Error(message)) });
+        answers.push({ ok: resolve, fail: (message) => reject(new Error(message)), lost: () => reject(new ApiError('senza rete')), down: () => reject(new ApiError('fermo', 503)) });
       }),
   );
   return { sent, save, answer: (at = 0) => answers[at]! };
@@ -152,5 +153,59 @@ describe('a read after a save', () => {
     const read = settled();
     answer(0).fail('no');
     await expect(read).resolves.toBeUndefined();
+  });
+
+  it('keeps a value that did not arrive for lack of network, and sends it again by itself a little later', async () => {
+    const { sent, save, answer } = server();
+    const auto = new Autosave(save, 600);
+    auto.change('a');
+    vi.advanceTimersByTime(600);
+    answer(0).lost();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(auto.status).toBe('error');
+    expect(sent).toEqual(['a']);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(sent).toEqual(['a', 'a']);
+    answer(1).ok();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(auto.status).toBe('saved');
+  });
+
+  it('sends again at once, on leaving, a value the server could not take a moment ago (503)', async () => {
+    const { sent, save, answer } = server();
+    const auto = new Autosave(save, 600);
+    auto.change('a');
+    vi.advanceTimersByTime(600);
+    answer(0).down();
+    await vi.advanceTimersByTimeAsync(0);
+    const leaving = auto.flush();
+    expect(sent).toEqual(['a', 'a']);
+    answer(1).ok();
+    await leaving;
+    expect(auto.status).toBe('saved');
+  });
+
+  it('sends again when the network comes back', async () => {
+    const { sent, save, answer } = server();
+    const auto = new Autosave(save, 600);
+    auto.change('a');
+    vi.advanceTimersByTime(600);
+    answer(0).lost();
+    await vi.advanceTimersByTimeAsync(0);
+    window.dispatchEvent(new Event('online'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sent).toEqual(['a', 'a']);
+  });
+
+  it('does not retry by itself a value the server refused for what it is', async () => {
+    const { sent, save, answer } = server();
+    const auto = new Autosave(save, 600);
+    auto.change('a');
+    vi.advanceTimersByTime(600);
+    answer(0).fail('Nome: troppo lungo.');
+    await vi.advanceTimersByTimeAsync(60_000);
+    window.dispatchEvent(new Event('online'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sent).toEqual(['a']);
   });
 });
