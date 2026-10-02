@@ -24,25 +24,6 @@ ssh "$host" "set -e
   tar -xf /tmp/gymlog.tar -C ~/$dir.new
   rm /tmp/gymlog.tar
   cd ~/$dir
-  # Before anything changes: a dump of the database (the last 10 kept), since the
-  # new code migrates it. No pipe into gzip: a failed dump stops the deploy here,
-  # with the running code and the database as they were. Skipped on a first deploy.
-  stamp=\$(date +%Y%m%d-%H%M%S)
-  mkdir -p ~/$dir-backups
-  # Dumps hold password and session hashes: readable by this user only, the old ones too.
-  chmod 700 ~/$dir-backups
-  chmod 600 ~/$dir-backups/*.sql.gz 2>/dev/null || true
-  if docker compose ps --status running --services 2>/dev/null | grep -qx postgres; then
-    dump=~/$dir-backups/\$stamp.sql
-    if ! (umask 077 && docker compose exec -T postgres pg_dump -U gymlog gymlog > \$dump) || ! test -s \$dump; then
-      rm -f \$dump
-      rm -rf ~/$dir.new
-      echo 'Database backup failed: deploy stopped; the code, the running app and the database are unchanged.' >&2
-      exit 1
-    fi
-    gzip \$dump
-    ls -1t ~/$dir-backups/*.sql.gz | tail -n +11 | xargs -r rm -f
-  fi
   # Code folders are replaced whole, so files deleted in git do not linger.
   rm -rf backend frontend docker scripts docs
   cp -a ~/$dir.new/. ~/$dir/
@@ -64,5 +45,3 @@ ssh "$host" "set -e
 
 echo "Deployed $(git rev-parse --short HEAD) to $host:~/$dir"
 echo "Rollback: on the Pi, docker tag gymlog-api:prev gymlog-api:latest && docker tag gymlog-web:prev gymlog-web:latest && docker compose up -d --no-build"
-echo "  if this release changed the database (a new migration), restore the dump taken just before it too:"
-echo "  gunzip -c ~/$dir-backups/<latest>.sql.gz | docker compose exec -T postgres sh -c 'dropdb --force -U gymlog gymlog && createdb -U gymlog gymlog && psql -q -U gymlog gymlog'"
