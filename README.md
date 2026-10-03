@@ -116,6 +116,22 @@ Lo schema si cambia in `backend/src/lib/database/schema/`, poi
 `pnpm --filter @gymlog/backend db:generate` scrive la migrazione SQL. L'API applica le
 migrazioni mancanti a ogni avvio.
 
+## App Android
+
+`android/` è un'app minima: una WebView a tutto schermo su `https://gymlog.scanferlamatteo.work`
+(i link ad altri siti si aprono nel browser, il tasto indietro torna indietro nell'app).
+Non contiene l'app web: si aggiorna da sola a ogni rilascio, l'APK va rifatto solo se cambia
+la WebView stessa.
+
+```bash
+cd android
+./gradlew assembleRelease     # app/build/outputs/apk/release/app-release.apk
+```
+
+Serve l'SDK Android (`local.properties`, `sdk.dir=...`) e la chiave di firma `gymlog-release.jks`
+con `keystore.properties`: stanno solo sul PC che l'ha creata, fuori da git. Va tenuta: un
+aggiornamento firmato con un'altra chiave non si installa sopra quello vecchio.
+
 ## Metterlo sul Raspberry Pi
 
 1. `pnpm deploy:pi` (host `rpi` da `~/.ssh/config`). La prima volta crea `~/gymlog/.env`
