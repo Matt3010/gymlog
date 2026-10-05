@@ -191,7 +191,7 @@ describe('a workout in progress', () => {
 
   it('keeps the bar above the tabs up to date, set by set, until it is ended', async () => {
     server();
-    nav.go('/allenamenti/7');
+    nav.go('/workouts/7');
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     const user = userEvent.setup();
     const bar = await screen.findByRole('region', { name: 'In corso' });
@@ -411,11 +411,11 @@ describe('a workout in progress', () => {
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     const user = userEvent.setup();
     const remove = await screen.findByRole('button', { name: 'Elimina l’allenamento' });
-    expect(screen.getByRole('link', { name: 'Storico' })).toHaveAttribute('href', '/storico');
+    expect(screen.getByRole('link', { name: 'Storico' })).toHaveAttribute('href', '/history');
     await user.click(remove);
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Elimina' }));
     expect(api.changes()).toEqual([{ route: 'DELETE /workouts/7', body: undefined }]);
-    expect(nav.path).toBe('/storico');
+    expect(nav.path).toBe('/history');
   });
 
   it('in progress, goes back to Allenati', async () => {

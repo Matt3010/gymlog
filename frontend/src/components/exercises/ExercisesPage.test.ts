@@ -19,7 +19,7 @@ describe('the exercises', () => {
   it('are listed with their group, each opening its stats page', async () => {
     fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [PANCA, SQUAT]);
     render(Host, { page: ExercisesPage });
-    expect(await screen.findByRole('link', { name: /^Squat Gambe/ })).toHaveAttribute('href', '/esercizi/1');
+    expect(await screen.findByRole('link', { name: /^Squat Gambe/ })).toHaveAttribute('href', '/exercises/1');
     expect(names()).toEqual(['Panca piana', 'Squat']);
     expect(screen.getByRole('heading', { name: 'Esercizi' }).parentElement).toHaveTextContent('2');
   });

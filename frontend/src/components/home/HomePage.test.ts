@@ -124,7 +124,7 @@ describe('home', () => {
     render(HomePage);
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Allenamento B E0' }));
     expect(api.changes()).toEqual([{ route: 'POST /workouts', body: { planDayId: 12 } }]);
-    expect(nav.path).toBe('/allenamenti/40');
+    expect(nav.path).toBe('/workouts/40');
   });
 
   it('starts a free workout', async () => {
@@ -136,7 +136,7 @@ describe('home', () => {
     expect(free.closest('.card')).toBeNull();
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Allenamento libero' }));
     expect(api.changes()).toEqual([{ route: 'POST /workouts', body: { planDayId: null } }]);
-    expect(nav.path).toBe('/allenamenti/41');
+    expect(nav.path).toBe('/workouts/41');
   });
 
   it('says why a workout did not start, and stays', async () => {
@@ -169,7 +169,7 @@ describe('home', () => {
     fakeApi().on('GET /plans', []).on(RECENT, []);
     render(HomePage);
     expect(await screen.findByText('Nessuna scheda, per ora.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Scrivi una scheda' })).toHaveAttribute('href', '/schede/nuova');
+    expect(screen.getByRole('link', { name: 'Scrivi una scheda' })).toHaveAttribute('href', '/plans/new');
     expect(screen.queryByText('Gli ultimi')).not.toBeInTheDocument();
   });
 

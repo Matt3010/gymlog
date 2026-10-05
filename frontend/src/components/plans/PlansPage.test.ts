@@ -50,10 +50,10 @@ describe('the plans', () => {
   it('in use are listed first, the archived apart, each with its period, workouts and exercises', async () => {
     fakeApi().on('GET /plans', [FORZA, { ...FORZA, id: 6, name: 'Estate', startsOn: '2026-06-01', endsOn: '2026-10-04', archived: true, days: [{ ...FORZA.days[1]!, exercises: [] }] }]);
     render(Host, { page: PlansPage });
-    expect(await screen.findByRole('link', { name: 'Forza dal 5 ott 2026 · 2 allenamenti · 3 esercizi' })).toHaveAttribute('href', '/schede/5');
+    expect(await screen.findByRole('link', { name: 'Forza dal 5 ott 2026 · 2 allenamenti · 3 esercizi' })).toHaveAttribute('href', '/plans/5');
     const archived = within(screen.getByText('Archiviate').parentElement!);
-    expect(archived.getByRole('link', { name: 'Estate 1 giu – 4 ott 2026 · 1 allenamento · 0 esercizi' })).toHaveAttribute('href', '/schede/6');
-    expect(screen.getByRole('link', { name: 'Nuova' })).toHaveAttribute('href', '/schede/nuova');
+    expect(archived.getByRole('link', { name: 'Estate 1 giu – 4 ott 2026 · 1 allenamento · 0 esercizi' })).toHaveAttribute('href', '/plans/6');
+    expect(screen.getByRole('link', { name: 'Nuova' })).toHaveAttribute('href', '/plans/new');
     // in the header, outside the cards: secondary
     expect(screen.getByRole('link', { name: 'Nuova' })).toHaveClass('ghost');
   });
@@ -61,7 +61,7 @@ describe('the plans', () => {
   it('with none in use offer one way to write one, and none in the header', async () => {
     fakeApi().on('GET /plans', []);
     render(Host, { page: PlansPage });
-    expect(await screen.findByRole('link', { name: 'Scrivi una scheda' })).toHaveAttribute('href', '/schede/nuova');
+    expect(await screen.findByRole('link', { name: 'Scrivi una scheda' })).toHaveAttribute('href', '/plans/new');
     expect(screen.getByRole('link', { name: 'Scrivi una scheda' })).toHaveClass('primary');
     expect(screen.queryByRole('link', { name: 'Nuova' })).not.toBeInTheDocument();
   });
@@ -108,7 +108,7 @@ describe('a new plan', () => {
       route: 'POST /plans',
       body: { name: 'Forza', notes: '3 volte', startsOn: '2026-10-05', endsOn: '2026-11-15', archived: false, days: [{ name: 'A', exercises: [] }] },
     }]);
-    expect(nav.path).toBe('/schede/9');
+    expect(nav.path).toBe('/plans/9');
   });
 
   it('ending before it starts is not created, and says why', async () => {
@@ -253,55 +253,55 @@ describe('a plan being written', () => {
 describe('leaving a plan with something not valid', () => {
   it('asks first: what changed after it is not saved yet', async () => {
     fakeApi().on('GET /plans/9', NUOVA).on('GET /exercises', []).on('PUT /plans/9', (call: Call) => ({ ...NUOVA, ...(call.body as object) }));
-    nav.go('/schede/9');
+    nav.go('/plans/9');
     render(Host, { page: PlanEditorPage, params: { id: 9 } });
     const user = userEvent.setup();
     const name = await details();
     await user.clear(name);
-    nav.go('/schede');
+    nav.go('/plans');
     const question = within(await screen.findByRole('alertdialog', { name: 'Uscire senza salvare?' }));
     expect(question.getByText(/La scheda ha bisogno di un nome\./)).toBeInTheDocument();
     await user.click(question.getByRole('button', { name: 'Resta' }));
-    expect(nav.path).toBe('/schede/9');
-    nav.go('/schede');
+    expect(nav.path).toBe('/plans/9');
+    nav.go('/plans');
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Esci' }));
-    expect(nav.path).toBe('/schede');
+    expect(nav.path).toBe('/plans');
   });
 
   it('asks first when the last change did not reach the server', async () => {
     fakeApi().on('GET /plans/9', NUOVA).on('GET /exercises', []).on('PUT /plans/9', { status: 503 });
-    nav.go('/schede/9');
+    nav.go('/plans/9');
     render(Host, { page: PlanEditorPage, params: { id: 9 } });
     const user = userEvent.setup();
     const name = await details();
     await user.type(name, ' 2');
     await vi.waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument(), { timeout: 3000 });
-    nav.go('/schede');
+    nav.go('/plans');
     const question = within(await screen.findByRole('alertdialog', { name: 'Uscire senza salvare?' }));
     expect(question.getByText(/non è arrivata/)).toBeInTheDocument();
     await user.click(question.getByRole('button', { name: 'Resta' }));
-    expect(nav.path).toBe('/schede/9');
+    expect(nav.path).toBe('/plans/9');
   });
 
   it('does not ask once the plan has been deleted: there is nothing left to save', async () => {
     fakeApi().on('GET /plans/9', NUOVA).on('GET /exercises', []).on('DELETE /plans/9', { ok: true });
-    nav.go('/schede/9');
+    nav.go('/plans/9');
     render(Host, { page: PlanEditorPage, params: { id: 9 } });
     const user = userEvent.setup();
     await user.clear(await details());
     await user.click(screen.getByRole('button', { name: /^Elimina la scheda/ }));
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Elimina' }));
-    await vi.waitFor(() => expect(nav.path).toBe('/schede'));
+    await vi.waitFor(() => expect(nav.path).toBe('/plans'));
     expect(screen.queryByRole('alertdialog', { name: 'Uscire senza salvare?' })).not.toBeInTheDocument();
   });
 
   it('lets go without asking when everything is saved', async () => {
     fakeApi().on('GET /plans/9', NUOVA).on('GET /exercises', []);
-    nav.go('/schede/9');
+    nav.go('/plans/9');
     render(Host, { page: PlanEditorPage, params: { id: 9 } });
     await details();
-    nav.go('/schede');
-    expect(nav.path).toBe('/schede');
+    nav.go('/plans');
+    expect(nav.path).toBe('/plans');
   });
 });
 
@@ -479,7 +479,7 @@ describe('a saved plan', () => {
     expect(api.changes()).toEqual([]);
     await user.click(question.getByRole('button', { name: 'Elimina' }));
     expect(api.changes()).toEqual([{ route: 'DELETE /plans/5', body: undefined }]);
-    expect(nav.path).toBe('/schede');
+    expect(nav.path).toBe('/plans');
     expect(toast.open).toBe(true);
     expect(toast.message).toBe('Scheda eliminata. Gli allenamenti fatti restano nello storico.');
   });

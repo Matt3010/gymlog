@@ -275,7 +275,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Aggiungi esercizio' })).toHaveCount(0);
   await expectFullWidth(page.getByRole('button', { name: 'Crea la scheda' }));
   await page.getByRole('button', { name: 'Crea la scheda' }).click();
-  await expect(page).toHaveURL(/\/schede\/\d+$/);
+  await expect(page).toHaveURL(/\/plans\/\d+$/);
   await page.getByRole('button', { name: 'Aggiungi esercizio' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Squat' }).click();
   for (const n of [1, 2, 3]) await page.getByLabel(`Serie ${n}, ripetizioni`).first().fill('8-10');
@@ -313,7 +313,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   // No save button: the plan saves itself, and gets its own address once created.
   await expect(page.getByRole('button', { name: /Salva/ })).toHaveCount(0);
   await expect(page.getByRole('status', { name: 'Salvataggio' })).toHaveText('Salvata');
-  await expect(page).toHaveURL(/\/schede\/\d+$/);
+  await expect(page).toHaveURL(/\/plans\/\d+$/);
 
   // At the end of the editor its buttons are clear of the tab bar.
   await scrollToEnd(page);
@@ -464,7 +464,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.getByRole('link', { name: /^Squat/ })).toContainText('media 61,25 kg · max 62,5 kg · 1 sessione · l’ultima oggi');
   await expect(page.getByRole('link', { name: /^Panca piana/ })).not.toContainText('media');
   await page.getByRole('link', { name: /^Squat/ }).click();
-  await expect(page).toHaveURL(/\/esercizi\/\d+$/);
+  await expect(page).toHaveURL(/\/exercises\/\d+$/);
   await expect(page.getByRole('heading', { name: 'Squat' })).toBeVisible();
   await expect(page.getByRole('img')).toHaveCount(0);
   await expect(tile(page, 'Massimo')).toHaveText('62,5 kg');
@@ -572,7 +572,7 @@ test('a new person creates an account and is in at once', async ({ page }) => {
   // No workout in progress: one is started, its page opens, and the bin in its header deletes it.
   await expect(page.getByRole('link', { name: /^In corso/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Allenamento libero' }).click();
-  await expect(page).toHaveURL(/\/allenamenti\/\d+$/);
+  await expect(page).toHaveURL(/\/workouts\/\d+$/);
   await page.locator('header').getByRole('button', { name: 'Elimina l’allenamento' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Elimina' }).click();
   await expect(page.getByText('Allenamento eliminato.')).toBeVisible();

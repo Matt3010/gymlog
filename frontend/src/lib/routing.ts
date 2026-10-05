@@ -12,9 +12,18 @@ export type Route =
   | { kind: 'exercise'; id: number };
 
 export const HOME_PATH = '/';
-export const EXERCISES_PATH = '/esercizi';
-export const PLANS_PATH = '/schede';
-export const HISTORY_PATH = '/storico';
+export const EXERCISES_PATH = '/exercises';
+export const PLANS_PATH = '/plans';
+export const HISTORY_PATH = '/history';
+const WORKOUTS_PATH = '/workouts';
+
+/**
+ * Gli indirizzi di prima, in italiano: si leggono ancora, per i segnalibri e
+ * le pagine rimaste aperte, e `canonical` li riscrive in inglese.
+ */
+const OLD_SECTIONS: Record<string, string> = {
+  esercizi: 'exercises', schede: 'plans', storico: 'history', allenamenti: 'workouts', statistiche: 'exercises',
+};
 
 /** Un id in un indirizzo: un numero intero sopra lo zero, o niente. */
 function id(text: string | undefined): number | null {
@@ -25,23 +34,29 @@ function id(text: string | undefined): number | null {
 /** Nessun router: un percorso, e la pagina che gli corrisponde. Quello che non si riconosce porta a casa. */
 export function readRoute(path: string): Route {
   const clean = path.length > 1 ? path.replace(/\/$/, '') : path;
-  if (clean === EXERCISES_PATH) return { kind: 'exercises' };
-  if (clean === PLANS_PATH) return { kind: 'plans' };
-  if (clean === `${PLANS_PATH}/nuova`) return { kind: 'plan', id: null };
-  if (clean === HISTORY_PATH) return { kind: 'history' };
-
-  const [, section, rest, ...more] = clean.split('/');
-  const found = more.length === 0 ? id(rest) : null;
-  if (found !== null && section === 'schede') return { kind: 'plan', id: found };
-  if (found !== null && section === 'allenamenti') return { kind: 'workout', id: found };
-  if (found !== null && section === 'esercizi') return { kind: 'exercise', id: found };
-  // il vecchio indirizzo delle statistiche di un esercizio, per i segnalibri
-  if (found !== null && section === 'statistiche') return { kind: 'exercise', id: found };
+  const [, written = '', rest, ...more] = clean.split('/');
+  const old = OLD_SECTIONS[written];
+  const section = old ?? written;
+  // «nuova» con la sezione di prima, «new» con quella di adesso: mescolati non sono un indirizzo
+  const fresh = old === undefined ? 'new' : 'nuova';
+  if (more.length > 0) return { kind: 'home' };
+  if (rest === undefined) {
+    if (section === 'exercises' && written !== 'statistiche') return { kind: 'exercises' };
+    if (section === 'plans') return { kind: 'plans' };
+    if (section === 'history') return { kind: 'history' };
+    return { kind: 'home' };
+  }
+  if (section === 'plans' && rest === fresh) return { kind: 'plan', id: null };
+  const found = id(rest);
+  if (found === null) return { kind: 'home' };
+  if (section === 'plans') return { kind: 'plan', id: found };
+  if (section === 'workouts') return { kind: 'workout', id: found };
+  if (section === 'exercises') return { kind: 'exercise', id: found };
   return { kind: 'home' };
 }
 
-export const planPath = (planId: number | null): string => `${PLANS_PATH}/${planId ?? 'nuova'}`;
-export const workoutPath = (workoutId: number): string => `/allenamenti/${workoutId}`;
+export const planPath = (planId: number | null): string => `${PLANS_PATH}/${planId ?? 'new'}`;
+export const workoutPath = (workoutId: number): string => `${WORKOUTS_PATH}/${workoutId}`;
 export const exercisePath = (exerciseId: number): string => `${EXERCISES_PATH}/${exerciseId}`;
 
 /** L'indirizzo buono di una pagina, dato uno qualsiasi che porti lì: chi lo copia dalla barra copia sempre lo stesso. */

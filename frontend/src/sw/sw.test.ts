@@ -156,14 +156,14 @@ describe('a request', () => {
     const worker = boot();
     await worker.lifecycle('install');
     network.mockImplementationOnce(async () => new Response('the newest page'));
-    expect(await worker.request('/storico', { mode: 'navigate' })).toBe('the newest page');
+    expect(await worker.request('/history', { mode: 'navigate' })).toBe('the newest page');
   });
 
   it('for a page without network gets the kept app, which opens on any address', async () => {
     const worker = boot();
     await worker.lifecycle('install');
     online = false;
-    expect(await worker.request('/allenamenti/12', { mode: 'navigate' })).toBe('network /index.html');
+    expect(await worker.request('/workouts/12', { mode: 'navigate' })).toBe('network /index.html');
   });
 
   it('for anything else of the site goes to the network as usual', async () => {

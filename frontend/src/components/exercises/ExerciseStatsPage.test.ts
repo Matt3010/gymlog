@@ -20,7 +20,7 @@ describe('the stats of an exercise', () => {
   it('goes back to the exercises', async () => {
     fakeApi().on('GET /stats/exercises/1', SQUAT);
     render(ExerciseStatsPage, { id: 1 });
-    expect(await screen.findByRole('link', { name: 'Esercizi' })).toHaveAttribute('href', '/esercizi');
+    expect(await screen.findByRole('link', { name: 'Esercizi' })).toHaveAttribute('href', '/exercises');
   });
 
   it('draws how the estimated max and the heaviest set went, the oldest session on the left', async () => {
@@ -86,7 +86,7 @@ describe('the stats of an exercise', () => {
       ['dom 20 set', '1', '3', '330', '110', '110', '121', ''],
       ['ven 18 set', '2', '18', '1720', '90', '95', '116,67', ''],
     ]);
-    expect(within(table).getByRole('link', { name: 'ven 18 set' })).toHaveAttribute('href', '/allenamenti/5');
+    expect(within(table).getByRole('link', { name: 'ven 18 set' })).toHaveAttribute('href', '/workouts/5');
     // a number stands under its heading: right-aligned like it, so a shorter one still ends under it
     const headers = within(table).getAllByRole('columnheader');
     for (const row of within(table).getAllByRole('row').slice(1)) {

@@ -20,10 +20,10 @@ afterEach(() => rest.stop());
 describe('the workout in progress, on every page', () => {
   it('sits above the tabs: what it is, how far, how long; a tap resumes it', async () => {
     fakeApi().on(RECENT, [workout(9), workout(8, { finishedAt: '2026-10-01T18:00:00.000Z' })]);
-    nav.go('/schede');
+    nav.go('/plans');
     render(NowBar);
     const bar = await screen.findByRole('link', { name: /^In corso/ });
-    expect(bar).toHaveAttribute('href', '/allenamenti/9');
+    expect(bar).toHaveAttribute('href', '/workouts/9');
     expect(bar.textContent?.replace(/\s+/g, ' ').trim()).toBe('In corso Ciao · A 3 serie · 24 min');
   });
 
@@ -35,7 +35,7 @@ describe('the workout in progress, on every page', () => {
 
   it('puts the rest in a banner of its own over it, away from the workout too: the time left, and ±15 s and stop at hand', async () => {
     fakeApi().on(RECENT, [workout(9)]);
-    nav.go('/esercizi');
+    nav.go('/exercises');
     render(NowBar);
     const user = userEvent.setup();
     const bar = await screen.findByRole('link', { name: /^In corso/ });
@@ -60,7 +60,7 @@ describe('the workout in progress, on every page', () => {
 
   it('stays on the page of that workout too, the same, only not a link to where you are', async () => {
     fakeApi().on(RECENT, [workout(9)]);
-    nav.go('/allenamenti/9');
+    nav.go('/workouts/9');
     render(NowBar);
     expect(await screen.findByRole('region', { name: 'In corso' })).toHaveTextContent('Ciao · A');
     expect(screen.queryByRole('link', { name: /^In corso/ })).not.toBeInTheDocument();
@@ -70,7 +70,7 @@ describe('the workout in progress, on every page', () => {
 
   it('shows what the workout page says right away: a set logged counts at once', async () => {
     fakeApi().on(RECENT, [workout(9)]);
-    nav.go('/allenamenti/9');
+    nav.go('/workouts/9');
     render(NowBar);
     const bar = await screen.findByRole('region', { name: 'In corso' });
     expect(bar).toHaveTextContent('3 serie');
@@ -84,7 +84,7 @@ describe('the workout in progress, on every page', () => {
     render(NowBar);
     await screen.findByRole('link', { name: /^In corso/ });
     open = false;
-    nav.go('/storico');
+    nav.go('/history');
     await vi.waitFor(() => expect(screen.queryByRole('link', { name: /^In corso/ })).not.toBeInTheDocument());
   });
 });

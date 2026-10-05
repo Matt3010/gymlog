@@ -38,7 +38,7 @@ describe('a window', () => {
     await signedIn();
     ui.openModal({ title: 'Prova', view: Probe, props: { text: 'x' } });
     await screen.findByRole('dialog');
-    nav.go('/storico');
+    nav.go('/history');
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
@@ -46,7 +46,7 @@ describe('a window', () => {
     await signedIn();
     ui.openModal({ title: 'Prova', view: Probe, props: { text: 'x', dirty: true } });
     await screen.findByRole('dialog');
-    nav.go('/storico');
+    nav.go('/history');
     expect(await screen.findByRole('alertdialog', { name: 'Buttare le modifiche?' })).toBeInTheDocument();
     expect(nav.path).toBe('/');
     await userEvent.setup().click(screen.getByRole('button', { name: 'Continua a scrivere' }));
@@ -58,9 +58,9 @@ describe('a window', () => {
     await signedIn();
     ui.openModal({ title: 'Prova', view: Probe, props: { text: 'x', dirty: true } });
     await screen.findByRole('dialog');
-    nav.go('/storico');
+    nav.go('/history');
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Butta' }));
-    expect(nav.path).toBe('/storico');
+    expect(nav.path).toBe('/history');
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });

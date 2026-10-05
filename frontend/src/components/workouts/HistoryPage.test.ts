@@ -19,8 +19,8 @@ describe('the history', () => {
   it('lists the workouts with their numbers, each opening its page', async () => {
     fakeApi().on('GET /workouts?limit=20&offset=0', [workout(3), { ...workout(2), finishedAt: null, planName: null, dayName: null, sets: 1, volume: 0 }]);
     render(HistoryPage);
-    expect(await screen.findByRole('link', { name: 'dom 20 set Forza · A 4 serie · 1520,5 kg' })).toHaveAttribute('href', '/allenamenti/3');
-    expect(screen.getByRole('link', { name: 'dom 20 set Allenamento libero · in corso 1 serie · 0 kg' })).toHaveAttribute('href', '/allenamenti/2');
+    expect(await screen.findByRole('link', { name: 'dom 20 set Forza · A 4 serie · 1520,5 kg' })).toHaveAttribute('href', '/workouts/3');
+    expect(screen.getByRole('link', { name: 'dom 20 set Allenamento libero · in corso 1 serie · 0 kg' })).toHaveAttribute('href', '/workouts/2');
     expect(screen.queryByRole('button', { name: 'Carica altri' })).not.toBeInTheDocument();
   });
 
@@ -33,7 +33,7 @@ describe('the history', () => {
     expect(api.calls.map((call) => call.path)).toEqual(['/workouts?limit=20&offset=0', '/workouts?limit=20&offset=20']);
     await screen.findAllByRole('link', { name: /4 serie/ });
     expect(links()).toHaveLength(23);
-    expect(links().at(-1)).toBe('/allenamenti/202');
+    expect(links().at(-1)).toBe('/workouts/202');
     expect(screen.queryByRole('button', { name: 'Carica altri' })).not.toBeInTheDocument();
   });
 

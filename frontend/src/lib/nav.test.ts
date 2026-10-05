@@ -26,17 +26,17 @@ function click(href: string, init: MouseEventInit = {}): { defaultPrevented: boo
 describe('a link of the app', () => {
   it('changes page without reloading, and leaves a step back', () => {
     const before = history.length;
-    const event = click('/schede');
+    const event = click('/plans');
     expect(event.defaultPrevented).toBe(true);
-    expect(nav.path).toBe('/schede');
-    expect(window.location.pathname).toBe('/schede');
+    expect(nav.path).toBe('/plans');
+    expect(window.location.pathname).toBe('/plans');
     expect(nav.route).toEqual({ kind: 'plans' });
     expect(history.length).toBe(before + 1);
   });
 
   it('is written the good way in the address bar', () => {
-    click('/schede/');
-    expect(window.location.pathname).toBe('/schede');
+    click('/plans/');
+    expect(window.location.pathname).toBe('/plans');
   });
 
   it.each([
@@ -46,21 +46,21 @@ describe('a link of the app', () => {
     ['alt', { altKey: true }],
     ['the middle button', { button: 1 }],
   ])('with %s is left to the browser', (_name, init) => {
-    const event = click('/schede', init);
+    const event = click('/plans', init);
     expect(event.defaultPrevented).toBe(false);
     expect(nav.path).toBe('/');
   });
 
   it('to another site is left to the browser', () => {
-    const event = click('https://example.org/schede');
+    const event = click('https://example.org/plans');
     expect(event.defaultPrevented).toBe(false);
     expect(nav.path).toBe('/');
   });
 
   it('takes away a message about the page being left', () => {
     toast.show('Scheda salvata.');
-    click('/allenamenti/3');
-    expect(nav.path).toBe('/allenamenti/3');
+    click('/workouts/3');
+    expect(nav.path).toBe('/workouts/3');
     expect(toast.open).toBe(false);
   });
 
@@ -73,11 +73,11 @@ describe('a link of the app', () => {
 
 describe('going back', () => {
   it('follows the address, and takes away the message', () => {
-    nav.go('/storico');
+    nav.go('/history');
     toast.show('Allenamento eliminato.');
-    history.replaceState({}, '', '/esercizi');
+    history.replaceState({}, '', '/exercises');
     window.dispatchEvent(new PopStateEvent('popstate'));
-    expect(nav.path).toBe('/esercizi');
+    expect(nav.path).toBe('/exercises');
     expect(toast.open).toBe(false);
   });
 });
@@ -85,14 +85,14 @@ describe('going back', () => {
 describe('a page sending you on', () => {
   it('keeps the message it has just shown', () => {
     toast.show('Scheda eliminata.');
-    nav.go('/schede', { replace: true });
-    expect(nav.path).toBe('/schede');
+    nav.go('/plans', { replace: true });
+    expect(nav.path).toBe('/plans');
     expect(toast.open).toBe(true);
   });
 
   it('may leave no step back', () => {
     const before = history.length;
-    nav.go('/schede', { replace: true });
+    nav.go('/plans', { replace: true });
     expect(history.length).toBe(before);
   });
 });
@@ -103,29 +103,29 @@ describe('a guard over leaving', () => {
   it('is asked before going, and can hold the page', () => {
     const guard = vi.fn(() => true);
     nav.custodisci(guard);
-    click('/schede');
+    click('/plans');
     expect(guard).toHaveBeenCalledOnce();
     expect(nav.path).toBe('/');
-    nav.go('/storico');
+    nav.go('/history');
     expect(nav.path).toBe('/');
   });
 
   it('holds the back button too (and the swipe back on an iPhone): the address stays, and goes on when it says so', () => {
-    nav.go('/schede/9');
+    nav.go('/plans/9');
     let go = () => undefined as void;
     nav.custodisci((vai) => {
       go = vai;
       return true;
     });
     // the browser has already moved the address back
-    history.replaceState({}, '', '/schede');
+    history.replaceState({}, '', '/plans');
     window.dispatchEvent(new PopStateEvent('popstate'));
-    expect(nav.path).toBe('/schede/9');
-    expect(window.location.pathname).toBe('/schede/9');
+    expect(nav.path).toBe('/plans/9');
+    expect(window.location.pathname).toBe('/plans/9');
     nav.custodisci(() => false);
     go();
-    expect(nav.path).toBe('/schede');
-    expect(window.location.pathname).toBe('/schede');
+    expect(nav.path).toBe('/plans');
+    expect(window.location.pathname).toBe('/plans');
   });
 
   it('goes on when it says so', () => {
@@ -134,27 +134,27 @@ describe('a guard over leaving', () => {
       go = vai;
       return true;
     });
-    nav.go('/storico');
+    nav.go('/history');
     expect(nav.path).toBe('/');
     nav.custodisci(() => false);
     go();
-    expect(nav.path).toBe('/storico');
+    expect(nav.path).toBe('/history');
   });
 
   it('lets the page go when there is nothing to ask', () => {
     nav.custodisci(() => false);
-    click('/esercizi');
-    expect(nav.path).toBe('/esercizi');
+    click('/exercises');
+    expect(nav.path).toBe('/exercises');
   });
 });
 
 describe('problems Stryker found unchecked', () => {
   it('leaves a link for a new tab or a download to the browser', () => {
     const blank = document.createElement('a');
-    blank.href = '/schede';
+    blank.href = '/plans';
     blank.target = '_blank';
     const download = document.createElement('a');
-    download.href = '/schede';
+    download.href = '/plans';
     download.setAttribute('download', '');
     for (const link of [blank, download]) {
       document.body.append(link);
@@ -180,38 +180,43 @@ describe('problems Stryker found unchecked', () => {
 
   it('opens a new page from its top', () => {
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
-    nav.go('/esercizi');
+    nav.go('/exercises');
     expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
     scrollTo.mockRestore();
   });
 
   it('keeps going in place after the guard said yes, when the going was in place', () => {
-    nav.go('/schede');
+    nav.go('/plans');
     const before = history.length;
     let go = () => undefined as void;
     nav.custodisci((vai) => {
       go = vai;
       return true;
     });
-    nav.go('/storico', { replace: true });
+    nav.go('/history', { replace: true });
     nav.custodisci(() => false);
     go();
-    expect(nav.path).toBe('/storico');
-    expect(window.location.pathname).toBe('/storico');
+    expect(nav.path).toBe('/history');
+    expect(window.location.pathname).toBe('/history');
     expect(history.length).toBe(before);
   });
 
   it('writes an address of the app the right way as it opens', async () => {
-    history.replaceState({}, '', '/schede/');
+    history.replaceState({}, '', '/plans/');
     vi.resetModules();
     const fresh = (await import('./nav.svelte')).nav;
-    expect(fresh.path).toBe('/schede');
-    expect(window.location.pathname).toBe('/schede');
+    expect(fresh.path).toBe('/plans');
+    expect(window.location.pathname).toBe('/plans');
+    // an Italian address of before is written in English
+    history.replaceState({}, '', '/schede/9');
+    vi.resetModules();
+    expect((await import('./nav.svelte')).nav.path).toBe('/plans/9');
+    expect(window.location.pathname).toBe('/plans/9');
     // an address already right is left as it is
-    history.replaceState({}, '', '/storico');
+    history.replaceState({}, '', '/history');
     vi.resetModules();
     const replaced = vi.spyOn(history, 'replaceState');
-    expect((await import('./nav.svelte')).nav.path).toBe('/storico');
+    expect((await import('./nav.svelte')).nav.path).toBe('/history');
     expect(replaced).not.toHaveBeenCalled();
     replaced.mockRestore();
   });
