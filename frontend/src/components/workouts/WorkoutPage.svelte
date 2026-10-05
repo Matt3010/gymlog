@@ -3,7 +3,7 @@
   import { workoutsApi } from '../../lib/endpoints';
   import { formatClock, formatDay, formatDuration, formatKg, formatRest } from '../../lib/format';
   import { nav } from '../../lib/nav.svelte';
-  import { HOME_PATH } from '../../lib/routing';
+  import { HISTORY_PATH, HOME_PATH } from '../../lib/routing';
   import { current } from '../../lib/current.svelte';
   import { rest } from '../../lib/rest.svelte';
   import { toast } from '../../lib/toast.svelte';
@@ -174,7 +174,7 @@
       rest.stop();
       if (current.workout?.id === id) current.set(null);
       toast.show('Allenamento eliminato.');
-      nav.go(HOME_PATH, { replace: true });
+      nav.go(back.href, { replace: true });
     } catch (failure) {
       error = (failure as Error).message;
       working = false;
@@ -195,8 +195,12 @@
     });
   }
 
-  /** Il ritorno in cima alla pagina: un oggetto qui e non nel markup, che Stryker non sa leggere. */
-  const back = { href: HOME_PATH, label: 'Allenati' };
+  /**
+   * Il ritorno in cima alla pagina, e dove si va eliminandolo: uno finito si
+   * apre dallo storico, quello in corso da «Allenati». Un oggetto qui e non
+   * nel markup, che Stryker non sa leggere.
+   */
+  const back = $derived(finished ? { href: HISTORY_PATH, label: 'Storico' } : { href: HOME_PATH, label: 'Allenati' });
 </script>
 
 <PageShell {title} {back}>

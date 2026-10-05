@@ -406,6 +406,25 @@ describe('a workout in progress', () => {
     expect(toast.message).toBe('Allenamento eliminato.');
   });
 
+  it('finished, goes back to the history it came from, when deleted too', async () => {
+    const api = server({ ...DETAIL, finishedAt: '2026-10-01T18:00:00.000Z' }).on('DELETE /workouts/7', { ok: true });
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    const remove = await screen.findByRole('button', { name: 'Elimina l’allenamento' });
+    expect(screen.getByRole('link', { name: 'Storico' })).toHaveAttribute('href', '/storico');
+    await user.click(remove);
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Elimina' }));
+    expect(api.changes()).toEqual([{ route: 'DELETE /workouts/7', body: undefined }]);
+    expect(nav.path).toBe('/storico');
+  });
+
+  it('in progress, goes back to Allenati', async () => {
+    server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    await screen.findByRole('button', { name: 'Termina' });
+    expect(screen.getByRole('link', { name: 'Allenati' })).toHaveAttribute('href', '/');
+  });
+
 });
 
 describe('a workout already finished', () => {
