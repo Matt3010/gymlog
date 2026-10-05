@@ -115,7 +115,10 @@ async function writeDays(db: Executor, planId: number, input: PlanInput): Promis
       const [row] = await db.insert(planDays).values({ planId, name: day.name, position }).returning({ id: planDays.id });
       dayId = row!.id;
     } else {
-      await db.update(planDays).set({ name: day.name, position }).where(and(eq(planDays.id, dayId), eq(planDays.planId, planId)));
+      const kept = await db.update(planDays).set({ name: day.name, position })
+        .where(and(eq(planDays.id, dayId), eq(planDays.planId, planId))).returning({ id: planDays.id });
+      // only a day of this very plan is rewritten: never another plan's, whoever sent its id
+      if (kept.length === 0) throw new Error(`plan day ${dayId} is not one of plan ${planId}'s`);
       await db.delete(planExercises).where(eq(planExercises.planDayId, dayId));
     }
     if (day.exercises.length === 0) continue;
@@ -162,7 +165,7 @@ export function createPlansRepository(db: Executor): PlansRepository {
       await db.execute(sql`
         update workouts w set plan_name = ${input.name}, day_name = d.name
         from plan_days d
-        where w.plan_day_id = d.id and d.plan_id = ${id}`);
+        where w.plan_day_id = d.id and d.plan_id = ${id} and w.user_id = ${userId}`);
       return load(db, userId, id);
     },
 

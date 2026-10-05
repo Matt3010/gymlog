@@ -27,6 +27,10 @@ export function createPlansService(db: Executor): PlansService {
     // A new plan takes over from the ones in use before it, which end the day before; one
     // written down already over, or archived, is not the one in use and takes over nothing.
     create: (userId, input) => db.transaction(async (tx) => {
+      // a new plan has new days only: a day id here is someone else's day, or a stale one
+      if (input.days.some((day) => day.id !== undefined)) {
+        throw new InputError("Uno degli allenamenti della scheda non esiste più. Ricarica la pagina.");
+      }
       const plans = createPlansRepository(tx);
       const inUse = !input.archived && (input.endsOn === null || input.endsOn >= todayInItaly());
       if (inUse) await plans.closeBefore(userId, input.startsOn);

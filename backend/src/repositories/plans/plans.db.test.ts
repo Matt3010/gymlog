@@ -192,6 +192,16 @@ describe.skipIf(SERVER === undefined)("the plans repository", () => {
     expect((await repo().find(user.id, open.id))?.endsOn).toBe("2024-02-29");
   });
 
+  it("never rewrites a day of another plan, whatever id it is sent", async () => {
+    const { user, input } = await setup();
+    const other = await setup();
+    const victim = await repo().create(other.user.id, other.input);
+    const day = victim.days[0]!;
+    await expect(handle.db.transaction((tx) => createPlansRepository(tx).create(user.id, { ...input, days: [{ id: day.id, name: "x", exercises: [] }] })))
+      .rejects.toThrow(/is not one of plan/);
+    expect(await repo().find(other.user.id, victim.id)).toEqual(victim);
+  });
+
   it("deletes a plan", async () => {
     const { user, input } = await setup();
     const plan = await repo().create(user.id, input);

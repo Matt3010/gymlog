@@ -449,6 +449,18 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect((await call("GET", "/api/workouts?limit=x")).body).toHaveLength(3);
     });
 
+    it("never write into another user's plan day, not even through a new plan", async () => {
+      const anna = await signedIn();
+      const mallory = await signedIn();
+      const squat = (await anna.call("POST", "/api/exercises", { name: "Squat" })).body;
+      const plan = (await anna.call("POST", "/api/plans", { name: "P", startsOn: "2026-10-05", days: [{ name: "A", exercises: [{ exerciseId: squat.id, reps: ["5"] }] }] })).body;
+      const theirs = (await mallory.call("POST", "/api/exercises", { name: "Spam" })).body;
+      const attack = { name: "x", startsOn: "2026-10-05", archived: true, days: [{ id: plan.days[0].id, name: "x", exercises: [{ exerciseId: theirs.id, reps: ["1"] }] }] };
+      expect(await mallory.call("POST", "/api/plans", attack))
+        .toMatchObject({ status: 400, body: { error: "Uno degli allenamenti della scheda non esiste più. Ricarica la pagina." } });
+      expect((await anna.call("GET", `/api/plans/${plan.id}`)).body).toEqual(plan);
+    });
+
     it("refuse another user's exercise or plan day with a message", async () => {
       const mine = await signedIn();
       const theirs = await signedIn();
