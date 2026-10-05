@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, type Route, test } from '@playwright/test';
 
 /*
  * The MVP as someone uses it at the gym, on a phone: exercises, a plan with
@@ -318,6 +318,21 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   // At the end of the editor its buttons are clear of the tab bar.
   await scrollToEnd(page);
   await expectClearOfTabBar(page, page.getByRole('button', { name: 'Aggiungi allenamento' }));
+
+  // A message that turns up at the bottom of the page, while there, shows above the tab bar, not under it.
+  const failSaves = (route: Route) => (route.request().method() === 'PUT' ? route.fulfill({ status: 503, json: { error: 'Il server non si raggiunge adesso. Riprova fra poco.' } }) : route.continue());
+  await page.route('**/api/plans/*', failSaves);
+  await scrollToEnd(page);
+  await page.getByRole('button', { name: 'Aggiungi allenamento' }).click();
+  await expect(page.getByRole('alert')).toBeVisible({ timeout: 5000 });
+  await page.waitForTimeout(600);
+  await expectClearOfTabBar(page, page.getByRole('alert'));
+  await page.unroute('**/api/plans/*', failSaves);
+  await page.getByRole('button', { name: 'Togli l’allenamento' }).last().click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Togli' }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0, { timeout: 5000 });
+  // the browser logs the refused save: that one was asked for
+  errors.splice(0, errors.length, ...errors.filter((error) => !error.includes('503')));
 
   // A change made just before leaving is not lost; the name sits in «Dettagli», not above the workouts.
   await expect(page.getByPlaceholder('Forza, autunno')).toHaveCount(0);

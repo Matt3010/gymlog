@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
 
@@ -10,9 +11,17 @@
     message: string;
     action?: { label: string; run: () => void };
   } = $props();
+
+  /*
+   * Un guaio compare spesso in fondo, dove si stava scrivendo: lì la barra
+   * delle sezioni lo coprirebbe finché non si scorre. Appena c'è, la pagina
+   * si sposta quanto basta a vederlo (niente, se si vede già).
+   */
+  let element = $state<HTMLElement>();
+  onMount(() => element?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
 </script>
 
-<p class="alert" role="alert">
+<p class="alert" role="alert" bind:this={element}>
   <Icon name="alert" />
   <span>{message}</span>
   {#if action}
@@ -34,6 +43,9 @@
     line-height: 1.4;
     color: var(--ink);
     animation: rise 0.22s var(--ease);
+    /* visto per intero vuol dire sopra la barra delle sezioni, con lo spazio di una card */
+    scroll-margin-top: var(--card-pad);
+    scroll-margin-bottom: calc(var(--tab-bar) + var(--card-pad));
   }
 
   .alert :global(.ico) { width: 15px; height: 15px; flex: none; color: var(--danger); }
