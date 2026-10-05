@@ -44,8 +44,8 @@
   }
 
 
-  /** «A» da sola non dice niente: un nome di una o due lettere è un giorno. */
-  const dayLabel = (name: string): string => (name.length <= 2 ? `Giorno ${name}` : name);
+  /** «A» da sola non dice niente: un nome di una o due lettere è un allenamento della scheda. */
+  const dayLabel = (name: string): string => (name.length <= 2 ? `Allenamento ${name}` : name);
 
   /* uno alla volta: con un allenamento in corso (la barra sopra le sezioni) non se ne comincia un altro */
   const busy = $derived(current.workout !== null);
@@ -87,7 +87,7 @@
 
     {#if plans.length === 0}
       <PageCard>
-        <EmptyState title="Nessuna scheda, per ora." line="Scrivi una scheda con i suoi giorni, o allenati senza.">
+        <EmptyState title="Nessuna scheda, per ora." line="Scrivi una scheda con i suoi allenamenti, o allenati senza.">
           <Button look="primary" href={planPath(null)}>Scrivi una scheda</Button>
         </EmptyState>
       </PageCard>

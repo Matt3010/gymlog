@@ -20,10 +20,11 @@
   import ExercisePicker from '../exercises/ExercisePicker.svelte';
 
   /**
-   * Una scheda da scrivere: il nome, i giorni, e in ogni giorno gli esercizi
-   * in ordine con serie, ripetizioni e recupero.
+   * Una scheda da scrivere: il nome, da quando a quando si segue, gli
+   * allenamenti (A, B…), e in ognuno gli esercizi in ordine con serie,
+   * ripetizioni e recupero.
    *
-   * Una scheda nuova si crea su richiesta: nome, note e «Crea la scheda».
+   * Una scheda nuova si crea su richiesta: nome, periodo, note e «Crea la scheda».
    * Creata, la pagina diventa la sua, e da lì si salva da sé mentre la
    * scrivi, tutta insieme (`Autosave`): nessun tasto «Salva». Quello che il
    * server rifiuterebbe si dice prima, e non parte.
@@ -36,15 +37,16 @@
   /** L'ultima versione mandata, o quella aperta: uguale, non si rimanda. */
   let sent = '';
 
-  /* una scheda nuova: solo il nome e le note, finché non la si crea */
-  let newName = $state('');
-  let newNotes = $state('');
+  /* una scheda nuova: il nome, il periodo e le note, finché non la si crea; gli allenamenti dopo */
+  const fresh = $state(draftOf(null));
+  /* senza nome non si crea, ma non c'è niente da dire: il tasto spento basta */
+  const freshProblem = $derived(fresh.name.trim() === '' ? null : problemOf(fresh));
 
   async function create(): Promise<void> {
     working = true;
     error = '';
     try {
-      const created = await plansApi.create(toInput({ ...draftOf(null), name: newName, notes: newNotes }));
+      const created = await plansApi.create(toInput(fresh));
       nav.go(planPath(created.id), { replace: true });
     } catch (failure) {
       error = (failure as Error).message;
@@ -95,10 +97,10 @@
     saver.change({ json: now, days: [...draft.days] });
   });
 
-  /** Un esercizio da aggiungere a un giorno, scelto in una finestra. */
+  /** Un esercizio da aggiungere a un allenamento, scelto in una finestra. */
   function pickFor(day: DraftDay): void {
     ui.openModal({
-      title: `Aggiungi al giorno ${day.name.trim() || 'senza nome'}`,
+      title: `Aggiungi all’allenamento ${day.name.trim() || 'senza nome'}`,
       view: ExercisePicker,
       props: {
         exclude: day.exercises.map((one) => one.exerciseId),
@@ -150,6 +152,20 @@
   const back = { href: PLANS_PATH, label: 'Schede' };
 </script>
 
+<!-- da quando a quando: la fine si lascia vuota finché la scheda è in uso -->
+{#snippet period(target: Draft)}
+  <div class="period">
+    <label class="field">
+      <span class="eyebrow">Dal</span>
+      <input type="date" bind:value={target.startsOn} />
+    </label>
+    <label class="field">
+      <span class="eyebrow">Al</span>
+      <input type="date" bind:value={target.endsOn} min={target.startsOn} />
+    </label>
+  </div>
+{/snippet}
+
 <PageShell title={id === null ? 'Nuova scheda' : (draft?.name || 'Scheda')} {back}>
   {#snippet meta()}{#if id !== null}<SaveStatus {saver} />{/if}{/snippet}
   {#snippet tools()}
@@ -170,15 +186,17 @@
     <PageCard>
       <label class="field">
         <span class="eyebrow">Nome</span>
-        <TextField bind:value={newName} placeholder="Forza, autunno" maxlength={100} />
+        <TextField bind:value={fresh.name} placeholder="Forza, autunno" maxlength={100} />
       </label>
+      {@render period(fresh)}
       <label class="field">
         <span class="eyebrow">Note</span>
-        <TextField kind="multiline" bind:value={newNotes} maxlength={1000} placeholder="Quante volte a settimana, cosa curare" />
+        <TextField kind="multiline" bind:value={fresh.notes} maxlength={1000} placeholder="Quante volte a settimana, cosa curare" />
       </label>
+      {#if freshProblem}<Alert message={freshProblem} />{/if}
       {#if error}<Alert message={error} />{/if}
       <span class="create">
-        <Button look="primary" disabled={working || newName.trim() === ''} onclick={() => void create()}>
+        <Button look="primary" disabled={working || fresh.name.trim() === '' || freshProblem !== null} onclick={() => void create()}>
           <Icon name="plus" /> Crea la scheda
         </Button>
       </span>
@@ -191,6 +209,7 @@
         <span class="eyebrow">Nome</span>
         <TextField bind:value={draft.name} placeholder="Forza, autunno" maxlength={100} />
       </label>
+      {@render period(draft)}
       <label class="field">
         <span class="eyebrow">Note</span>
         <TextField kind="multiline" bind:value={draft.notes} maxlength={1000} placeholder="Quante volte a settimana, cosa curare" />
@@ -204,12 +223,12 @@
     </PageCard>
 
     {#each draft.days as day, dayIndex (day.key)}
-      <!-- un giorno è un gruppo: la sua card, una card per esercizio, e il tasto per aggiungerne -->
-      <div class="day" role="group" aria-label="Giorno {dayName(day)}">
+      <!-- un allenamento è un gruppo: la sua card, una card per esercizio, e il tasto per aggiungerne -->
+      <div class="day" role="group" aria-label="Allenamento {dayName(day)}">
       <PageCard>
         <div class="day-head">
           <label class="field day-name">
-            <span class="eyebrow">Giorno</span>
+            <span class="eyebrow">Allenamento</span>
             <TextField bind:value={day.name} placeholder="A" maxlength={100} />
           </label>
           <span class="tools">
@@ -219,7 +238,7 @@
             <Button look="icon" title="Sposta giù" disabled={dayIndex === draft.days.length - 1} onclick={() => draft && (draft.days = move(draft.days, dayIndex, 1))}>
               <Icon name="down" />
             </Button>
-            <Button look="icon" tone="danger" title="Togli il giorno" onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere il giorno «${dayName(day)}»?`, () => draft && (draft.days = draft.days.filter((one) => one !== day)), 'Con i suoi esercizi.')}>
+            <Button look="icon" tone="danger" title="Togli l’allenamento" onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere l’allenamento «${dayName(day)}»?`, () => draft && (draft.days = draft.days.filter((one) => one !== day)), 'Con i suoi esercizi.')}>
               <Icon name="trash" />
             </Button>
           </span>
@@ -238,7 +257,7 @@
                 <Button look="icon" size="sm" title="Sposta giù" disabled={index === day.exercises.length - 1} onclick={() => (day.exercises = move(day.exercises, index, 1))}>
                   <Icon name="down" />
                 </Button>
-                <Button look="icon" size="sm" tone="danger" title="Togli l’esercizio" onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere «${exercise.exerciseName}» dal giorno «${dayName(day)}»?`, () => (day.exercises = day.exercises.filter((one) => one !== exercise)))}>
+                <Button look="icon" size="sm" tone="danger" title="Togli l’esercizio" onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere «${exercise.exerciseName}» dall’allenamento «${dayName(day)}»?`, () => (day.exercises = day.exercises.filter((one) => one !== exercise)))}>
                   <Icon name="close" />
                 </Button>
               </span>
@@ -286,7 +305,7 @@
 
     <div class="bottom">
       <Button look="ghost" onclick={() => draft && addDay(draft)}>
-        <Icon name="plus" /> Aggiungi giorno
+        <Icon name="plus" /> Aggiungi allenamento
       </Button>
     </div>
 
@@ -304,6 +323,15 @@
   .create { display: block; }
 
   @media (min-width: 601px) { .create { justify-self: end; } }
+
+  /* dal e al uno accanto all'altro: due date stanno anche sul telefono */
+  .period {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .period input { width: 100%; min-width: 0; }
 
   .day-head {
     display: flex;

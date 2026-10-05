@@ -21,7 +21,12 @@ export function createPlansService(db: Executor): PlansService {
     list: (userId) => plans.list(userId),
     get: async (userId, id) => found(await plans.find(userId, id)),
     // A plan, its days and their exercises are written together or not at all.
-    create: (userId, input) => db.transaction((tx) => createPlansRepository(tx).create(userId, input)),
+    // A new plan takes over from the one in use before it, which ends the day before.
+    create: (userId, input) => db.transaction(async (tx) => {
+      const plans = createPlansRepository(tx);
+      await plans.closeBefore(userId, input.startsOn);
+      return plans.create(userId, input);
+    }),
     replace: async (userId, id, input) => found(await db.transaction(async (tx) => {
       const plans = createPlansRepository(tx);
       const current = await plans.find(userId, id);
@@ -29,7 +34,7 @@ export function createPlansService(db: Executor): PlansService {
       // A day id must be one of this plan's: another plan's day is not taken over.
       const own = new Set(current.days.map((day) => day.id));
       if (input.days.some((day) => day.id !== undefined && !own.has(day.id))) {
-        throw new InputError("Uno dei giorni non esiste più. Ricarica la pagina.");
+        throw new InputError("Uno degli allenamenti della scheda non esiste più. Ricarica la pagina.");
       }
       return plans.replace(userId, id, input);
     })),

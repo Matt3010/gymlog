@@ -1,5 +1,5 @@
 import type { PlanExerciseInput, PlanInput } from "../../repositories";
-import { type Body, bool, id, InputError, list, object, optionalNumber, optionalText, text } from "../common";
+import { type Body, bool, date, id, InputError, list, object, optionalDate, optionalNumber, optionalText, text } from "../common";
 
 const MAX_DAYS = 14;
 const MAX_EXERCISES_PER_DAY = 30;
@@ -26,10 +26,16 @@ function parsePlanExercise(value: unknown): PlanExerciseInput {
 export function parsePlan(value: unknown): PlanInput {
   const body = object(value);
   const days = list(body, "days");
-  if (days.length > MAX_DAYS) throw new InputError(`Giorni: al più ${MAX_DAYS}.`);
+  if (days.length > MAX_DAYS) throw new InputError(`Allenamenti: al più ${MAX_DAYS}.`);
+  const startsOn = date(body, "startsOn");
+  const endsOn = optionalDate(body, "endsOn");
+  // the same shape on both sides: as text they compare as days do
+  if (endsOn !== null && endsOn < startsOn) throw new InputError("Al: non prima di «Dal».");
   return {
     name: text(body, "name"),
     notes: optionalText(body, "notes"),
+    startsOn,
+    endsOn,
     archived: body.archived === undefined ? false : bool(body, "archived"),
     days: days.map((dayValue) => {
       const day = object(dayValue);
@@ -37,7 +43,7 @@ export function parsePlan(value: unknown): PlanInput {
       const dayId = day.id === undefined ? undefined : id({ planDayId: day.id }, "planDayId");
       const name = text(day, "name");
       const exercises = list(day, "exercises");
-      if (exercises.length > MAX_EXERCISES_PER_DAY) throw new InputError(`Esercizi: al più ${MAX_EXERCISES_PER_DAY} per giorno.`);
+      if (exercises.length > MAX_EXERCISES_PER_DAY) throw new InputError(`Esercizi: al più ${MAX_EXERCISES_PER_DAY} per allenamento.`);
       return { id: dayId, name, exercises: exercises.map(parsePlanExercise) };
     }),
   };

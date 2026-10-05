@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { addDay, addSet, draftOf, learnDayIds, move, problemOf, removeSet, toInput, type Draft } from './plan-draft';
+import { fusoDelBrowser, oraIn } from './fuso';
 import type { Plan } from './types';
 
 const plan: Plan = {
-  id: 3, name: 'Forza', notes: 'tre volte', archived: false,
+  id: 3, name: 'Forza', notes: 'tre volte', startsOn: '2026-10-05', endsOn: '2026-11-15', archived: false,
   days: [
     {
       id: 10, name: 'A', position: 0,
@@ -17,7 +18,7 @@ describe('a draft', () => {
   it('starts from a plan, each day and exercise with a key of its own', () => {
     const draft = draftOf(plan);
     expect(draft).toMatchObject({
-      name: 'Forza', notes: 'tre volte', archived: false,
+      name: 'Forza', notes: 'tre volte', startsOn: '2026-10-05', endsOn: '2026-11-15', archived: false,
       days: [
         { name: 'A', exercises: [{ exerciseId: 1, exerciseName: 'Squat', reps: ['5', '5', '3'], restSeconds: 180, notes: '' }] },
         { name: 'B', exercises: [] },
@@ -27,12 +28,16 @@ describe('a draft', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it('has empty notes when the plan has none', () => {
-    expect(draftOf({ ...plan, notes: null }).notes).toBe('');
+  it('has empty notes and end when the plan has none', () => {
+    expect(draftOf({ ...plan, notes: null, endsOn: null })).toMatchObject({ notes: '', endsOn: '' });
   });
 
-  it('starts empty for a new plan, with a first day', () => {
-    expect(draftOf(null)).toMatchObject({ name: '', notes: '', archived: false, days: [{ name: 'A', exercises: [] }] });
+  it('starts empty for a new plan, from the day given, with a first workout', () => {
+    expect(draftOf(null, '2026-10-05')).toMatchObject({ name: '', notes: '', startsOn: '2026-10-05', endsOn: '', archived: false, days: [{ name: 'A', exercises: [] }] });
+  });
+
+  it('starts a new plan today, where the phone is', () => {
+    expect(draftOf(null).startsOn).toBe(oraIn(fusoDelBrowser()).date);
   });
 
   it('becomes what the API takes, trimmed, empty notes as nothing', () => {
@@ -42,13 +47,18 @@ describe('a draft', () => {
     draft.days[0]!.name = ' A ';
     draft.days[0]!.exercises[0]!.reps[1] = ' 5-6 ';
     draft.days[0]!.exercises[0]!.notes = ' lento ';
+    draft.endsOn = '';
     expect(toInput(draft)).toEqual({
-      name: 'Forza 2', notes: null, archived: false,
+      name: 'Forza 2', notes: null, startsOn: '2026-10-05', endsOn: null, archived: false,
       days: [
         { id: 10, name: 'A', exercises: [{ exerciseId: 1, reps: ['5', '5-6', '3'], restSeconds: 180, notes: 'lento' }] },
         { id: 11, name: 'B', exercises: [] },
       ],
     });
+  });
+
+  it('sends the end when there is one', () => {
+    expect(toInput(draftOf(plan)).endsOn).toBe('2026-11-15');
   });
 
   it('sends the id of a saved day, none for a new one', () => {
@@ -112,7 +122,7 @@ describe('a new day', () => {
   });
 
   it('fills a gap first', () => {
-    const draft: Draft = { ...draftOf(null), days: [] };
+    const draft: Draft = { ...draftOf(null, '2026-10-05'), days: [] };
     addDay(draft);
     draft.days[0]!.name = 'B';
     addDay(draft);
@@ -141,30 +151,37 @@ describe('what stops a draft from being saved', () => {
     expect(problemOf({ ...draftOf(plan), name: ' ' })).toBe('La scheda ha bisogno di un nome.');
     const draft = draftOf(plan);
     draft.days[1]!.name = '  ';
-    expect(problemOf(draft)).toBe('Ogni giorno ha bisogno di un nome, come «A» o «Gambe».');
+    expect(problemOf(draft)).toBe('Ogni allenamento ha bisogno di un nome, come «A» o «Gambe».');
+  });
+
+  it('is a missing start, or an end before it', () => {
+    expect(problemOf({ ...draftOf(plan), startsOn: '' })).toBe('La scheda ha bisogno di un giorno da cui parte.');
+    expect(problemOf({ ...draftOf(plan), endsOn: '2026-10-04' })).toBe('La scheda non può finire prima di cominciare.');
+    expect(problemOf({ ...draftOf(plan), endsOn: '2026-10-05' })).toBeNull();
+    expect(problemOf({ ...draftOf(plan), endsOn: '' })).toBeNull();
   });
 
   it('is a set without reps, naming which', () => {
     const draft = draftOf(plan);
     draft.days[0]!.exercises[0]!.reps[1] = ' ';
-    expect(problemOf(draft)).toBe('Nel giorno «A» la serie 2 dell’esercizio «Squat» non ha ripetizioni. Scrivi quante, anche «max».');
+    expect(problemOf(draft)).toBe('Nell’allenamento «A» la serie 2 dell’esercizio «Squat» non ha ripetizioni. Scrivi quante, anche «max».');
   });
 
   it('is the first set without reps too, and names the day without its spaces', () => {
     const draft = draftOf(plan);
     draft.days[0]!.name = ' A ';
     draft.days[0]!.exercises[0]!.reps[0] = '';
-    expect(problemOf(draft)).toBe('Nel giorno «A» la serie 1 dell’esercizio «Squat» non ha ripetizioni. Scrivi quante, anche «max».');
+    expect(problemOf(draft)).toBe('Nell’allenamento «A» la serie 1 dell’esercizio «Squat» non ha ripetizioni. Scrivi quante, anche «max».');
     draft.days[0]!.exercises[0]!.reps = [];
-    expect(problemOf(draft)).toBe('Nel giorno «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
+    expect(problemOf(draft)).toBe('Nell’allenamento «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
   });
 
   it('is an exercise with no sets, or more than 20', () => {
     const draft = draftOf(plan);
     draft.days[0]!.exercises[0]!.reps = [];
-    expect(problemOf(draft)).toBe('Nel giorno «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
+    expect(problemOf(draft)).toBe('Nell’allenamento «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
     draft.days[0]!.exercises[0]!.reps = Array.from({ length: 21 }, () => '5');
-    expect(problemOf(draft)).toBe('Nel giorno «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
+    expect(problemOf(draft)).toBe('Nell’allenamento «A» le serie dell’esercizio «Squat» vanno da 1 a 20.');
     draft.days[0]!.exercises[0]!.reps = Array.from({ length: 20 }, () => '5');
     expect(problemOf(draft)).toBeNull();
     // one set is enough

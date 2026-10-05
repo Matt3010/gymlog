@@ -1,6 +1,7 @@
-import { render, screen, within } from '@testing-library/svelte';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { fusoDelBrowser, oraIn } from '../../lib/fuso';
 import { nav } from '../../lib/nav.svelte';
 import { toast } from '../../lib/toast.svelte';
 import type { Exercise, Plan } from '../../lib/types';
@@ -18,10 +19,10 @@ const planExercise = (id: number, exercise: Exercise, position: number, change =
 });
 
 /** A plan just created: day A, nothing in it yet. */
-const NUOVA: Plan = { id: 9, name: 'Forza', notes: '3 volte', archived: false, days: [{ id: 91, name: 'A', position: 0, exercises: [] }] };
+const NUOVA: Plan = { id: 9, name: 'Forza', notes: '3 volte', startsOn: '2026-10-05', endsOn: null, archived: false, days: [{ id: 91, name: 'A', position: 0, exercises: [] }] };
 
 const FORZA: Plan = {
-  id: 5, name: 'Forza', notes: '3 volte', archived: false,
+  id: 5, name: 'Forza', notes: '3 volte', startsOn: '2026-10-05', endsOn: null, archived: false,
   days: [
     { id: 51, name: 'A', position: 0, exercises: [planExercise(511, SQUAT, 0, { reps: ['5', '5', '5', '5', '3'], restSeconds: 180 }), planExercise(512, PANCA, 1)] },
     { id: 52, name: 'B', position: 1, exercises: [planExercise(521, REMATORE, 0, { notes: 'lento' })] },
@@ -41,12 +42,12 @@ const confirmTake = async (user: ReturnType<typeof userEvent.setup>) =>
 const pause = () => new Promise((resolve) => setTimeout(resolve, 800));
 
 describe('the plans', () => {
-  it('in use are listed first, the archived apart, each with its days and exercises', async () => {
-    fakeApi().on('GET /plans', [FORZA, { ...FORZA, id: 6, name: 'Estate', archived: true, days: [] }]);
+  it('in use are listed first, the archived apart, each with its period, workouts and exercises', async () => {
+    fakeApi().on('GET /plans', [FORZA, { ...FORZA, id: 6, name: 'Estate', startsOn: '2026-06-01', endsOn: '2026-10-04', archived: true, days: [{ ...FORZA.days[1]!, exercises: [] }] }]);
     render(Host, { page: PlansPage });
-    expect(await screen.findByRole('link', { name: 'Forza 2 giorni · 3 esercizi' })).toHaveAttribute('href', '/schede/5');
+    expect(await screen.findByRole('link', { name: 'Forza dal 5 ott 2026 · 2 allenamenti · 3 esercizi' })).toHaveAttribute('href', '/schede/5');
     const archived = within(screen.getByText('Archiviate').parentElement!);
-    expect(archived.getByRole('link', { name: 'Estate 0 giorni · 0 esercizi' })).toHaveAttribute('href', '/schede/6');
+    expect(archived.getByRole('link', { name: 'Estate 1 giu – 4 ott 2026 · 1 allenamento · 0 esercizi' })).toHaveAttribute('href', '/schede/6');
     expect(screen.getByRole('link', { name: 'Nuova' })).toHaveAttribute('href', '/schede/nuova');
     // in the header, outside the cards: secondary
     expect(screen.getByRole('link', { name: 'Nuova' })).toHaveClass('ghost');
@@ -77,24 +78,46 @@ describe('the plans', () => {
 });
 
 describe('a new plan', () => {
-  it('asks only for a name and notes, and is created with «Crea la scheda», then opened at its address', async () => {
+  it('asks only for a name, its period and notes, and is created with «Crea la scheda», then opened at its address', async () => {
     const api = fakeApi().on('POST /plans', NUOVA);
     render(Host, { page: PlanEditorPage, params: { id: null } });
     const user = userEvent.setup();
     const create = screen.getByRole('button', { name: 'Crea la scheda' });
     expect(create).toBeDisabled();
-    expect(screen.queryByRole('button', { name: 'Aggiungi giorno' })).not.toBeInTheDocument();
+    // it starts today, with no end
+    expect(screen.getByLabelText('Dal')).toHaveValue(oraIn(fusoDelBrowser()).date);
+    expect(screen.getByLabelText('Al')).toHaveValue('');
+    expect(screen.queryByRole('button', { name: 'Aggiungi allenamento' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Aggiungi esercizio' })).not.toBeInTheDocument();
     await user.type(screen.getByPlaceholderText('Forza, autunno'), '   ');
     expect(create).toBeDisabled();
     await user.type(screen.getByPlaceholderText('Forza, autunno'), ' Forza ');
     await user.type(screen.getByPlaceholderText('Quante volte a settimana, cosa curare'), '3 volte');
+    await fireEvent.input(screen.getByLabelText('Dal'), { target: { value: '2026-10-05' } });
+    await fireEvent.input(screen.getByLabelText('Al'), { target: { value: '2026-11-15' } });
     await pause();
     // nothing goes out until it is asked for
     expect(api.changes()).toEqual([]);
     await user.click(create);
-    expect(api.changes()).toEqual([{ route: 'POST /plans', body: { name: 'Forza', notes: '3 volte', archived: false, days: [{ name: 'A', exercises: [] }] } }]);
+    expect(api.changes()).toEqual([{
+      route: 'POST /plans',
+      body: { name: 'Forza', notes: '3 volte', startsOn: '2026-10-05', endsOn: '2026-11-15', archived: false, days: [{ name: 'A', exercises: [] }] },
+    }]);
     expect(nav.path).toBe('/schede/9');
+  });
+
+  it('ending before it starts is not created, and says why', async () => {
+    const api = fakeApi().on('POST /plans', NUOVA);
+    render(Host, { page: PlanEditorPage, params: { id: null } });
+    await userEvent.setup().type(screen.getByPlaceholderText('Forza, autunno'), 'Forza');
+    await fireEvent.input(screen.getByLabelText('Dal'), { target: { value: '2026-10-05' } });
+    await fireEvent.input(screen.getByLabelText('Al'), { target: { value: '2026-10-04' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('La scheda non può finire prima di cominciare.');
+    expect(screen.getByRole('button', { name: 'Crea la scheda' })).toBeDisabled();
+    await fireEvent.input(screen.getByLabelText('Al'), { target: { value: '' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Crea la scheda' })).toBeEnabled();
+    expect(api.changes()).toEqual([]);
   });
 
   it('refused at creation says why and stays to be corrected', async () => {
@@ -122,7 +145,7 @@ describe('a plan being written', () => {
 
     // Day A: Squat 5 × 5, recupero 180; then Panca with the proposed 3 × 10, 90.
     await user.click(screen.getByRole('button', { name: 'Aggiungi esercizio' }));
-    await user.click(await within(screen.getByRole('dialog', { name: 'Aggiungi al giorno A' })).findByRole('button', { name: 'Squat Gambe' }));
+    await user.click(await within(screen.getByRole('dialog', { name: 'Aggiungi all’allenamento A' })).findByRole('button', { name: 'Squat Gambe' }));
     // a new exercise comes with three sets of 10; each set has its own reps
     expect(setReps()).toEqual(['10', '10', '10']);
     await user.clear(screen.getByLabelText('Serie 1, ripetizioni'));
@@ -143,10 +166,10 @@ describe('a plan being written', () => {
     await user.click(await picker.findByRole('button', { name: 'Panca piana' }));
 
     // Day B, with an exercise made from the picker by typing its name.
-    await user.click(screen.getByRole('button', { name: 'Aggiungi giorno' }));
+    await user.click(screen.getByRole('button', { name: 'Aggiungi allenamento' }));
     const addButtons = screen.getAllByRole('button', { name: 'Aggiungi esercizio' });
     await user.click(addButtons[1]!);
-    const dayB = within(screen.getByRole('dialog', { name: 'Aggiungi al giorno B' }));
+    const dayB = within(screen.getByRole('dialog', { name: 'Aggiungi all’allenamento B' }));
     await user.type(dayB.getByPlaceholderText('Nuovo esercizio'), 'Rematore');
     await user.click(dayB.getByRole('button', { name: 'Crea e aggiungi' }));
     await user.type(screen.getAllByLabelText('Note')[3]!, 'lento');
@@ -158,7 +181,7 @@ describe('a plan being written', () => {
       {
         route: 'PUT /plans/9',
         body: {
-          name: 'Forza', notes: '3 volte', archived: false,
+          name: 'Forza', notes: '3 volte', startsOn: '2026-10-05', endsOn: null, archived: false,
           days: [
             {
               id: 91,
@@ -200,7 +223,7 @@ describe('a plan being written', () => {
     await user.click(screen.getByRole('button', { name: 'Aggiungi esercizio' }));
     await user.click(await screen.findByRole('button', { name: 'Squat Gambe' }));
     await user.clear(screen.getByLabelText('Serie 2, ripetizioni'));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Nel giorno «A» la serie 2 dell’esercizio «Squat» non ha ripetizioni. Scrivi quante, anche «max».');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nell’allenamento «A» la serie 2 dell’esercizio «Squat» non ha ripetizioni. Scrivi quante, anche «max».');
     await pause();
     expect(planChanges(api).some((change) => JSON.stringify(change.body).includes('""'))).toBe(false);
   });
@@ -272,10 +295,10 @@ describe('a day added to a saved plan', () => {
     render(Host, { page: PlanEditorPage, params: { id: 9 } });
     const user = userEvent.setup();
     await screen.findByRole('heading', { name: 'Forza' });
-    await user.click(screen.getByRole('button', { name: 'Aggiungi giorno' }));
+    await user.click(screen.getByRole('button', { name: 'Aggiungi allenamento' }));
     await settled(() => expect(planChanges(api)).toHaveLength(1));
     expect((planChanges(api)[0]!.body as { days: { id?: number }[] }).days.map((day) => day.id)).toEqual([91, undefined]);
-    const names = screen.getAllByLabelText('Giorno');
+    const names = screen.getAllByLabelText('Allenamento');
     await user.clear(names[1]!);
     await user.type(names[1]!, 'Gambe');
     await user.tab();
@@ -291,14 +314,14 @@ describe('taking something out of a plan', () => {
     const user = userEvent.setup();
     await screen.findByRole('heading', { name: 'Forza' });
 
-    await user.click(screen.getAllByRole('button', { name: 'Togli il giorno' })[1]!);
-    let question = within(await screen.findByRole('alertdialog', { name: 'Togliere il giorno «B»?' }));
+    await user.click(screen.getAllByRole('button', { name: 'Togli l’allenamento' })[1]!);
+    let question = within(await screen.findByRole('alertdialog', { name: 'Togliere l’allenamento «B»?' }));
     expect(question.getByText('Con i suoi esercizi.')).toBeInTheDocument();
     await user.click(question.getByRole('button', { name: 'Annulla' }));
-    expect(screen.getAllByLabelText('Giorno')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Allenamento')).toHaveLength(2);
 
     await user.click(screen.getAllByRole('button', { name: 'Togli l’esercizio' })[0]!);
-    question = within(await screen.findByRole('alertdialog', { name: 'Togliere «Squat» dal giorno «A»?' }));
+    question = within(await screen.findByRole('alertdialog', { name: 'Togliere «Squat» dall’allenamento «A»?' }));
     await user.click(question.getByRole('button', { name: 'Annulla' }));
 
     await user.click(screen.getAllByRole('button', { name: 'Togli la serie 5' })[0]!);
@@ -338,7 +361,7 @@ describe('a saved plan', () => {
     await screen.findByRole('heading', { name: 'Forza' });
     for (const button of screen.getAllByRole('button', { name: /^Aggiungi una serie a / })) expect(button).toHaveClass('primary');
     for (const button of screen.getAllByRole('button', { name: 'Aggiungi esercizio' })) expect(button).toHaveClass('ghost');
-    expect(screen.getByRole('button', { name: 'Aggiungi giorno' })).toHaveClass('ghost');
+    expect(screen.getByRole('button', { name: 'Aggiungi allenamento' })).toHaveClass('ghost');
   });
 
   it('is saved whole with PUT after moving, removing and archiving', async () => {
@@ -357,7 +380,7 @@ describe('a saved plan', () => {
     expect(planChanges(api).at(-1)).toEqual({
       route: 'PUT /plans/5',
       body: {
-        name: 'Forza', notes: '3 volte', archived: true,
+        name: 'Forza', notes: '3 volte', startsOn: '2026-10-05', endsOn: null, archived: true,
         days: [
           { id: 52, name: 'B', exercises: [{ exerciseId: 3, reps: ['8', '8', '8'], restSeconds: 90, notes: 'lento' }] },
           { id: 51, name: 'A', exercises: [{ exerciseId: 2, reps: ['8', '8', '8'], restSeconds: 90, notes: null }] },
@@ -365,6 +388,16 @@ describe('a saved plan', () => {
       },
     });
     expect(status()).toHaveTextContent('Salvata');
+  });
+
+  it('opens with its period, and sends a change to it', async () => {
+    const api = fakeApi().on('GET /plans/5', FORZA).on('PUT /plans/5', (call: Call) => ({ ...FORZA, ...(call.body as object) }));
+    render(Host, { page: PlanEditorPage, params: { id: 5 } });
+    await screen.findByRole('heading', { name: 'Forza' });
+    expect(screen.getByLabelText('Dal')).toHaveValue('2026-10-05');
+    expect(screen.getByLabelText('Al')).toHaveValue('');
+    await fireEvent.input(screen.getByLabelText('Al'), { target: { value: '2026-11-15' } });
+    await settled(() => expect(planChanges(api).at(-1)?.body).toMatchObject({ startsOn: '2026-10-05', endsOn: '2026-11-15' }));
   });
 
   it('opened is not sent back as it was', async () => {
@@ -388,7 +421,7 @@ describe('a saved plan', () => {
     render(Host, { page: PlanEditorPage, params: { id: 5 } });
     const user = userEvent.setup();
     await screen.findByRole('heading', { name: 'Forza' });
-    await user.click(screen.getAllByRole('button', { name: 'Togli il giorno' })[0]!);
+    await user.click(screen.getAllByRole('button', { name: 'Togli l’allenamento' })[0]!);
     await confirmTake(user);
     await settled(() => expect(api.changes()).toHaveLength(1));
     expect((api.changes()[0]?.body as { days: { name: string }[] }).days.map((day) => day.name)).toEqual(['B']);

@@ -43,6 +43,9 @@ export interface Plan {
   id: number;
   name: string;
   notes: string | null;
+  /** Da quando a quando si segue, come le scrive un calendario; senza fine finché è in uso. */
+  startsOn: string;
+  endsOn: string | null;
   archived: boolean;
   days: PlanDay[];
 }
@@ -57,6 +60,8 @@ export interface PlanExerciseInput {
 export interface PlanInput {
   name: string;
   notes: string | null;
+  startsOn: string;
+  endsOn: string | null;
   archived: boolean;
   /** Un giorno già salvato porta il suo id: il server lo cambia, e gli allenamenti restano collegati. */
   days: { id?: number; name: string; exercises: PlanExerciseInput[] }[];

@@ -18,6 +18,8 @@ describe.skipIf(SERVER === undefined)("the plans repository", () => {
     const input: PlanInput = {
       name: "Scheda autunno",
       notes: "3 volte a settimana",
+      startsOn: "2026-10-05",
+      endsOn: "2026-11-15",
       archived: false,
       days: [
         {
@@ -40,6 +42,8 @@ describe.skipIf(SERVER === undefined)("the plans repository", () => {
       id: expect.any(Number),
       name: "Scheda autunno",
       notes: "3 volte a settimana",
+      startsOn: "2026-10-05",
+      endsOn: "2026-11-15",
       archived: false,
       days: [
         {
@@ -80,15 +84,17 @@ describe.skipIf(SERVER === undefined)("the plans repository", () => {
     expect(await repo().list(user.id)).toEqual([]);
   });
 
-  it("lists the user's plans, the active ones first, then by name", async () => {
+  it("lists the user's plans, the active ones first, then the latest to start, then by name", async () => {
     const { user, input } = await setup();
     const other = await setup();
     await repo().create(user.id, { ...input, name: "zeta" });
     await repo().create(user.id, { ...input, name: "Alfa", archived: true });
     await repo().create(user.id, { ...input, name: "beta" });
+    await repo().create(user.id, { ...input, name: "Aprile", startsOn: "2026-04-01" });
+    await repo().create(user.id, { ...input, name: "Dicembre", startsOn: "2026-12-01", endsOn: null });
     await repo().create(other.user.id, other.input);
     const plans = await repo().list(user.id);
-    expect(plans.map((plan) => plan.name)).toEqual(["beta", "zeta", "Alfa"]);
+    expect(plans.map((plan) => plan.name)).toEqual(["Dicembre", "beta", "zeta", "Aprile", "Alfa"]);
     expect(plans[0]?.days.map((day) => day.exercises.length)).toEqual([2, 1]);
   });
 
@@ -96,11 +102,11 @@ describe.skipIf(SERVER === undefined)("the plans repository", () => {
     const { user, bench, input } = await setup();
     const plan = await repo().create(user.id, input);
     const next: PlanInput = {
-      name: "Scheda inverno", notes: null, archived: true,
+      name: "Scheda inverno", notes: null, startsOn: "2026-12-01", endsOn: null, archived: true,
       days: [{ name: "Unico", exercises: [{ exerciseId: bench.id, reps: ["max", "max"], restSeconds: 60, notes: null }] }],
     };
     const replaced = await repo().replace(user.id, plan.id, next);
-    expect(replaced).toMatchObject({ id: plan.id, name: "Scheda inverno", notes: null, archived: true });
+    expect(replaced).toMatchObject({ id: plan.id, name: "Scheda inverno", notes: null, startsOn: "2026-12-01", endsOn: null, archived: true });
     expect(replaced?.days).toEqual([
       {
         id: expect.any(Number), name: "Unico", position: 0,
@@ -150,6 +156,30 @@ describe.skipIf(SERVER === undefined)("the plans repository", () => {
     expect(await repo().delete(other.user.id, plan.id)).toBe(false);
     // Untouched, days included.
     expect(await repo().find(user.id, plan.id)).toEqual(plan);
+  });
+
+  it("closes the user's plans in use that started before a day, on the day before, archived", async () => {
+    const { user, input } = await setup();
+    const other = await setup();
+    const open = await repo().create(user.id, { ...input, startsOn: "2026-09-01", endsOn: null });
+    const later = await repo().create(user.id, { ...input, startsOn: "2026-10-05", endsOn: null });
+    const ending = await repo().create(user.id, { ...input, startsOn: "2026-09-01", endsOn: "2026-12-31" });
+    const shelved = await repo().create(user.id, { ...input, startsOn: "2026-09-01", endsOn: null, archived: true });
+    const theirs = await repo().create(other.user.id, { ...other.input, startsOn: "2026-09-01", endsOn: null });
+    await repo().closeBefore(user.id, "2026-10-05");
+    expect(await repo().find(user.id, open.id)).toEqual({ ...open, endsOn: "2026-10-04", archived: true });
+    // starting that same day, already given an end, already archived, or someone else's: as they were
+    expect(await repo().find(user.id, later.id)).toEqual(later);
+    expect(await repo().find(user.id, ending.id)).toEqual(ending);
+    expect(await repo().find(user.id, shelved.id)).toEqual(shelved);
+    expect(await repo().find(other.user.id, theirs.id)).toEqual(theirs);
+  });
+
+  it("closes a plan begun on the first of a month on the last day of the one before", async () => {
+    const { user, input } = await setup();
+    const open = await repo().create(user.id, { ...input, startsOn: "2024-01-15", endsOn: null });
+    await repo().closeBefore(user.id, "2024-03-01");
+    expect((await repo().find(user.id, open.id))?.endsOn).toBe("2024-02-29");
   });
 
   it("deletes a plan", async () => {

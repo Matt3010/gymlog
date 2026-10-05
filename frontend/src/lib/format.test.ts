@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, formatDay, formatDuration, formatKg, formatNumber, formatRest, normalise, parseKg } from './format';
+import { formatClock, formatDay, formatDuration, formatKg, formatNumber, formatPeriod, formatRest, normalise, parseKg } from './format';
 
 describe('a weight', () => {
   it('is written the Italian way, without useless decimals', () => {
@@ -87,6 +87,21 @@ describe('a day', () => {
 
   it('has its time on the clock', () => {
     expect(formatClock(new Date(2026, 8, 28, 7, 5).toISOString())).toBe('07:05');
+  });
+});
+
+describe('the period of a plan', () => {
+  it('is from its first day while it has no end', () => {
+    expect(formatPeriod('2026-10-05', null)).toBe('dal 5 ott 2026');
+  });
+
+  it('is from one day to the other, the year once when the same', () => {
+    expect(formatPeriod('2026-10-05', '2026-11-15')).toBe('5 ott – 15 nov 2026');
+    expect(formatPeriod('2026-12-01', '2027-01-31')).toBe('1 dic 2026 – 31 gen 2027');
+  });
+
+  it('is one day when it starts and ends together', () => {
+    expect(formatPeriod('2026-10-05', '2026-10-05')).toBe('5 ott 2026');
   });
 });
 

@@ -271,13 +271,13 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   for (const n of [1, 2, 3]) await page.getByLabel(`Serie ${n}, ripetizioni`).first().fill('8-10');
   await page.getByRole('button', { name: 'Aggiungi esercizio' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Panca piana' }).click();
-  await page.getByRole('button', { name: 'Aggiungi giorno' }).click();
+  await page.getByRole('button', { name: 'Aggiungi allenamento' }).click();
   await page.getByRole('button', { name: 'Aggiungi esercizio' }).nth(1).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Panca piana' }).click();
   await expectNoZoomOnFocus(page);
   // «Aggiungi esercizio» stands under its day's cards, outside any card: no line needed.
   for (const add of await page.locator('.add').all()) expect(await add.evaluate((el) => el.closest('section.card') === null)).toBe(true);
-  for (const name of ['Aggiungi esercizio', 'Aggiungi giorno', 'Aggiungi una serie a Squat']) await expectFullWidth(page.getByRole('button', { name }).first());
+  for (const name of ['Aggiungi esercizio', 'Aggiungi allenamento', 'Aggiungi una serie a Squat']) await expectFullWidth(page.getByRole('button', { name }).first());
   // Room in the editor: "Recupero" stands apart from "+ Serie", and each exercise from the one before.
   const addSet = await page.getByRole('button', { name: 'Aggiungi una serie a Squat' }).boundingBox();
   const restLabel = await page.getByText('Recupero (s)').first().boundingBox();
@@ -307,7 +307,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
 
   // At the end of the editor its buttons are clear of the tab bar.
   await scrollToEnd(page);
-  await expectClearOfTabBar(page, page.getByRole('button', { name: 'Aggiungi giorno' }));
+  await expectClearOfTabBar(page, page.getByRole('button', { name: 'Aggiungi allenamento' }));
 
   // A change made just before leaving is not lost.
   await page.getByPlaceholder('Forza, autunno').fill('Forza!');
@@ -324,7 +324,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expectFlatRows(page);
 
   // The workout of day A: the first set needs its weight, the second repeats it plus 2,5.
-  await page.getByRole('button', { name: /^Giorno A / }).click();
+  await page.getByRole('button', { name: /^Allenamento A / }).click();
   await expect(page.getByRole('heading', { name: 'Forza! · A' })).toBeVisible();
   await expect(page.getByLabel('Ripetizioni', { exact: true })).toHaveValue('8');
   await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('');
@@ -389,7 +389,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   // Leaving the page takes its message away. The next workout of day A shows the last time, and starts from its weight.
   await page.getByRole('link', { name: 'Allenati' }).first().click();
   await expect(page.locator('#toast')).toBeHidden();
-  await page.getByRole('button', { name: /^Giorno A / }).click();
+  await page.getByRole('button', { name: /^Allenamento A / }).click();
   // Squat not started yet: the warm-up comes first, ramped up to last time's weight.
   await expect(page.getByRole('tab', { name: 'Riscaldamento' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('list', { name: 'Riscaldamento verso 60 kg' }).getByRole('listitem')).toHaveText(['1 8 × 22,5 kg', '2 5 × 35 kg', '3 3 × 47,5 kg']);

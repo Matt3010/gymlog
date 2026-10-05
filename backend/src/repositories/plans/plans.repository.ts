@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt, notInArray, sql } from "drizzle-orm";
 import { type Executor, exercises, planDays, planExercises, plans } from "../../lib";
 
 export interface PlanExerciseInput {
@@ -12,6 +12,9 @@ export interface PlanExerciseInput {
 export interface PlanInput {
   readonly name: string;
   readonly notes: string | null;
+  /** The days it is followed, as a calendar writes them; no end while it is still in use. */
+  readonly startsOn: string;
+  readonly endsOn: string | null;
   readonly archived: boolean;
   /** A day already saved carries its id: it is changed in place, so workouts stay linked to it. */
   readonly days: readonly { readonly id?: number | undefined; readonly name: string; readonly exercises: readonly PlanExerciseInput[] }[];
@@ -34,6 +37,8 @@ export interface Plan {
   readonly id: number;
   readonly name: string;
   readonly notes: string | null;
+  readonly startsOn: string;
+  readonly endsOn: string | null;
   readonly archived: boolean;
   readonly days: PlanDay[];
 }
@@ -57,9 +62,13 @@ export interface PlansRepository {
   replace(userId: number, id: number, input: PlanInput): Promise<Plan | undefined>;
   delete(userId: number, id: number): Promise<boolean>;
   findDay(userId: number, dayId: number): Promise<PlanDayDetail | undefined>;
+  /** Ends the day before, archived, the plans in use (not archived, no end) that started before that day. */
+  closeBefore(userId: number, day: string): Promise<void>;
 }
 
-const plan = { id: plans.id, name: plans.name, notes: plans.notes, archived: plans.archived };
+const plan = { id: plans.id, name: plans.name, notes: plans.notes, startsOn: plans.startsOn, endsOn: plans.endsOn, archived: plans.archived };
+
+const fields = ({ name, notes, startsOn, endsOn, archived }: PlanInput) => ({ name, notes, startsOn, endsOn, archived });
 
 /** The days of these plans, each with its exercises, in order. */
 async function daysOf(db: Executor, planIds: readonly number[]): Promise<Map<number, PlanDay[]>> {
@@ -122,7 +131,7 @@ export function createPlansRepository(db: Executor): PlansRepository {
   return {
     async list(userId) {
       const rows = await db.select(plan).from(plans).where(eq(plans.userId, userId))
-        .orderBy(asc(plans.archived), asc(sql`lower(${plans.name})`));
+        .orderBy(asc(plans.archived), desc(plans.startsOn), asc(sql`lower(${plans.name})`));
       const days = await daysOf(db, rows.map((row) => row.id));
       return rows.map((row) => ({ ...row, days: days.get(row.id)! }));
     },
@@ -132,13 +141,13 @@ export function createPlansRepository(db: Executor): PlansRepository {
     },
 
     async create(userId, input) {
-      const [row] = await db.insert(plans).values({ userId, name: input.name, notes: input.notes, archived: input.archived }).returning({ id: plans.id });
+      const [row] = await db.insert(plans).values({ userId, ...fields(input) }).returning({ id: plans.id });
       await writeDays(db, row!.id, input);
       return (await load(db, userId, row!.id))!;
     },
 
     async replace(userId, id, input) {
-      const [row] = await db.update(plans).set({ name: input.name, notes: input.notes, archived: input.archived })
+      const [row] = await db.update(plans).set(fields(input))
         .where(mine(userId, id)).returning({ id: plans.id });
       if (row === undefined) return undefined;
       // Days left out go with their exercises; workouts that followed them keep their sets and names, without a plan.
@@ -167,6 +176,11 @@ export function createPlansRepository(db: Executor): PlansRepository {
       if (row === undefined) return undefined;
       const day = (await daysOf(db, [row.planId])).get(row.planId)!.find((candidate) => candidate.id === dayId)!;
       return { planName: row.planName, day };
+    },
+
+    async closeBefore(userId, day) {
+      await db.update(plans).set({ endsOn: sql`${day}::date - 1`, archived: true })
+        .where(and(eq(plans.userId, userId), eq(plans.archived, false), isNull(plans.endsOn), lt(plans.startsOn, day)));
     },
   };
 }

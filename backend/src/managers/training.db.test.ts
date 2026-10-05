@@ -30,7 +30,7 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
     const squat = await s.exercises.create(user.id, { name: "Squat", muscleGroup: "Gambe", notes: null });
     const bench = await s.exercises.create(user.id, { name: "Panca", muscleGroup: "Petto", notes: null });
     const input: PlanInput = {
-      name: "Forza", notes: null, archived: false,
+      name: "Forza", notes: null, startsOn: "2026-10-05", endsOn: null, archived: false,
       days: [{ name: "A", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5", "5", "5"], restSeconds: 180, notes: null }] }],
     };
     return { user, squat, bench, input, ...s };
@@ -79,6 +79,20 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       await expect(plans.get(user.id, plan.id)).rejects.toThrow(NotFoundError);
     });
 
+    it("close, once created, the one in use that started before", async () => {
+      const { user, input, plans } = await setup();
+      const summer = await plans.create(user.id, { ...input, name: "Estate", startsOn: "2026-06-01" });
+      const autumn = await plans.create(user.id, { ...input, name: "Autunno", startsOn: "2026-10-05" });
+      expect(await plans.list(user.id)).toEqual([autumn, { ...summer, endsOn: "2026-10-04", archived: true }]);
+      const winter = await plans.create(user.id, { ...input, name: "Inverno", startsOn: "2026-12-01", endsOn: "2026-12-31" });
+      expect((await plans.get(user.id, autumn.id)).endsOn).toBe("2026-11-30");
+      // saving one again closes nothing: only a new plan takes over
+      const reopened = await plans.replace(user.id, summer.id, { ...input, name: "Estate", startsOn: "2026-06-01" });
+      await plans.replace(user.id, winter.id, { ...input, name: "Inverno", startsOn: "2026-12-01" });
+      expect(await plans.get(user.id, summer.id)).toEqual(reopened);
+      expect(reopened).toMatchObject({ endsOn: null, archived: false });
+    });
+
     it("of another user are not found", async () => {
       const { user, input, plans } = await setup();
       const other = await setup();
@@ -95,7 +109,7 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       // One of its own days next to the other plan's: one stranger is enough to refuse.
       const days = [{ ...input.days[0]!, id: plan.days[0]!.id }, { ...input.days[0]!, id: other.days[0]!.id }];
       await expect(plans.replace(user.id, plan.id, { ...input, days }))
-        .rejects.toThrow(new InputError("Uno dei giorni non esiste più. Ricarica la pagina."));
+        .rejects.toThrow(new InputError("Uno degli allenamenti della scheda non esiste più. Ricarica la pagina."));
       expect(await plans.get(user.id, other.id)).toEqual(other);
     });
 
@@ -207,7 +221,7 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const other = await setup();
       const plan = await other.plans.create(other.user.id, other.input);
       const { user } = await setup();
-      await expect(workouts.start(user.id, plan.days[0]!.id)).rejects.toThrow(new InputError("Il giorno della scheda non esiste più. Ricarica la pagina."));
+      await expect(workouts.start(user.id, plan.days[0]!.id)).rejects.toThrow(new InputError("L’allenamento della scheda non esiste più. Ricarica la pagina."));
     });
 
     it("keep a note for each exercise of the session", async () => {

@@ -53,6 +53,18 @@ export function formatDay(iso: string, now = new Date()): string {
 export const formatClock = (iso: string): string =>
   new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 
+/** Una data del calendario, `2026-10-05`, a parole: «5 ott», con l'anno se chiesto. */
+const calendarDay = (iso: string, year: boolean): string =>
+  new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short', timeZone: 'UTC', ...(year ? { year: 'numeric' as const } : {}) })
+    .format(new Date(`${iso}T00:00:00Z`));
+
+/** Quando si segue una scheda: «dal 5 ott 2026», «5 ott – 15 nov 2026». L'anno una volta, se è lo stesso. */
+export function formatPeriod(startsOn: string, endsOn: string | null): string {
+  if (endsOn === null) return `dal ${calendarDay(startsOn, true)}`;
+  if (endsOn === startsOn) return calendarDay(startsOn, true);
+  return `${calendarDay(startsOn, startsOn.slice(0, 4) !== endsOn.slice(0, 4))} – ${calendarDay(endsOn, true)}`;
+}
+
 /** Senza accenti e senza maiuscole: quello che la ricerca confronta. */
 export const normalise = (value: string): string =>
   value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();

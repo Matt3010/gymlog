@@ -1,6 +1,7 @@
 <script lang="ts">
   import Row from '../Row.svelte';
   import { plansApi } from '../../lib/endpoints';
+  import { formatPeriod } from '../../lib/format';
   import { planPath } from '../../lib/routing';
   import type { Plan } from '../../lib/types';
   import Alert from '../Alert.svelte';
@@ -31,7 +32,7 @@
       <a class="go" href={planPath(plan.id)}>
         <span class="name">{plan.name}</span>
         <span class="days">
-          {plan.days.length === 1 ? '1 giorno' : `${plan.days.length} giorni`} · {exercisesIn(plan) === 1 ? '1 esercizio' : `${exercisesIn(plan)} esercizi`}
+          {formatPeriod(plan.startsOn, plan.endsOn)} · {plan.days.length === 1 ? '1 allenamento' : `${plan.days.length} allenamenti`} · {exercisesIn(plan) === 1 ? '1 esercizio' : `${exercisesIn(plan)} esercizi`}
         </span>
       </a>
     </Row>
@@ -55,7 +56,7 @@
   {:else}
     <PageCard>
       {#if active.length === 0}
-        <EmptyState title="Nessuna scheda in uso." line="Una scheda ha i suoi giorni, e ogni giorno i suoi esercizi con serie e ripetizioni.">
+        <EmptyState title="Nessuna scheda in uso." line="Una scheda ha i suoi allenamenti, e ognuno i suoi esercizi con serie e ripetizioni.">
           <Button look="primary" href={planPath(null)}>Scrivi una scheda</Button>
         </EmptyState>
       {:else}

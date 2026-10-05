@@ -6,8 +6,9 @@ export type Body = Record<string, unknown>;
 /** Field names as the app shows them, for error messages. */
 const FIELD_LABELS: Record<string, string> = {
   username: "Utente", name: "Nome", muscleGroup: "Gruppo muscolare", notes: "Note", archived: "Archiviata",
-  days: "Giorni", exercises: "Esercizi", exerciseId: "Esercizio", reps: "Ripetizioni",
-  restSeconds: "Recupero", planDayId: "Giorno", finished: "Terminato", weightKg: "Peso", note: "Testo della nota", key: "Chiave",
+  days: "Allenamenti", exercises: "Esercizi", exerciseId: "Esercizio", reps: "Ripetizioni",
+  restSeconds: "Recupero", planDayId: "Allenamento", finished: "Terminato", weightKg: "Peso", note: "Testo della nota", key: "Chiave",
+  startsOn: "Dal", endsOn: "Al",
 };
 
 export const field = (key: string): string => FIELD_LABELS[key] ?? key;
@@ -61,6 +62,21 @@ export function optionalNumber(body: Body, key: string, min: number, max: number
 
 export function id(body: Body, key: string): number {
   return number(body, key, 1, MAX_ID, true);
+}
+
+/** A day as a calendar writes it, `2026-10-05`, and one that exists. */
+export function date(body: Body, key: string): string {
+  const value = body[key];
+  const day = typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00Z`) : null;
+  if (day === null || Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== value) {
+    throw new InputError(`${field(key)}: data non valida.`);
+  }
+  return value as string;
+}
+
+/** Missing or null is nothing. */
+export function optionalDate(body: Body, key: string): string | null {
+  return body[key] === undefined || body[key] === null ? null : date(body, key);
 }
 
 export function list(body: Body, key: string): unknown[] {

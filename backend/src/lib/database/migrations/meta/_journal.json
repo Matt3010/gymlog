@@ -43,6 +43,13 @@
       "when": 1790932419148,
       "tag": "0005_session_without_used_at",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791185020050,
+      "tag": "0006_plan_period",
+      "breakpoints": true
     }
   ]
 }

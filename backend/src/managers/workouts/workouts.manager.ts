@@ -47,7 +47,7 @@ export function createWorkoutsManager(db: Database): WorkoutsManager {
         const workouts = createWorkoutsService(tx);
         if (planDayId === null) return detail(tx, userId, await workouts.start(userId, null));
         const day = await createPlansService(tx).findDay(userId, planDayId);
-        if (day === undefined) throw new InputError("Il giorno della scheda non esiste più. Ricarica la pagina.");
+        if (day === undefined) throw new InputError("L’allenamento della scheda non esiste più. Ricarica la pagina.");
         return detail(tx, userId, await workouts.start(userId, { planDayId, planName: day.planName, dayName: day.day.name }));
       });
     },

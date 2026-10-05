@@ -18,9 +18,9 @@ const day = (id: number, name: string, exercises: number) => ({
   })),
 });
 
-const FORZA: Plan = { id: 1, name: 'Forza', notes: null, archived: false, days: [day(11, 'A', 2), day(12, 'B', 1)] };
-const SPINTA: Plan = { id: 3, name: 'Spinta', notes: null, archived: false, days: [day(31, 'Push', 1), day(32, 'Vuoto', 0)] };
-const VECCHIA: Plan = { id: 2, name: 'Vecchia', notes: null, archived: true, days: [day(21, 'Unico', 1)] };
+const FORZA: Plan = { id: 1, name: 'Forza', notes: null, startsOn: '2026-10-05', endsOn: null, archived: false, days: [day(11, 'A', 2), day(12, 'B', 1)] };
+const SPINTA: Plan = { id: 3, name: 'Spinta', notes: null, startsOn: '2026-10-05', endsOn: null, archived: false, days: [day(31, 'Push', 1), day(32, 'Vuoto', 0)] };
+const VECCHIA: Plan = { id: 2, name: 'Vecchia', notes: null, startsOn: '2026-10-05', endsOn: null, archived: true, days: [day(21, 'Unico', 1)] };
 
 function workout(id: number, change: Partial<WorkoutSummary> = {}): WorkoutSummary {
   return {
@@ -57,7 +57,7 @@ describe('home', () => {
     const user = userEvent.setup();
     const pick = await screen.findByRole('button', { name: 'Scheda' });
     expect(pick).toHaveTextContent('Forza');
-    expect(days()).toEqual(['Giorno A E0, E1', 'Giorno B E0']);
+    expect(days()).toEqual(['Allenamento A E0, E1', 'Allenamento B E0']);
     expect(pick).toHaveAttribute('aria-expanded', 'false');
     await user.click(pick);
     expect(pick).toHaveAttribute('aria-expanded', 'true');
@@ -102,7 +102,7 @@ describe('home', () => {
     render(HomePage);
     expect(await screen.findByRole('heading', { name: 'Forza' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Scheda' })).not.toBeInTheDocument();
-    expect(days()).toEqual(['Giorno A E0, E1', 'Giorno B E0']);
+    expect(days()).toEqual(['Allenamento A E0, E1', 'Allenamento B E0']);
   });
 
   it('lets no other workout start while one is in progress: it says so, and where to end it', async () => {
@@ -111,7 +111,7 @@ describe('home', () => {
     render(HomePage);
     await screen.findByRole('heading', { name: 'Forza' });
     expect(screen.getByText('Hai un allenamento in corso: terminalo per iniziarne un altro.')).toBeInTheDocument();
-    for (const day of screen.getAllByRole('button', { name: /^Giorno/ })) expect(day).toBeDisabled();
+    for (const day of screen.getAllByRole('button', { name: /^Allenamento/ })) expect(day).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Allenamento libero' })).toBeDisabled();
     // ended elsewhere: free again
     current.set(null);
@@ -122,7 +122,7 @@ describe('home', () => {
   it('starts a workout from a day and opens it', async () => {
     const api = fakeApi().on('GET /plans', [FORZA]).on(RECENT, []).on('POST /workouts', started(40));
     render(HomePage);
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Giorno B E0' }));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Allenamento B E0' }));
     expect(api.changes()).toEqual([{ route: 'POST /workouts', body: { planDayId: 12 } }]);
     expect(nav.path).toBe('/allenamenti/40');
   });
@@ -141,12 +141,12 @@ describe('home', () => {
 
   it('says why a workout did not start, and stays', async () => {
     fakeApi().on('GET /plans', [FORZA]).on(RECENT, [])
-      .on('POST /workouts', { status: 400, body: { error: 'Il giorno della scheda non esiste più. Ricarica la pagina.' } });
+      .on('POST /workouts', { status: 400, body: { error: 'L’allenamento della scheda non esiste più. Ricarica la pagina.' } });
     render(HomePage);
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Giorno A E0, E1' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Il giorno della scheda non esiste più. Ricarica la pagina.');
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Allenamento A E0, E1' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('L’allenamento della scheda non esiste più. Ricarica la pagina.');
     expect(nav.path).toBe('/');
-    expect(screen.getByRole('button', { name: 'Giorno A E0, E1' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Allenamento A E0, E1' })).toBeEnabled();
   });
 
   it('leaves the workout in progress to the bar above the tabs, seen from every page', async () => {

@@ -90,18 +90,18 @@ describe("an exercise", () => {
 
 describe("a plan", () => {
   const day = { name: "A", exercises: [{ exerciseId: 3, reps: [" 8-10 ", " 8-10 ", " 8-10 ", " 8-10 "], restSeconds: 90, notes: null }] };
-  const plan = { name: "Scheda", notes: null, archived: false, days: [day] };
+  const plan = { name: "Scheda", notes: null, startsOn: "2026-10-05", endsOn: null, archived: false, days: [day] };
 
-  it("has a name, notes, whether archived, and days of exercises", () => {
+  it("has a name, notes, a period, whether archived, and days of exercises", () => {
     expect(parsePlan(plan)).toEqual({
-      name: "Scheda", notes: null, archived: false,
+      name: "Scheda", notes: null, startsOn: "2026-10-05", endsOn: null, archived: false,
       days: [{ name: "A", exercises: [{ exerciseId: 3, reps: ["8-10", "8-10", "8-10", "8-10"], restSeconds: 90, notes: null }] }],
     });
   });
 
-  it("takes a missing rest and notes as nothing, and a missing archived as active", () => {
-    expect(parsePlan({ name: "Scheda", days: [{ name: "A", exercises: [{ exerciseId: 3, reps: ["8", "8", "8", "8"] }] }] })).toEqual({
-      name: "Scheda", notes: null, archived: false,
+  it("takes a missing rest, notes and end as nothing, and a missing archived as active", () => {
+    expect(parsePlan({ name: "Scheda", startsOn: "2026-10-05", days: [{ name: "A", exercises: [{ exerciseId: 3, reps: ["8", "8", "8", "8"] }] }] })).toEqual({
+      name: "Scheda", notes: null, startsOn: "2026-10-05", endsOn: null, archived: false,
       days: [{ name: "A", exercises: [{ exerciseId: 3, reps: ["8", "8", "8", "8"], restSeconds: null, notes: null }] }],
     });
   });
@@ -118,10 +118,16 @@ describe("a plan", () => {
     expect(parsePlan(twenty).days[0]!.exercises[0]!.reps).toHaveLength(20);
   });
 
+  it("ends on its first day at the earliest", () => {
+    expect(parsePlan({ ...plan, endsOn: "2026-10-05" }).endsOn).toBe("2026-10-05");
+    expect(parsePlan({ ...plan, endsOn: "2026-11-15" }).endsOn).toBe("2026-11-15");
+    expect(parsePlan({ ...plan, startsOn: "2024-02-29" }).startsOn).toBe("2024-02-29");
+  });
+
   it("keeps the id of a day already saved", () => {
     const withId = { ...plan, days: [{ ...day, id: 12 }, day] };
     expect(parsePlan(withId).days.map((one) => ("id" in one ? one.id : undefined))).toEqual([12, undefined]);
-    expect(() => parsePlan({ ...plan, days: [{ ...day, id: 0 }] })).toThrow("Giorno: numero tra 1 e 2147483647 (intero).");
+    expect(() => parsePlan({ ...plan, days: [{ ...day, id: 0 }] })).toThrow("Allenamento: numero tra 1 e 2147483647 (intero).");
   });
 
   it("takes up to fourteen days of thirty exercises", () => {
@@ -130,10 +136,18 @@ describe("a plan", () => {
   });
 
   it.each([
-    [{ ...plan, days: undefined }, "Giorni: elenco non valido."],
-    [{ ...plan, days: Array.from({ length: 15 }, () => day) }, "Giorni: al più 14."],
+    [{ ...plan, days: undefined }, "Allenamenti: elenco non valido."],
+    [{ ...plan, days: Array.from({ length: 15 }, () => day) }, "Allenamenti: al più 14."],
+    [{ ...plan, startsOn: undefined }, "Dal: data non valida."],
+    [{ ...plan, startsOn: "5/10/2026" }, "Dal: data non valida."],
+    [{ ...plan, startsOn: "2026-02-30" }, "Dal: data non valida."],
+    [{ ...plan, startsOn: "2025-02-29" }, "Dal: data non valida."],
+    [{ ...plan, startsOn: " 2026-10-05" }, "Dal: data non valida."],
+    [{ ...plan, startsOn: 20261005 }, "Dal: data non valida."],
+    [{ ...plan, endsOn: "2026-13-01" }, "Al: data non valida."],
+    [{ ...plan, endsOn: "2026-10-04" }, "Al: non prima di «Dal»."],
     [{ ...plan, days: [{ name: "A", exercises: "x" }] }, "Esercizi: elenco non valido."],
-    [{ ...plan, days: [{ name: "A", exercises: Array.from({ length: 31 }, () => day.exercises[0]) }] }, "Esercizi: al più 30 per giorno."],
+    [{ ...plan, days: [{ name: "A", exercises: Array.from({ length: 31 }, () => day.exercises[0]) }] }, "Esercizi: al più 30 per allenamento."],
     [{ ...plan, days: [5] }, "Richiesta non valida."],
     [{ ...plan, days: [{ exercises: [] }] }, "Nome: manca o è troppo lungo."],
     [{ ...plan, archived: "no" }, "Archiviata: valore non valido."],
@@ -175,7 +189,7 @@ describe("starting a workout", () => {
   });
 
   it("is refused with a day that is no id", () => {
-    expect(() => parseWorkoutStart({ planDayId: "4" })).toThrow("Giorno: numero tra 1 e 2147483647 (intero).");
+    expect(() => parseWorkoutStart({ planDayId: "4" })).toThrow("Allenamento: numero tra 1 e 2147483647 (intero).");
   });
 });
 

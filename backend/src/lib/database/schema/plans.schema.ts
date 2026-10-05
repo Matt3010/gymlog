@@ -1,4 +1,4 @@
-import { boolean, index, integer, pgTable, serial, text } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, pgTable, serial, text } from "drizzle-orm/pg-core";
 import { exercises } from "./exercises.schema";
 import { users } from "./users.schema";
 
@@ -8,6 +8,10 @@ export const plans = pgTable("plans", {
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   notes: text("notes"),
+  /** The days it is followed: plans written before dates start on the day they got them. */
+  startsOn: date("starts_on").notNull().defaultNow(),
+  /** None while it is still in use. */
+  endsOn: date("ends_on"),
   archived: boolean("archived").notNull().default(false),
 }, (table) => [index("plans_user").on(table.userId)]);
 

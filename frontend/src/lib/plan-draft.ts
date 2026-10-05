@@ -1,3 +1,4 @@
+import { fusoDelBrowser, oraIn } from './fuso';
 import type { Plan, PlanInput } from './types';
 
 /*
@@ -28,6 +29,9 @@ export interface DraftDay {
 export interface Draft {
   name: string;
   notes: string;
+  /** Come le scrive un calendario; la fine vuota è nessuna, come per le note. */
+  startsOn: string;
+  endsOn: string;
   archived: boolean;
   days: DraftDay[];
 }
@@ -38,11 +42,14 @@ export const newKey = (): number => ++lastKey;
 
 const LETTERS = 'ABCDEFGHIJKLMN';
 
-export function draftOf(plan: Plan | null): Draft {
-  if (plan === null) return { name: '', notes: '', archived: false, days: [{ key: newKey(), name: 'A', exercises: [] }] };
+/** Una scheda nuova parte oggi, dove si trova il telefono. */
+export function draftOf(plan: Plan | null, today = oraIn(fusoDelBrowser()).date): Draft {
+  if (plan === null) return { name: '', notes: '', startsOn: today, endsOn: '', archived: false, days: [{ key: newKey(), name: 'A', exercises: [] }] };
   return {
     name: plan.name,
     notes: plan.notes ?? '',
+    startsOn: plan.startsOn,
+    endsOn: plan.endsOn ?? '',
     archived: plan.archived,
     days: plan.days.map((day) => ({
       key: newKey(),
@@ -66,6 +73,8 @@ export function toInput(draft: Draft): PlanInput {
   return {
     name: draft.name.trim(),
     notes: orNull(draft.notes),
+    startsOn: draft.startsOn,
+    endsOn: orNull(draft.endsOn),
     archived: draft.archived,
     days: draft.days.map((day) => ({
       ...(day.id === undefined ? {} : { id: day.id }),
@@ -116,15 +125,18 @@ export function move<T>(list: T[], index: number, delta: -1 | 1): T[] {
 /** Quello che il server rifiuterebbe, detto prima e con le parole della scheda. */
 export function problemOf(draft: Draft): string | null {
   if (draft.name.trim() === '') return 'La scheda ha bisogno di un nome.';
+  if (draft.startsOn === '') return 'La scheda ha bisogno di un giorno da cui parte.';
+  // scritte allo stesso modo, come testo si confrontano come giorni
+  if (draft.endsOn !== '' && draft.endsOn < draft.startsOn) return 'La scheda non può finire prima di cominciare.';
   for (const day of draft.days) {
-    if (day.name.trim() === '') return 'Ogni giorno ha bisogno di un nome, come «A» o «Gambe».';
+    if (day.name.trim() === '') return 'Ogni allenamento ha bisogno di un nome, come «A» o «Gambe».';
     for (const exercise of day.exercises) {
       const empty = exercise.reps.findIndex((one) => one.trim() === '');
       if (empty >= 0) {
-        return `Nel giorno «${day.name.trim()}» la serie ${empty + 1} dell’esercizio «${exercise.exerciseName}» non ha ripetizioni. Scrivi quante, anche «max».`;
+        return `Nell’allenamento «${day.name.trim()}» la serie ${empty + 1} dell’esercizio «${exercise.exerciseName}» non ha ripetizioni. Scrivi quante, anche «max».`;
       }
       if (!(exercise.reps.length >= 1 && exercise.reps.length <= 20)) {
-        return `Nel giorno «${day.name.trim()}» le serie dell’esercizio «${exercise.exerciseName}» vanno da 1 a 20.`;
+        return `Nell’allenamento «${day.name.trim()}» le serie dell’esercizio «${exercise.exerciseName}» vanno da 1 a 20.`;
       }
     }
   }
