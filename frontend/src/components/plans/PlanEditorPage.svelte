@@ -109,7 +109,6 @@
       title: `Aggiungi all’allenamento ${day.name.trim() || 'senza nome'}`,
       view: ExercisePicker,
       props: {
-        exclude: day.exercises.map((one) => one.exerciseId),
         onpick: (exercise: Exercise) =>
           day.exercises.push({ key: newKey(), exerciseId: exercise.id, exerciseName: exercise.name, reps: ['10', '10', '10'], restSeconds: 90, notes: '' }),
       },

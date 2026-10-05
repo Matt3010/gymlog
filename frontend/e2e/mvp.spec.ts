@@ -136,7 +136,7 @@ async function expectAligned(page: Page): Promise<void> {
       const start = (element: Element) => {
         const box = element.getBoundingClientRect().left;
         // an exercise's head is a whole-width row whose light bleeds past the text: its text start counts
-        if (element.matches('button:not(.head), input, textarea, .btn, .tabs')) return box;
+        if (element.matches('button:not(.head):not(.day), input, textarea, .btn, .tabs')) return box;
         const style = getComputedStyle(element);
         return box + parseFloat(style.paddingLeft) + parseFloat(style.borderLeftWidth);
       };
@@ -352,6 +352,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expectFlatRows(page);
 
   // The workout of day A: the first set needs its weight, the second repeats it plus 2,5.
+  await expectRoundPress(page.locator('button.day').first());
   await page.getByRole('button', { name: /^Allenamento A / }).click();
   await expect(page.getByRole('heading', { name: 'Forza! · A' })).toBeVisible();
   await expect(page.getByLabel('Ripetizioni', { exact: true })).toHaveValue('8');

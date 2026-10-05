@@ -154,21 +154,39 @@
   /* un giorno è una riga della sezione, alta quanto un pollice: si preme in
      piedi, fra due macchine. Piatta, perché la card è già la sezione. */
   .day {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
     min-height: 52px;
-    padding: 6px 0;
+    /* come le righe degli elenchi (Row flat): la luce esce di 10px ai lati,
+       con gli angoli tondi, e il testo resta sul bordo della card */
+    margin: 0 -10px;
+    padding: 6px 10px;
     border: 0;
-    border-bottom: 1px solid var(--hairline-soft);
     color: inherit;
-    border-radius: 0;
+    border-radius: var(--r-md);
     background: transparent;
     text-align: left;
   }
 
+  /* il tratto fra un giorno e l'altro sta a parte, dritto, sotto gli angoli tondi */
+  .day::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 0;
+    height: 1px;
+    background: var(--hairline-soft);
+  }
+
   /* l'ultimo giorno chiude la card: niente tratto sotto */
-  .day:last-child { border-bottom: 0; }
+  .day:last-child::after { content: none; }
+
+  @media (hover: hover) {
+    .day:hover { background: var(--sunken); }
+  }
 
   .day:active { background: var(--sunken); }
 

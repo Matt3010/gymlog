@@ -166,8 +166,8 @@ describe('a plan being written', () => {
     await user.type(screen.getByLabelText('Recupero (s)'), '180');
     await user.click(screen.getByRole('button', { name: 'Aggiungi esercizio' }));
     const picker = within(screen.getByRole('dialog'));
-    // the one already in the day is not proposed again
-    expect(picker.queryByRole('button', { name: 'Squat Gambe' })).not.toBeInTheDocument();
+    // the one already in the workout is proposed again: the same exercise can come back later on
+    expect(await picker.findByRole('button', { name: 'Squat Gambe' })).toBeInTheDocument();
     await user.click(await picker.findByRole('button', { name: 'Panca piana' }));
 
     // Day B, with an exercise made from the picker by typing its name.
@@ -203,6 +203,22 @@ describe('a plan being written', () => {
     );
     expect(status()).toHaveTextContent('Salvata');
     expect(screen.queryByRole('button', { name: /Salva/ })).not.toBeInTheDocument();
+  });
+
+  it('takes the same exercise twice in a workout, each with its own sets', async () => {
+    const api = fakeApi().on('GET /plans/9', NUOVA).on('GET /exercises', [SQUAT]).on('PUT /plans/9', (call: Call) => ({ ...NUOVA, ...(call.body as object) }));
+    render(Host, { page: PlanEditorPage, params: { id: 9 } });
+    const user = userEvent.setup();
+    await screen.findByRole('heading', { name: 'Forza' });
+    for (const _ of [1, 2]) {
+      await user.click(screen.getByRole('button', { name: 'Aggiungi esercizio' }));
+      await user.click(await within(screen.getByRole('dialog')).findByRole('button', { name: 'Squat Gambe' }));
+    }
+    await user.clear(screen.getAllByLabelText('Serie 1, ripetizioni')[1]!);
+    await user.type(screen.getAllByLabelText('Serie 1, ripetizioni')[1]!, '20');
+    await settled(() => expect(planChanges(api).at(-1)?.body).toMatchObject({
+      days: [{ exercises: [{ exerciseId: 1, reps: ['10', '10', '10'] }, { exerciseId: 1, reps: ['20', '10', '10'] }] }],
+    }));
   });
 
   it('keeps at least one set: the last one cannot be taken away', async () => {
