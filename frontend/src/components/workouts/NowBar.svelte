@@ -59,7 +59,7 @@
   <div class="stack">
     <!-- il recupero, un banner suo sopra quello dell'allenamento: tutti e due a vista -->
     {#if rest.running}
-      <div class="banner surface">
+      <div class="banner surface has-tools">
         <span class="what"><span class="main" role="timer" aria-label="Recupero">Recupero <strong>{formatRest(rest.remaining)}</strong></span></span>
         <span class="tools">
           <button type="button" aria-label="Togli 15 secondi" onclick={() => rest.add(-15)}>−15 s</button>
@@ -103,7 +103,7 @@
     align-items: center;
     gap: 8px;
     height: 58px;
-    padding: 0 8px 0 0;
+    padding: 0;
     overflow: hidden;
     /* tondi come l'isola delle sezioni, su cui si appoggiano */
     border-radius: 22px;
@@ -124,7 +124,17 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* lo spazio a destra serve ai tasti del recupero; senza tasti è del testo,
+     e la luce di chi preme arriva fino al bordo */
+  .banner.has-tools { padding-right: 8px; }
+
+  .banner:not(.has-tools) .what { padding-right: 14px; }
+
   a.what:active { background: var(--sunken-hover); }
+
+  @media (hover: hover) {
+    a.what:hover { background: var(--sunken-hover); }
+  }
 
   .text { flex: 1; display: grid; gap: 1px; min-width: 0; }
 

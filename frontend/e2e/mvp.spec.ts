@@ -401,6 +401,15 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.getByRole('link', { name: /^In corso/ })).toContainText('Forza! · A');
   await page.reload();
   await expect(rest).toContainText(/Recupero 1:/);
+  // pressed, the whole banner lights up: the link fills it, edge to edge
+  const fill = await page.getByRole('link', { name: /^In corso/ }).evaluate((link) => {
+    const banner = link.closest('.banner')!;
+    const inner = banner.getBoundingClientRect();
+    const border = parseFloat(getComputedStyle(banner).borderLeftWidth);
+    const box = link.getBoundingClientRect();
+    return [box.left - inner.left - border, inner.right - border - box.right].map(Math.round);
+  });
+  expect(fill, 'room left and right of the link in its banner').toEqual([0, 0]);
   await page.getByRole('link', { name: /^In corso/ }).click();
   await expect(page.getByRole('heading', { name: 'Forza! · A' })).toBeVisible();
   await expect(rest).toBeVisible();
