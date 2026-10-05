@@ -36,6 +36,9 @@ public class MainActivity extends Activity {
         // la scheda scelta, il recupero in corso: l'app li tiene nel localStorage
         settings.setDomStorageEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(true);
+        // l'app sta tutta sul server: niente file né contenuti del telefono dentro la pagina
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(false);
         settings.setUserAgentString(settings.getUserAgentString() + " gymlog-android");
 
         // i cookie della sessione restano anche chiudendo l'app: si resta dentro
@@ -46,7 +49,11 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri url = request.getUrl();
-                if (HOST.equals(url.getHost())) return false;
+                String scheme = url.getScheme();
+                // gymlog, solo in https, resta qui
+                if ("https".equals(scheme) && HOST.equals(url.getHost())) return false;
+                // un sito qualsiasi va nel browser; un altro schema (intent:, market:…) non apre niente
+                if (!"https".equals(scheme) && !"http".equals(scheme)) return true;
                 try {
                     startActivity(new Intent(Intent.ACTION_VIEW, url));
                 } catch (ActivityNotFoundException ignored) {

@@ -1,14 +1,16 @@
 import {
   ACCESS_COOKIE, authenticated, type Context, cookieHeader, HttpError, readCookie, REFRESH_COOKIE, route, type Route,
 } from "../../http";
-import { ACCESS_SECONDS, addressKey, type AuthService, type LoginLimiter, REFRESH_DAYS, type Tokens } from "../../services";
-import { parseLogin, parsePasswordChange, parseRegister } from "../../validators";
+import { ACCESS_SECONDS, addressKey, type AuthService, type Slowdown, type LoginLimiter, REFRESH_DAYS, type Tokens } from "../../services";
+import { parseLogin, parsePasswordChange, parseRegister, USERNAME } from "../../validators";
 
 export interface AuthControllerDeps {
   readonly auth: AuthService;
   readonly limiter: LoginLimiter;
   /** Failed logins of an address whatever the name: a ceiling, never cleared by a success. */
   readonly addressLimiter: LoginLimiter;
+  /** Failed logins on a name from anywhere: they make the next tries on it wait, never refused. */
+  readonly slowdown: Slowdown;
   /** False only for trying the app over plain http on a laptop. */
   readonly secureCookie: boolean;
   /** Whether the login page offers to make an account. */
@@ -17,7 +19,7 @@ export interface AuthControllerDeps {
 }
 
 /** Login, token renewal, logout, who is signed in. */
-export function authController({ auth, limiter, addressLimiter, secureCookie, allowSignup, log }: AuthControllerDeps): Route[] {
+export function authController({ auth, limiter, addressLimiter, slowdown, secureCookie, allowSignup, log }: AuthControllerDeps): Route[] {
   function setTokens(context: Context, tokens: Tokens | undefined): void {
     context.response.setHeader("set-cookie", [
       cookieHeader(ACCESS_COOKIE, "/api", tokens?.access ?? "", tokens === undefined ? 0 : ACCESS_SECONDS, secureCookie),
@@ -36,16 +38,23 @@ export function authController({ auth, limiter, addressLimiter, secureCookie, al
       // and per address alone, higher: many names tried from one place (and every try costs a hash)
       if (limiter.blocked(key) || addressLimiter.blocked(address)) throw new HttpError(429, "Troppi tentativi. Riprova tra un quarto d'ora.");
 
+      // Many addresses guessing one name: each try on it waits longer (and the right password still works).
+      const wait = slowdown.delayFor(username);
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
       // Counted before checking, so parallel attempts cannot all slip through.
       limiter.fail(key);
+      slowdown.fail(username);
       const tokens = await auth.login(username, password);
       if (tokens === undefined) {
-        // quoted as JSON: a newline in the name cannot start a line of its own in the log
-        log(`[gymlog] failed login for ${JSON.stringify(username.slice(0, 50))} from ${context.ip}`);
+        // only a name that could be one: a password typed in the wrong field stays out of the log,
+        // and nothing in it can start a line of its own
+        const named = USERNAME.test(username) ? JSON.stringify(username) : "a name that is no username";
+        log(`[gymlog] failed login for ${named} from ${context.ip}`);
         addressLimiter.fail(address);
         throw new HttpError(401, "Utente o password errati.");
       }
       limiter.succeed(key);
+      slowdown.succeed(username);
       setTokens(context, tokens);
       // the whole profile, as /me gives it: the app knows at once whether admin, and since when
       return { user: await auth.profile(tokens.user.id) };

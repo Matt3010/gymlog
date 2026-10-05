@@ -51,7 +51,11 @@ function postgresCode(error: unknown): unknown {
 export function createHttpServer({ routes, verifyAccess, logError = console.error }: HttpServerDeps): Server {
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     // Stryker disable next-line StringLiteral: Node always sets both on a server request
-    const url = new URL(request.url ?? "/", "http://api.local");
+    const written = request.url ?? "/";
+    // A backslash is read as a slash here but not by nginx: «/api/auth\login» would slip past the limits
+    // nginx keeps on /api/auth/login. Written either way, it is no path of the API.
+    if (/\\|%5c/i.test(written)) throw new HttpError(404, "Non trovato.");
+    const url = new URL(written, "http://api.local");
     // Stryker disable next-line StringLiteral: Node always sets both on a server request
     const method = request.method ?? "GET";
     const matching = routes.filter((candidate) => candidate.path.test(url.pathname));

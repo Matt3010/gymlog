@@ -1,3 +1,4 @@
+import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
@@ -38,6 +39,30 @@ async function serve(routes: Route[]) {
 }
 
 const failing = (error: unknown, method: Route["method"] = "POST") => [route(method, "/api/x", async () => { throw error; })];
+
+/** A request sent as written: fetch would turn a backslash into a slash before it leaves. */
+function raw(base: string, path: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const { hostname, port } = new URL(base);
+    const sent = httpRequest({ hostname, port, path, method: "GET" }, (response) => {
+      response.resume();
+      resolve(response.statusCode!);
+    });
+    sent.on("error", reject);
+    sent.end();
+  });
+}
+
+describe("a path", () => {
+  it("with a backslash is no path: nginx would not have matched it the way the API reads it", async () => {
+    let reached = false;
+    const { base } = await serve([route("GET", "/api/auth/login", async () => ((reached = true), { ok: true }))]);
+    expect(await raw(base, String.raw`/api/auth\login`)).toBe(404);
+    expect(await raw(base, "/api/auth%5Clogin")).toBe(404);
+    expect(reached).toBe(false);
+    expect(await raw(base, "/api/auth/login")).toBe(200);
+  });
+});
 
 describe("the answer", () => {
   it("is JSON, never cached, never sniffed", async () => {

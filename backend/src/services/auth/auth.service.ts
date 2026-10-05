@@ -6,6 +6,8 @@ import { checkNewPassword, DUMMY_HASH, hashPassword, verifyPassword } from "./pa
 import { newRefreshToken, refreshTokenHash, type TokenManager } from "./token.rules";
 
 export const REFRESH_DAYS = 30;
+/** How long a refresh token just replaced still works: two tabs renewing at the same moment. */
+export const GRACE_SECONDS = 60;
 
 export interface Tokens {
   readonly access: string;
@@ -18,7 +20,11 @@ export interface AuthService {
   login(username: string, password: string): Promise<Tokens | undefined>;
   /** The user an access token was issued to, if genuine and not expired. No database read. */
   verifyAccess(token: string): Promise<User | undefined>;
-  /** Trades a refresh token for new tokens. The old refresh token stops working. */
+  /**
+   * Trades a refresh token for new tokens, a new refresh token among them. The
+   * old one works a minute more (two tabs renewing together), then not; back
+   * after that, the whole login ends.
+   */
   refresh(token: string): Promise<Tokens | undefined>;
   logout(refreshToken: string): Promise<void>;
   /** A new account, signed in at once. Rejects a name already taken. */
@@ -59,8 +65,8 @@ export function createAuthService(db: Executor, tokens: TokenManager): AuthServi
     });
   }
 
-  function requireGoodPassword(password: string): void {
-    const problem = checkNewPassword(password);
+  function requireGoodPassword(password: string, username: string): void {
+    const problem = checkNewPassword(password, username);
     if (problem !== undefined) throw new InputError(problem);
   }
 
@@ -80,14 +86,19 @@ export function createAuthService(db: Executor, tokens: TokenManager): AuthServi
     },
 
     /*
-     * A session as on most sites: the same ticket for as long as it is used,
-     * thirty days more at each renewal. An answer lost on the way costs
-     * nothing (the next renewal works the same); logout ends it, a new
-     * password ends them all.
+     * A session as on most sites, thirty days more at each renewal, with a new
+     * ticket each time. The old one works a minute more: an answer lost on the
+     * way, or two tabs renewing at once, cost nothing. Back later than that it
+     * is a copy (stolen, or out of a backup): the whole login ends, the thief's
+     * and the owner's, who simply logs in again. Logout ends the login, a new
+     * password all of them.
      */
     async refresh(token) {
-      const user = await users.renewSession(refreshTokenHash(token), REFRESH_DAYS);
-      return user === undefined ? undefined : { access: await tokens.sign(user), refresh: token, user };
+      const next = newRefreshToken();
+      const rotated = await db.transaction((tx) =>
+        createUsersRepository(tx).rotateSession(refreshTokenHash(token), refreshTokenHash(next), REFRESH_DAYS, GRACE_SECONDS));
+      if (rotated === undefined || rotated === "reused") return undefined;
+      return { access: await tokens.sign(rotated.user), refresh: next, user: rotated.user };
     },
 
     async logout(refreshToken) {
@@ -101,14 +112,14 @@ export function createAuthService(db: Executor, tokens: TokenManager): AuthServi
     },
 
     async createUser(username, password) {
-      requireGoodPassword(password);
+      requireGoodPassword(password, username);
       const name = username.toLowerCase();
       if (await users.findByUsername(name)) throw new InputError("Questo nome utente è già preso.");
       return users.create(name, await hashPassword(password));
     },
 
     async setPassword(username, password) {
-      requireGoodPassword(password);
+      requireGoodPassword(password, username);
       const user = await users.findByUsername(username.toLowerCase());
       if (user === undefined) throw new InputError("Utente non trovato.");
       await replacePassword(user.id, await hashPassword(password));
@@ -119,8 +130,8 @@ export function createAuthService(db: Executor, tokens: TokenManager): AuthServi
     },
 
     async changePassword(userId, current, next) {
-      requireGoodPassword(next);
       const user = found(await users.findById(userId));
+      requireGoodPassword(next, user.username);
       if (!(await verifyPassword(current, user.passwordHash))) return undefined;
       await replacePassword(user.id, await hashPassword(next));
       return issue(db, { id: user.id, username: user.username });

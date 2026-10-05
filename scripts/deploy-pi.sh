@@ -15,14 +15,16 @@ archive="$(mktemp)"
 trap 'rm -f "$archive"' EXIT
 
 git archive --format=tar -o "$archive" HEAD
-scp -q "$archive" "$host:/tmp/gymlog.tar"
+# A name of its own on the Pi, not a fixed one in a shared /tmp that someone else could have planted.
+remote="$(ssh "$host" mktemp)"
+scp -q "$archive" "$host:$remote"
 
 ssh "$host" "set -e
   mkdir -p ~/$dir
   # Unpacked aside first: a failed extract (a full SD card) leaves the running code untouched.
   rm -rf ~/$dir.new && mkdir ~/$dir.new
-  tar -xf /tmp/gymlog.tar -C ~/$dir.new
-  rm /tmp/gymlog.tar
+  tar -xf $remote -C ~/$dir.new
+  rm $remote
   cd ~/$dir
   # Before anything changes: a dump of the database (the last 10 kept), since the
   # new code migrates it. No pipe into gzip: a failed dump stops the deploy here,
@@ -53,6 +55,8 @@ ssh "$host" "set -e
     echo 'New .env from .env.example: set POSTGRES_PASSWORD and JWT_SECRET in ~/$dir/.env, then deploy again.' >&2
     exit 1
   fi
+  # The secrets are this user's only, even in a .env made or copied by hand.
+  chmod 600 .env
   # The running images tagged, so a bad release can be undone.
   for image in gymlog-api gymlog-web; do
     docker image inspect \$image:latest >/dev/null 2>&1 && docker tag \$image:latest \$image:prev

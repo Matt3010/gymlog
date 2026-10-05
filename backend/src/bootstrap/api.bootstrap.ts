@@ -7,7 +7,7 @@ import type { Database } from "../lib";
 import { createPlansManager, createStatsManager, createWorkoutsManager } from "../managers";
 import {
   createAdminService, createAuthService, createExercisesService, createLoginLimiter, createPlansService, createStatsService, createTokenManager,
-  createWorkoutsService, type LoginLimiter,
+  createSlowdown, createWorkoutsService, type LoginLimiter, type Slowdown,
 } from "../services";
 
 export interface ApiOptions {
@@ -19,20 +19,21 @@ export interface ApiOptions {
   readonly allowSignup?: boolean;
   readonly limiter?: LoginLimiter;
   readonly addressLimiter?: LoginLimiter;
+  readonly slowdown?: Slowdown;
   readonly logError?: (line: string, error: unknown) => void;
   readonly log?: (line: string) => void;
 }
 
 /** Where every dependency is chosen, once: services, managers, controllers. The server is not yet listening. */
 export function createApiServer({
-  db, jwtSecret, secureCookie, allowSignup = true, limiter = createLoginLimiter(), addressLimiter = createLoginLimiter(20), logError = console.error, log = console.log,
+  db, jwtSecret, secureCookie, allowSignup = true, limiter = createLoginLimiter(), addressLimiter = createLoginLimiter(20), slowdown = createSlowdown(), logError = console.error, log = console.log,
 }: ApiOptions): Server {
   const auth = createAuthService(db, createTokenManager(jwtSecret));
   const admin = createAdminService(db);
 
   const routes = [
     ...healthController(db),
-    ...authController({ auth, limiter, addressLimiter, secureCookie, allowSignup, log }),
+    ...authController({ auth, limiter, addressLimiter, slowdown, secureCookie, allowSignup, log }),
     ...adminController(admin),
     ...exercisesController(createExercisesService(db)),
     ...plansController(createPlansService(db), createPlansManager(db)),

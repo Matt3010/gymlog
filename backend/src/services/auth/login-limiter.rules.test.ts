@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addressKey, createLoginLimiter } from "./login-limiter.rules";
+import { addressKey, createLoginLimiter, createSlowdown } from "./login-limiter.rules";
 
 function clock() {
   let now = 0;
@@ -107,5 +107,36 @@ describe("the key for an address", () => {
 
   it("does not stop on a malformed address", () => {
     expect(addressKey("1:2:3:4:5:6:7:8:9::1")).toBe("1:2:3:4::/64");
+  });
+});
+
+describe("the slowdown on a username", () => {
+  it("lets the first failures through at once, then waits longer each time, up to a ceiling", () => {
+    const slow = createSlowdown(3, 60_000, 8_000, clock().now);
+    const waits: number[] = [];
+    for (let i = 0; i < 8; i++) {
+      waits.push(slow.delayFor("anna"));
+      slow.fail("anna");
+    }
+    expect(waits).toEqual([0, 0, 0, 1000, 2000, 4000, 8000, 8000]);
+  });
+
+  it("forgets failures once the window has passed, and all of them on a success", () => {
+    const time = clock();
+    const slow = createSlowdown(1, 1000, 30_000, time.now);
+    slow.fail("anna");
+    expect(slow.delayFor("anna")).toBe(1000);
+    time.pass(1000);
+    expect(slow.delayFor("anna")).toBe(0);
+    slow.fail("anna");
+    slow.succeed("anna");
+    expect(slow.delayFor("anna")).toBe(0);
+  });
+
+  it("keeps names apart, and never blocks: there is always a wait, not a no", () => {
+    const slow = createSlowdown(0, 60_000, 30_000, clock().now);
+    for (let i = 0; i < 100; i++) slow.fail("anna");
+    expect(slow.delayFor("anna")).toBe(30_000);
+    expect(slow.delayFor("bob")).toBe(1000);
   });
 });

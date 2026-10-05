@@ -62,17 +62,26 @@ describe.skipIf(SERVER === undefined)("the auth service", () => {
     expect(rows).toEqual([]);
   });
 
-  it("renews with the same session, again and again, thirty more days from each renewal", async () => {
+  it("renews with a new token each time, thirty more days from each renewal", async () => {
     const name = newName();
     const user = await auth().createUser(name, PASSWORD);
     const first = (await auth().login(name, PASSWORD))!;
-    await handle.db.$client.query("update sessions set expires_at = now() + interval '2 days' where token_hash = $1", [refreshTokenHash(first.refresh)]);
-    const renewed = await auth().refresh(first.refresh);
-    expect(renewed?.user).toEqual(user);
-    // the same ticket: an answer lost on the way costs nothing, the next renewal works the same
-    expect(renewed?.refresh).toBe(first.refresh);
-    expect(await sessionDays(first.refresh)).toBe(30);
-    expect(await auth().refresh(first.refresh)).toBeDefined();
+    const renewed = (await auth().refresh(first.refresh))!;
+    expect(renewed.user).toEqual(user);
+    expect(renewed.refresh).not.toBe(first.refresh);
+    expect(renewed.refresh).toMatch(/^[\w-]{43}$/);
+    expect(await sessionDays(renewed.refresh)).toBe(30);
+    expect(await auth().refresh(renewed.refresh)).toBeDefined();
+  });
+
+  it("ends the login when a token comes back after being replaced a minute ago: someone copied it", async () => {
+    const name = newName();
+    await auth().createUser(name, PASSWORD);
+    const first = (await auth().login(name, PASSWORD))!;
+    const renewed = (await auth().refresh(first.refresh))!;
+    await handle.db.$client.query("update sessions set rotated_at = now() - interval '2 minutes' where token_hash = $1", [refreshTokenHash(first.refresh)]);
+    expect(await auth().refresh(first.refresh)).toBeUndefined();
+    expect(await auth().refresh(renewed.refresh)).toBeUndefined();
   });
 
   it("does not renew a session past its end", async () => {
@@ -87,7 +96,9 @@ describe.skipIf(SERVER === undefined)("the auth service", () => {
     const name = newName();
     await auth().createUser(name, PASSWORD);
     const tokens = (await auth().login(name, PASSWORD))!;
-    await auth().logout(tokens.refresh);
+    const renewed = (await auth().refresh(tokens.refresh))!;
+    await auth().logout(renewed.refresh);
+    expect(await auth().refresh(renewed.refresh)).toBeUndefined();
     expect(await auth().refresh(tokens.refresh)).toBeUndefined();
   });
 

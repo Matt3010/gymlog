@@ -105,6 +105,18 @@ describe('the session', () => {
     expect([session.status, session.user]).toEqual(['out', null]);
   });
 
+  it('leaves nothing of whoever was in on the phone: what the app kept goes, the phone’s own choices stay', async () => {
+    const session = new Session(client({ 'POST /auth/login': () => ({ user: anna }) }));
+    await session.login('anna', 'secret');
+    localStorage.setItem('gymlog.home.plan', '7');
+    localStorage.setItem('gymlog.rest', '{"endsAt":1,"total":90}');
+    localStorage.setItem('gymlog.vista.esercizi', '{}');
+    localStorage.setItem('gymlog.installa.no', 'true');
+    localStorage.setItem('someone.else', 'x');
+    session.signedOut();
+    expect(Object.keys(localStorage).sort()).toEqual(['gymlog.installa.no', 'someone.else']);
+  });
+
   it('goes out when told the login is over', async () => {
     const session = new Session(client({ 'POST /auth/login': () => ({ user: anna }) }));
     await session.login('anna', 'secret');

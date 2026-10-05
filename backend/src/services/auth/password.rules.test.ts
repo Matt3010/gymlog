@@ -34,7 +34,27 @@ describe("a password hash", () => {
 describe("a new password", () => {
   it("needs ten characters", () => {
     expect(MIN_PASSWORD_LENGTH).toBe(10);
-    expect(checkNewPassword("x".repeat(9))).toBe("Password: almeno 10 caratteri.");
-    expect(checkNewPassword("x".repeat(10))).toBeUndefined();
+    expect(checkNewPassword("abcdefgh9")).toBe("Password: almeno 10 caratteri.");
+    expect(checkNewPassword("tre gatti blu")).toBeUndefined();
+  });
+
+  const EASY = "Password: troppo facile da indovinare. Prova con qualche parola a caso, o una frase.";
+
+  it.each([
+    "password12", "Password123", "PASSWORD1234", "passw0rd!!", "1234567890", "0987654321", "12345678901",
+    "qwertyuiop", "QwErTy1234", "asdfghjkl1", "zxcvbnm123", "1q2w3e4r5t", "iloveyou12", "abcdefghij",
+    "xxxxxxxxxx", "1212121212", "aaaabbbbcc", "gymlog2026!", "forzajuve1",
+  ])("is refused when it is one everybody tries: %s", (password) => {
+    expect(checkNewPassword(password)).toBe(EASY);
+  });
+
+  it("is refused when it is little more than the username", () => {
+    expect(checkNewPassword("anna.rossi1", "anna.rossi")).toBe(EASY);
+    expect(checkNewPassword("ANNA.ROSSI!!", "anna.rossi")).toBe(EASY);
+    expect(checkNewPassword("anna rossi va in palestra", "anna.rossi")).toBeUndefined();
+  });
+
+  it("is taken when it is long and not a pattern", () => {
+    for (const good of ["correct horse battery", "Panca-82,5kg!", "il mio cane fido", "x7#Lm9qPz2"]) expect(checkNewPassword(good)).toBeUndefined();
   });
 });

@@ -4,7 +4,7 @@ import { createDb } from "../lib";
 import { createAdminService, createAuthService, createTokenManager } from "../services";
 
 /**
- * Users are made here, not in the app: there is no sign-up page.
+ * Users are made here too, besides the sign-up page (closed with ALLOW_SIGNUP=false).
  *
  *   pnpm user:create <username>      # asks for the password
  *   pnpm user:password <username>    # sets a new one, ending every session

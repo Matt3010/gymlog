@@ -21,24 +21,54 @@ describe.skipIf(SERVER === undefined)("the users repository", () => {
     await expect(repo().create("bruno", "y")).rejects.toMatchObject({ cause: { code: "23505" } });
   });
 
-  it("renews a valid session as many times as asked, with the same token", async () => {
+  /** A token rotated that long ago, as if time had passed. */
+  const rotatedAgo = (hash: string, seconds: number) =>
+    handle.db.$client.query(`update sessions set rotated_at = now() - make_interval(secs => ${seconds}) where token_hash = $1`, [hash]);
+
+  it("rotates a valid session: the new token goes on, the old one is marked", async () => {
     const bea = await repo().create("bea", "x");
     await repo().createSession("token-1", bea.id, 30);
-    expect(await repo().renewSession("token-1", 30)).toEqual(bea);
-    expect(await repo().renewSession("token-1", 30)).toEqual(bea);
+    expect(await repo().rotateSession("token-1", "token-1b", 30, 60)).toEqual({ user: bea });
+    expect(await repo().rotateSession("token-1b", "token-1c", 30, 60)).toEqual({ user: bea });
+    // only the last two are kept: the one in use and the one just left
+    const { rows } = await handle.db.$client.query("select token_hash from sessions where user_id = $1 order by token_hash", [bea.id]);
+    expect(rows).toEqual([{ token_hash: "token-1b" }, { token_hash: "token-1c" }]);
   });
 
-  it("does not renew an expired session", async () => {
+  it("takes the old token once more within the grace, as two tabs renewing together do", async () => {
+    const bice = await repo().create("bice", "x");
+    await repo().createSession("token-g", bice.id, 30);
+    await repo().rotateSession("token-g", "token-g1", 30, 60);
+    expect(await repo().rotateSession("token-g", "token-g2", 30, 60)).toEqual({ user: bice });
+    expect(await repo().rotateSession("token-g1", "token-g3", 30, 60)).toEqual({ user: bice });
+  });
+
+  it("ends the whole login when an old token comes back after the grace: someone has a copy", async () => {
+    const bruna = await repo().create("bruna", "x");
+    await repo().createSession("token-r", bruna.id, 30);
+    await repo().createSession("token-other", bruna.id, 30);
+    await repo().rotateSession("token-r", "token-r1", 30, 60);
+    await rotatedAgo("token-r", 61);
+    expect(await repo().rotateSession("token-r", "token-r2", 30, 60)).toBe("reused");
+    expect(await repo().rotateSession("token-r1", "token-r3", 30, 60)).toBeUndefined();
+    // another login of the same user goes on
+    expect(await repo().rotateSession("token-other", "token-other1", 30, 60)).toEqual({ user: bruna });
+  });
+
+  it("does not renew an expired or unknown session", async () => {
     const carlo = await repo().create("carlo", "x");
     await repo().createSession("token-old", carlo.id, -1);
-    expect(await repo().renewSession("token-old", 30)).toBeUndefined();
+    expect(await repo().rotateSession("token-old", "token-old1", 30, 60)).toBeUndefined();
+    expect(await repo().rotateSession("token-none", "token-none1", 30, 60)).toBeUndefined();
   });
 
-  it("ends a session", async () => {
+  it("ends a session with every token of its login", async () => {
     const dario = await repo().create("dario", "x");
     await repo().createSession("token-2", dario.id, 30);
-    await repo().deleteSession("token-2");
-    expect(await repo().renewSession("token-2", 30)).toBeUndefined();
+    await repo().rotateSession("token-2", "token-2b", 30, 60);
+    await repo().deleteSession("token-2b");
+    expect(await repo().rotateSession("token-2", "token-2c", 30, 60)).toBeUndefined();
+    expect(await repo().rotateSession("token-2b", "token-2d", 30, 60)).toBeUndefined();
   });
 
   it("clears expired sessions only", async () => {
@@ -62,7 +92,7 @@ describe.skipIf(SERVER === undefined)("the users repository", () => {
     await repo().createSession("token-ivo", ivo.id, 30);
     await repo().createSession("token-gino", gino.id, 30);
     await repo().deleteSessionsOf(ivo.id);
-    expect(await repo().renewSession("token-ivo", 30)).toBeUndefined();
-    expect(await repo().renewSession("token-gino", 30)).toEqual(gino);
+    expect(await repo().rotateSession("token-ivo", "token-ivo1", 30, 60)).toBeUndefined();
+    expect(await repo().rotateSession("token-gino", "token-gino1", 30, 60)).toEqual({ user: gino });
   });
 });

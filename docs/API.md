@@ -77,7 +77,7 @@ interface ExerciseSummary { exerciseId: number; name: string; sessions: number; 
 | Metodo | Percorso | Corpo | Risposta |
 |---|---|---|---|
 | POST | /api/auth/login | `{ username, password }` | `{ user }` + cookie |
-| POST | /api/auth/refresh | – | `{ user }` + cookie |
+| POST | /api/auth/refresh | – | `{ user }` + cookie, con un token di rinnovo nuovo ogni volta. Quello vecchio vale ancora 60 s; ripresentato dopo, chiude tutto quel login (qualcuno ne ha una copia) |
 | POST | /api/auth/logout | – | `{ ok: true }` |
 | GET | /api/auth/me | – | `{ user }`, con `isAdmin` e `createdAt` |
 | POST | /api/auth/password | `{ current, next }` | `{ ok: true }` + cookie nuovi; chiude le altre sessioni. 400 se `current` è sbagliata, 429 dopo troppi tentativi |

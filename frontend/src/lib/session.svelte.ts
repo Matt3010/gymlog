@@ -10,6 +10,22 @@ import type { User } from './types';
  * Un server che non risponde non è «non sei entrato»: è un'altra schermata,
  * con il suo motivo (`unreachable`).
  */
+/** Quello che è del telefono, non di chi ci entra: resta anche uscendo. */
+const OF_THE_PHONE = ['gymlog.installa.no'];
+
+/**
+ * Uscendo si dimentica quello che l'app aveva tenuto sul telefono (la scheda
+ * scelta, il recupero, come si guardano gli elenchi): su un telefono che passa
+ * di mano, chi entra dopo non trova niente di chi c'era.
+ */
+function forgetKept(): void {
+  try {
+    for (const key of Object.keys(localStorage)) if (key.startsWith('gymlog.') && !OF_THE_PHONE.includes(key)) localStorage.removeItem(key);
+  } catch {
+    // niente localStorage (navigazione privata): niente da dimenticare
+  }
+}
+
 export class Session {
   user = $state<User | null>(null);
   status = $state<'checking' | 'in' | 'out' | 'unreachable'>('checking');
@@ -69,6 +85,7 @@ export class Session {
 
   signedOut(): void {
     for (const forget of this.#leaving) forget();
+    forgetKept();
     this.user = null;
     this.status = 'out';
   }

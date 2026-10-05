@@ -57,6 +57,13 @@
       "when": 1791193182575,
       "tag": "0007_admin_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791203178032,
+      "tag": "0008_session_rotation",
+      "breakpoints": true
     }
   ]
 }

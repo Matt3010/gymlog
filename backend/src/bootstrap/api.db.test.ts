@@ -2,7 +2,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDb } from "../lib";
 import { SERVER, testDatabase } from "../lib/database/test-database";
-import { createLoginLimiter, createTokenManager } from "../services";
+import { createLoginLimiter, createSlowdown, createTokenManager } from "../services";
 import { createAuthService } from "../services";
 import { createApiServer } from "./api.bootstrap";
 
@@ -141,6 +141,27 @@ describe.skipIf(SERVER === undefined)("the API", () => {
         .toMatchObject({ status: 429, body: { error: "Troppi tentativi. Riprova tra un quarto d'ora." } });
     });
 
+    it("slows down the tries on one name, from any address, but never shuts the owner out", async () => {
+      const slowed = createApiServer({ db: handle.db, jwtSecret: SECRET, secureCookie: true, slowdown: createSlowdown(1, 60_000, 400), log: () => undefined });
+      await new Promise<void>((resolve) => slowed.listen(0, "127.0.0.1", resolve));
+      try {
+        const there = client(() => `http://127.0.0.1:${(slowed.address() as AddressInfo).port}`);
+        const { username } = await signedIn();
+        const login = (password: string, ip: string) => there.call("POST", "/api/auth/login", { username, password }, { "x-gymlog": "1", "x-real-ip": ip });
+        await login("wrong one", "198.51.100.71");
+        await login("wrong two", "198.51.100.72");
+        const started = Date.now();
+        expect((await login(PASSWORD, "198.51.100.73")).status).toBe(200);
+        expect(Date.now() - started).toBeGreaterThanOrEqual(350);
+        // in, the name is forgiven
+        const again = Date.now();
+        await login(PASSWORD, "198.51.100.74");
+        expect(Date.now() - again).toBeLessThan(300);
+      } finally {
+        await new Promise<void>((resolve) => slowed.close(() => resolve()));
+      }
+    });
+
     it("refuses a wrong password", async () => {
       const { username } = await signedIn();
       const result = await client(() => base).call("POST", "/api/auth/login", { username, password: "wrong password" });
@@ -149,10 +170,11 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect(lines).toContain(`[gymlog] failed login for "${username}" from 127.0.0.1`);
     });
 
-    it("logs at most fifty characters of a wrong username", async () => {
-      const long = "x".repeat(80);
-      await client(() => base).call("POST", "/api/auth/login", { username: long, password: "wrong password" });
-      expect(lines).toContain(`[gymlog] failed login for "${"x".repeat(50)}" from 127.0.0.1`);
+    it("does not write what cannot be a username: a password typed in the wrong field stays out of the log", async () => {
+      await client(() => base).call("POST", "/api/auth/login", { username: "My Secret Pass!", password: "wrong password" }, { "x-gymlog": "1", "x-real-ip": "198.51.100.61" });
+      await client(() => base).call("POST", "/api/auth/login", { username: "x".repeat(31), password: "wrong password" }, { "x-gymlog": "1", "x-real-ip": "198.51.100.62" });
+      expect(lines.filter((line) => line.includes("My Secret") || line.includes("x".repeat(31)))).toEqual([]);
+      expect(lines.filter((line) => line.startsWith("[gymlog] failed login for a name that is no username from 198.51.100.6"))).toHaveLength(2);
     });
 
     it("stops an address after too many failures, even with the right password", async () => {
@@ -204,20 +226,27 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect((await browser.call("POST", "/api/auth/login", { username: own.username, password: PASSWORD }, { "x-gymlog": "1", "x-real-ip": "203.0.113.31" })).status).toBe(200);
     });
 
-    it("writes a username in the log as it is, quoted: a newline in it cannot forge a line", async () => {
-      await client(() => base).call("POST", "/api/auth/login", { username: "x\n[gymlog] new account", password: "wrong password" });
-      // quoted as JSON: the newline stays a visible \n inside the quotes, on the same line
-      expect(lines).toContain(String.raw`[gymlog] failed login for "x\n[gymlog] new account" from 127.0.0.1`);
+    it("cannot forge a line of the log through the username", async () => {
+      await client(() => base).call("POST", "/api/auth/login", { username: "x\n[gymlog] new account", password: "wrong password" }, { "x-gymlog": "1", "x-real-ip": "198.51.100.63" });
+      // one line from that address, and only the safe words
+      expect(lines.filter((line) => line.includes("198.51.100.63") || line.includes("x\n"))).toEqual([
+        "[gymlog] failed login for a name that is no username from 198.51.100.63",
+      ]);
     });
 
-    it("renews the access with the session cookie, as often as needed, keeping the same session", async () => {
+    it("writes a wrong but well-formed username as it is", async () => {
+      await client(() => base).call("POST", "/api/auth/login", { username: "Some.One", password: "wrong password" }, { "x-gymlog": "1", "x-real-ip": "198.51.100.64" });
+      expect(lines).toContain('[gymlog] failed login for "some.one" from 198.51.100.64');
+    });
+
+    it("renews the access with the session cookie, as often as needed, a new session cookie each time", async () => {
       const { call, jar, user } = await signedIn();
       const session = jar.get("gymlog_rt")!.value;
       const renewed = await call("POST", "/api/auth/refresh");
       expect(renewed).toMatchObject({ status: 200, body: { user } });
-      // a new access comes with it
+      // a new access comes with it, and a new refresh
       expect(renewed.setCookies).toEqual(expect.arrayContaining([expect.stringMatching(/^gymlog_at=[^;]+;/)]));
-      expect(jar.get("gymlog_rt")!.value).toBe(session);
+      expect(jar.get("gymlog_rt")!.value).not.toBe(session);
       expect(await call("POST", "/api/auth/refresh")).toMatchObject({ status: 200, body: { user } });
     });
 

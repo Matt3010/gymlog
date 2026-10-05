@@ -9,8 +9,35 @@ const KEY_LENGTH = 32;
 
 export const MIN_PASSWORD_LENGTH = 10;
 
-export function checkNewPassword(password: string): string | undefined {
-  return password.length < MIN_PASSWORD_LENGTH ? `Password: almeno ${MIN_PASSWORD_LENGTH} caratteri.` : undefined;
+const EASY = "Password: troppo facile da indovinare. Prova con qualche parola a caso, o una frase.";
+
+/** What everybody tries first, written in lower case: a password made mostly of these is guessed in a minute. */
+const COMMON = [
+  "password", "passw0rd", "p4ssword", "gymlog", "palestra", "iloveyou", "1q2w3e4r5t", "1qaz2wsx", "welcome", "letmein",
+  "admin", "qwerty", "juventus", "forzajuve", "forzainter", "forzamilan", "forzaroma", "forzanapoli", "ciao",
+];
+/** Runs along a keyboard or a count: any four or more in a row of these are no secret. */
+const SEQUENCES = ["0123456789", "9876543210", "1234567890", "0987654321", "abcdefghijklmnopqrstuvwxyz", "qwertyuiop", "asdfghjkl", "zxcvbnm"];
+/** What is left once the common words, the runs and the username are taken out: less than this is too little. */
+const MIN_LEFT = 6;
+
+/**
+ * Long enough, and not one that a list of common passwords finds: not
+ * four letters over and over, not a word everybody uses with a number
+ * after it, not the username with something added.
+ */
+export function checkNewPassword(password: string, username?: string): string | undefined {
+  if (password.length < MIN_PASSWORD_LENGTH) return `Password: almeno ${MIN_PASSWORD_LENGTH} caratteri.`;
+  const plain = password.toLowerCase();
+  if (new Set(plain).size < 4) return EASY;
+  let left = plain;
+  for (const word of [...COMMON, ...(username ? [username.toLowerCase()] : [])]) left = left.split(word).join("");
+  for (const run of SEQUENCES) {
+    for (let length = run.length; length >= 4; length--) {
+      for (let at = 0; at + length <= run.length; at++) left = left.split(run.slice(at, at + length)).join("");
+    }
+  }
+  return left.length < MIN_LEFT ? EASY : undefined;
 }
 
 /** `scrypt$N$r$p$salt$key`, base64 parts: the cost travels with the hash, so it can be raised later. */

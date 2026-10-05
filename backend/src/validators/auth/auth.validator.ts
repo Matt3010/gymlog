@@ -11,7 +11,7 @@ export function parseLogin(value: unknown): { username: string; password: string
   return { username, password };
 }
 
-const USERNAME = /^[a-z0-9._-]{3,30}$/;
+export const USERNAME = /^[a-z0-9._-]{3,30}$/;
 
 /** A new account: a name others could not mistake for another, and a password long enough. */
 export function parseRegister(value: unknown): { username: string; password: string } {
