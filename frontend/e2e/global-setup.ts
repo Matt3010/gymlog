@@ -112,6 +112,8 @@ ${built.stdout}${built.stderr}`);
   }
 
   process.env.E2E_BASE_URL = `http://127.0.0.1:${webPort}`;
+  // the app's own database: the README's screens date their workouts back in it
+  process.env.E2E_APP_DATABASE_URL = databaseUrl;
   process.env.E2E_USER = E2E_USER;
   process.env.E2E_PASSWORD = E2E_PASSWORD;
   return teardown;

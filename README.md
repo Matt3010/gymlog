@@ -4,6 +4,28 @@ Le schede della palestra, gli allenamenti e i pesi fatti, serie per serie: con l
 medie, i massimi e il massimale stimato di ogni esercizio, sessione per sessione.
 Una PWA da usare dal telefono in palestra, installabile sulla schermata Home.
 
+## Anteprima
+
+<p>
+  <img src="docs/screens/home.png" width="180" alt="Allenati: la scheda e i suoi allenamenti da cui partire">
+  <img src="docs/screens/workout.png" width="180" alt="Un allenamento in corso, con l'ultima volta e il recupero">
+  <img src="docs/screens/exercise-stats.png" width="180" alt="Le statistiche di un esercizio, con il grafico">
+  <img src="docs/screens/plan.png" width="180" alt="Una scheda: gli allenamenti A e B con serie e recupero">
+</p>
+<p>
+  <img src="docs/screens/history.png" width="180" alt="Lo storico degli allenamenti">
+  <img src="docs/screens/home-dark.png" width="180" alt="Allenati, di notte">
+  <img src="docs/screens/workout-dark.png" width="180" alt="Un allenamento in corso, di notte">
+  <img src="docs/screens/exercise-stats-dark.png" width="180" alt="Le statistiche di un esercizio, di notte">
+</p>
+
+Le schermate si rifanno da sole, con qualche settimana di allenamenti finti
+(`frontend/e2e/screens.spec.ts`):
+
+```bash
+SCREENS=1 E2E_DATABASE_URL=postgres://postgres:test@127.0.0.1:55432 pnpm --filter frontend test:e2e screens
+```
+
 ```
  telefono (PWA) ── HTTPS ── Cloudflare Tunnel ── nginx (gymlog-web) ─┬─ /      app Svelte
                                                                      └─ /api/  API Node (gymlog-api) ── Postgres
@@ -15,8 +37,9 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
 ## Cosa fa
 
 - **Esercizi:** i tuoi, con gruppo muscolare e note.
-- **Schede:** con più giorni (A, B, C…), ogni giorno con gli esercizi in ordine, serie,
-  ripetizioni ("8", "8-10", "max"), recupero e note.
+- **Schede:** con il periodo in cui si seguono (dal… al…) e più allenamenti (A, B, C…),
+  ognuno con gli esercizi in ordine, serie, ripetizioni ("8", "8-10", "max"), recupero e
+  note. Creando una scheda nuova, quella in uso finisce il giorno prima e si archivia.
 - **Allenamenti:** parti da un giorno della scheda o da un allenamento libero. Per ogni
   esercizio vedi cosa chiede la scheda e cosa hai fatto l'ultima volta; registri ogni
   serie (ripetizioni × kg), con il recupero che parte da solo. I nomi della scheda e

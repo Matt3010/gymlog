@@ -27,10 +27,12 @@ interface PlanExercise {
   notes: string | null;
 }
 interface PlanDay { id: number; name: string; position: number; exercises: PlanExercise[] }
-interface Plan { id: number; name: string; notes: string | null; archived: boolean; days: PlanDay[] }
+// startsOn/endsOn come le scrive un calendario ("2026-10-05"); endsOn null finché è in uso.
+interface Plan { id: number; name: string; notes: string | null; startsOn: string; endsOn: string | null; archived: boolean; days: PlanDay[] }
 // Una scheda si salva tutta insieme: giorni ed esercizi vengono sostituiti.
+// Creandone una, quelle in uso iniziate prima finiscono il giorno prima, archiviate.
 interface PlanInput {
-  name: string; notes: string | null; archived: boolean;
+  name: string; notes: string | null; startsOn: string; endsOn?: string | null; archived: boolean;
   days: { name: string; exercises: { exerciseId: number; reps: string[]; restSeconds: number | null; notes: string | null }[] }[];
 }
 
@@ -84,7 +86,7 @@ interface ExerciseSummary { exerciseId: number; name: string; sessions: number; 
 | POST | /api/exercises | `ExerciseInput` | `Exercise` |
 | PATCH | /api/exercises/:id | `ExerciseInput` | `Exercise` |
 | DELETE | /api/exercises/:id | – | `{ ok: true }` (409 se usato in schede o allenamenti) |
-| GET | /api/plans | – | `Plan[]` (attive prima, poi per nome) |
+| GET | /api/plans | – | `Plan[]` (attive prima, poi dalla più recente, poi per nome) |
 | GET | /api/plans/:id | – | `Plan` |
 | POST | /api/plans | `PlanInput` | `Plan` |
 | PUT | /api/plans/:id | `PlanInput` | `Plan` |
