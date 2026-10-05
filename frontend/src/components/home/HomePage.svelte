@@ -3,7 +3,7 @@
   import { current } from '../../lib/current.svelte';
   import { plansApi, workoutsApi } from '../../lib/endpoints';
   import { nav } from '../../lib/nav.svelte';
-  import { planPath, workoutPath } from '../../lib/routing';
+  import { ADMIN_PATH, planPath, workoutPath } from '../../lib/routing';
   import type { Plan, WorkoutSummary } from '../../lib/types';
   import { ui } from '../../lib/ui.svelte';
   import Alert from '../Alert.svelte';
@@ -71,6 +71,11 @@
 
 <PageShell title="Allenati">
   {#snippet tools()}
+    {#if session.user?.isAdmin}
+      <Button look="icon" href={ADMIN_PATH} title="Utilizzo dell’app" aria-label="Utilizzo dell’app">
+        <Icon name="usage" />
+      </Button>
+    {/if}
     <Button look="icon" tone="danger" title="Esci ({session.user?.username})" onclick={(event: MouseEvent) => askOut(event.currentTarget as HTMLElement)}>
       <Icon name="logout" />
     </Button>

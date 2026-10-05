@@ -9,12 +9,15 @@ export type Route =
   | { kind: 'workout'; id: number }
   | { kind: 'history' }
   /** Un esercizio: come va, sessione per sessione. */
-  | { kind: 'exercise'; id: number };
+  | { kind: 'exercise'; id: number }
+  /** Come usano l'app tutti: solo per chi la amministra. */
+  | { kind: 'admin' };
 
 export const HOME_PATH = '/';
 export const EXERCISES_PATH = '/exercises';
 export const PLANS_PATH = '/plans';
 export const HISTORY_PATH = '/history';
+export const ADMIN_PATH = '/admin';
 const WORKOUTS_PATH = '/workouts';
 
 /**
@@ -44,6 +47,7 @@ export function readRoute(path: string): Route {
     if (section === 'exercises' && written !== 'statistiche') return { kind: 'exercises' };
     if (section === 'plans') return { kind: 'plans' };
     if (section === 'history') return { kind: 'history' };
+    if (written === 'admin') return { kind: 'admin' };
     return { kind: 'home' };
   }
   if (section === 'plans' && rest === fresh) return { kind: 'plan', id: null };
@@ -70,5 +74,6 @@ export function canonical(path: string): string {
     case 'workout': return workoutPath(route.id);
     case 'history': return HISTORY_PATH;
     case 'exercise': return exercisePath(route.id);
+    case 'admin': return ADMIN_PATH;
   }
 }

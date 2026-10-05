@@ -1,13 +1,14 @@
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { createDb } from "../lib";
-import { createAuthService, createTokenManager } from "../services";
+import { createAdminService, createAuthService, createTokenManager } from "../services";
 
 /**
  * Users are made here, not in the app: there is no sign-up page.
  *
  *   pnpm user:create <username>      # asks for the password
  *   pnpm user:password <username>    # sets a new one, ending every session
+ *   pnpm user:admin <username>       # sees how everyone uses the app (user:unadmin takes it back)
  *
  * On the Pi: docker compose exec -it api node_modules/.bin/tsx src/cli/users.ts create <username>
  * The password can also come from GYMLOG_PASSWORD, for scripts.
@@ -19,13 +20,25 @@ async function main(): Promise<void> {
     // No .env: the environment is enough.
   }
   const [command, username] = process.argv.slice(2);
-  if ((command !== "create" && command !== "password") || username === undefined || username.trim() === "") {
-    console.error("Usage: users.ts create|password <username>");
+  if (!["create", "password", "admin", "unadmin"].includes(command ?? "") || username === undefined || username.trim() === "") {
+    console.error("Usage: users.ts create|password|admin|unadmin <username>");
     process.exitCode = 2;
     return;
   }
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is required");
+
+  if (command === "admin" || command === "unadmin") {
+    const db = createDb(url);
+    try {
+      const done = await createAdminService(db).setAdmin(username, command === "admin");
+      if (!done) throw new Error(`No user ${username.trim()}.`);
+      console.log(`${username.trim()} ${command === "admin" ? "is an admin now" : "is no admin any more"}.`);
+    } finally {
+      await db.$client.end();
+    }
+    return;
+  }
 
   const password = process.env.GYMLOG_PASSWORD ?? (await ask(`Password for ${username}: `));
   const db = createDb(url);

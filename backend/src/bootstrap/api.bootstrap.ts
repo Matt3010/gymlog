@@ -1,12 +1,12 @@
 import type { Server } from "node:http";
 import {
-  authController, exercisesController, healthController, plansController, statsController, workoutsController,
+  adminController, authController, exercisesController, healthController, plansController, statsController, workoutsController,
 } from "../controllers";
 import { createHttpServer } from "../http";
 import type { Database } from "../lib";
 import { createPlansManager, createStatsManager, createWorkoutsManager } from "../managers";
 import {
-  createAuthService, createExercisesService, createLoginLimiter, createPlansService, createStatsService, createTokenManager,
+  createAdminService, createAuthService, createExercisesService, createLoginLimiter, createPlansService, createStatsService, createTokenManager,
   createWorkoutsService, type LoginLimiter,
 } from "../services";
 
@@ -28,10 +28,12 @@ export function createApiServer({
   db, jwtSecret, secureCookie, allowSignup = true, limiter = createLoginLimiter(), addressLimiter = createLoginLimiter(20), logError = console.error, log = console.log,
 }: ApiOptions): Server {
   const auth = createAuthService(db, createTokenManager(jwtSecret));
+  const admin = createAdminService(db);
 
   const routes = [
     ...healthController(db),
-    ...authController({ auth, limiter, addressLimiter, secureCookie, allowSignup, log }),
+    ...authController({ auth, admin, limiter, addressLimiter, secureCookie, allowSignup, log }),
+    ...adminController(admin),
     ...exercisesController(createExercisesService(db)),
     ...plansController(createPlansService(db), createPlansManager(db)),
     ...workoutsController(createWorkoutsService(db), createWorkoutsManager(db)),

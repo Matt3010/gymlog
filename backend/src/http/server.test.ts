@@ -1,6 +1,6 @@
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { ConflictError, NotFoundError } from "../errors";
+import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { InputError } from "../validators";
 import { HttpError } from "./http.errors";
 import { cookieHeader, idParam, readCookie } from "./request";
@@ -71,6 +71,11 @@ describe("errors", () => {
   it("of something that exists already are 409", async () => {
     const { call } = await serve(failing(new ConflictError("Esiste già un esercizio con questo nome.")));
     expect(await call("POST", "/api/x", change)).toMatchObject({ status: 409, body: { error: "Esiste già un esercizio con questo nome." } });
+  });
+
+  it("of something not for this user are 403", async () => {
+    const { call } = await serve(failing(new ForbiddenError("Solo per chi amministra l’app.")));
+    expect(await call("POST", "/api/x", change)).toMatchObject({ status: 403, body: { error: "Solo per chi amministra l’app." } });
   });
 
   it("of input are 400, of something missing 404", async () => {

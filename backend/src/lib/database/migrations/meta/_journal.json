@@ -50,6 +50,13 @@
       "when": 1791185020050,
       "tag": "0006_plan_period",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791193182575,
+      "tag": "0007_admin_flag",
+      "breakpoints": true
     }
   ]
 }

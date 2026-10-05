@@ -114,6 +114,15 @@ test('the README screens', async ({ page }) => {
     await shoot(page, `history${suffix}`);
   }
 
+  // What whoever runs the app sees of everyone.
+  await sql(`update users set is_admin = true where username = $1`, [process.env.E2E_USER]);
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.goto(`${base()}/admin`);
+    await expect(page.getByRole('region', { name: 'Utenti' })).toBeVisible();
+    await shoot(page, `admin${scheme === 'dark' ? '-dark' : ''}`);
+  }
+
   // Today's session, halfway through the bench press, with the rest running.
   const today = await call<{ id: number }>(page, 'POST', '/workouts', { planDayId: dayA!.id });
   for (const weightKg of [77.5, 82.5]) await call(page, 'POST', `/workouts/${today.id}/sets`, { exerciseId: made['Panca piana'], reps: 6, weightKg });

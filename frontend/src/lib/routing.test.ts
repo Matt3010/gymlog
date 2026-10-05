@@ -11,6 +11,7 @@ describe('a path', () => {
     ['/workouts/7', { kind: 'workout', id: 7 }],
     ['/history', { kind: 'history' }],
     ['/exercises/3', { kind: 'exercise', id: 3 }],
+    ['/admin', { kind: 'admin' }],
   ])('%s is a page', (path, route) => {
     expect(readRoute(path)).toEqual(route);
   });
@@ -59,6 +60,7 @@ describe('the address of a page', () => {
     expect(canonical('/storico')).toBe('/history');
     expect(canonical('/allenamenti/7')).toBe('/workouts/7');
     expect(canonical('/statistiche/4')).toBe('/exercises/4');
+    expect(canonical('/admin/')).toBe('/admin');
     expect(canonical('/unknown')).toBe('/');
     expect(canonical('/')).toBe('/');
   });

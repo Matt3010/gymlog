@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { User } from "../repositories";
-import { ConflictError, NotFoundError } from "../errors";
+import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { InputError } from "../validators";
 import { HttpError } from "./http.errors";
 import { readBody, readCookie } from "./request";
@@ -98,6 +98,7 @@ export function createHttpServer({ routes, verifyAccess, logError = console.erro
       if (error instanceof InputError) return send(response, 400, { error: error.message });
       if (error instanceof NotFoundError) return send(response, 404, { error: error.message });
       if (error instanceof ConflictError) return send(response, 409, { error: error.message });
+      if (error instanceof ForbiddenError) return send(response, 403, { error: error.message });
       const code = postgresCode(error);
       if (code === "23505") return send(response, 409, { error: "Esiste già, con lo stesso nome." });
       // Only a delete can meet a row still in use: writes check what they name first.

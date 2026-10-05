@@ -1,4 +1,5 @@
 // HTTP controllers: one per resource, each a list of routes.
+export * from "./admin";
 export * from "./auth";
 export * from "./exercises";
 export * from "./health";

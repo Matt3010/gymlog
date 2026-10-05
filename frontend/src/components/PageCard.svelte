@@ -14,6 +14,7 @@
     wide = false,
     dashed = false,
     bare = false,
+    label,
     children,
   }: {
     /**
@@ -42,11 +43,13 @@
      * è lo stesso, e ogni pagina lo riscriveva per conto suo.
      */
     bare?: boolean;
+    /** Il nome della sezione, per chi non la vede: la card diventa una regione. */
+    label?: string;
     children: Snippet;
   } = $props();
 </script>
 
-<section class="card" class:wide class:dashed class:bare>
+<section class="card" class:wide class:dashed class:bare aria-label={label}>
   {@render children()}
 </section>
 

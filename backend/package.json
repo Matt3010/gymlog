@@ -12,6 +12,8 @@
     "dev": "tsx watch src/main.ts",
     "user:create": "tsx src/cli/users.ts create",
     "user:password": "tsx src/cli/users.ts password",
+    "user:admin": "tsx src/cli/users.ts admin",
+    "user:unadmin": "tsx src/cli/users.ts unadmin",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -3,6 +3,24 @@
 export interface User {
   id: number;
   username: string;
+  /** Vede come usano l'app tutti gli altri. Lo dice `/auth/me`. */
+  isAdmin?: boolean;
+}
+
+/** Come un utente usa l'app: quello che ha, quanto si allena, quando c'era. Solo conti e date. */
+export interface UserUsage {
+  id: number;
+  username: string;
+  isAdmin: boolean;
+  createdAt: string;
+  lastWorkoutAt: string | null;
+  /** L'ultima volta che ha aperto l'app, circa. */
+  lastSeenAt: string | null;
+  workouts: number;
+  workoutsLast30Days: number;
+  sets: number;
+  exercises: number;
+  plans: number;
 }
 
 export interface Exercise {

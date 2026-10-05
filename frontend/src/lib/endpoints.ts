@@ -1,6 +1,6 @@
 import { api } from './client';
 import type {
-  Exercise, ExerciseInput, ExerciseOverview, ExerciseStats, Plan, PlanInput, WorkoutDetail, WorkoutSet, WorkoutSummary,
+  Exercise, ExerciseInput, ExerciseOverview, ExerciseStats, Plan, PlanInput, UserUsage, WorkoutDetail, WorkoutSet, WorkoutSummary,
 } from './types';
 
 /* Ogni chiamata dell'API, con i suoi tipi: le pagine chiamano queste, non indirizzi scritti a mano. */
@@ -39,4 +39,8 @@ export const statsApi = {
   /** Solo quelli fatti almeno una volta, dal più recente. */
   exercises: () => api.get<ExerciseOverview[]>('/stats/exercises'),
   exercise: (id: number) => api.get<ExerciseStats>(`/stats/exercises/${id}`),
+};
+
+export const adminApi = {
+  usage: () => api.get<{ users: UserUsage[] }>('/admin/usage'),
 };

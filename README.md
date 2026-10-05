@@ -59,6 +59,10 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
 - **Meglio o peggio:** una freccia verde, rossa o grigia accanto a ogni serie, rispetto
   alla stessa serie dell'ultima volta, e a ogni sessione nelle statistiche. Chili e
   ripetizioni contano insieme, nel massimale stimato: 9 × 60 batte 10 × 57,5.
+- **Admin:** chi ha il flag `is_admin` (da riga di comando, `users.ts admin <nome>`) ha
+  un'icona accanto all'uscita, in Allenati, che apre l'utilizzo dell'app: quanti utenti,
+  quanti attivi, e per ognuno ultimo accesso, ultimo allenamento e quanto ha. Solo conti e
+  date, mai gli allenamenti degli altri.
 - **Più utenti:** ognuno vede solo i suoi dati. Ci si registra dalla pagina di
   accesso (si chiude con `ALLOW_SIGNUP=false`), e gli utenti si creano anche da
   riga di comando.

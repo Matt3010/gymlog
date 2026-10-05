@@ -78,7 +78,7 @@ interface ExerciseSummary { exerciseId: number; name: string; sessions: number; 
 | POST | /api/auth/login | `{ username, password }` | `{ user }` + cookie |
 | POST | /api/auth/refresh | – | `{ user }` + cookie |
 | POST | /api/auth/logout | – | `{ ok: true }` |
-| GET | /api/auth/me | – | `{ user }` |
+| GET | /api/auth/me | – | `{ user }`, con `isAdmin` |
 | GET | /api/auth/signup | – | `{ open: boolean }` (se ci si può registrare) |
 | POST | /api/auth/register | `{ username, password }` | `{ user }` + cookie, già dentro (403 se chiuse, 429 se troppe) |
 | GET | /api/health | – | `{ ok: true }` |
@@ -102,6 +102,7 @@ interface ExerciseSummary { exerciseId: number; name: string; sessions: number; 
 | DELETE | /api/sets/:id | – | `{ ok: true }` |
 | GET | /api/stats/exercises | – | `ExerciseSummary[]` (dal più recente) |
 | GET | /api/stats/exercises/:id | – | `ExerciseStats` |
+| GET | /api/admin/usage | – | `{ users: UserUsage[] }`: per ogni utente conti e date (allenamenti, serie, esercizi, schede, ultimo accesso). 403 a chi non è admin |
 
 Utenti: nome di 3–30 caratteri fra lettere, numeri, `.` `_` `-`, salvato e cercato in minuscolo;
 password di almeno 10 caratteri.

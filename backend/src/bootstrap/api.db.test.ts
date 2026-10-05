@@ -423,6 +423,31 @@ describe.skipIf(SERVER === undefined)("the API", () => {
     });
   });
 
+  describe("admin", () => {
+    it("says in /me whether the user is an admin", async () => {
+      const { call, user } = await signedIn();
+      expect((await call("GET", "/api/auth/me")).body).toEqual({ user: { ...user, isAdmin: false } });
+      await handle.db.$client.query("update users set is_admin = true where id = $1", [user.id]);
+      expect((await call("GET", "/api/auth/me")).body).toEqual({ user: { ...user, isAdmin: true } });
+    });
+
+    it("gives the usage of every user to an admin only", async () => {
+      const someone = await signedIn();
+      const admin = await signedIn();
+      expect(await someone.call("GET", "/api/admin/usage")).toMatchObject({ status: 403, body: { error: "Solo per chi amministra l’app." } });
+      expect((await client(() => base).call("GET", "/api/admin/usage")).status).toBe(401);
+      await handle.db.$client.query("update users set is_admin = true where id = $1", [admin.user.id]);
+      const usage = await admin.call("GET", "/api/admin/usage");
+      expect(usage.status).toBe(200);
+      expect(usage.body.users).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: someone.user.id, username: someone.username, isAdmin: false, workouts: 0 }),
+        expect.objectContaining({ id: admin.user.id, isAdmin: true }),
+      ]));
+      // the hashes stay in the database
+      expect(JSON.stringify(usage.body)).not.toMatch(/hash/i);
+    });
+  });
+
   it("logs nothing as an error in all of the above", () => {
     expect(errors).toEqual([]);
   });
