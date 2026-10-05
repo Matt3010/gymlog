@@ -72,7 +72,7 @@
         <span class="track" aria-hidden="true"><span class="fill" style:transform="scaleX({left})"></span></span>
       </div>
     {/if}
-    <section class="banner surface" aria-label="In corso">
+    <section class="banner surface is-now" aria-label="In corso">
       {#if here}
         <span class="what">{@render what()}</span>
       {:else}
@@ -134,6 +134,24 @@
 
   @media (hover: hover) {
     a.what:hover { background: var(--sunken-hover); }
+  }
+
+  /* l'allenamento in corso si stacca da tutto, al rovescio come il tasto
+     principale: nero di giorno, bianco di notte */
+  .banner.is-now {
+    background: var(--accent-grad);
+    border-color: transparent;
+    color: var(--on-accent);
+  }
+
+  .is-now .what, .is-now .main { color: var(--on-accent); }
+
+  .is-now .eyebrow, .is-now .how { color: color-mix(in srgb, var(--on-accent) 62%, transparent); }
+
+  .is-now a.what:active { background: color-mix(in srgb, var(--on-accent) 12%, transparent); }
+
+  @media (hover: hover) {
+    .is-now a.what:hover { background: color-mix(in srgb, var(--on-accent) 8%, transparent); }
   }
 
   .text { flex: 1; display: grid; gap: 1px; min-width: 0; }

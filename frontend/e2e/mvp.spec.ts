@@ -410,6 +410,15 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
     return [box.left - inner.left - border, inner.right - border - box.right].map(Math.round);
   });
   expect(fill, 'room left and right of the link in its banner').toEqual([0, 0]);
+  // it stands out reversed, like a primary button: dark by day with light text
+  const looks = await page.getByRole('link', { name: /^In corso/ }).evaluate((link) => {
+    const banner = link.closest('.banner')!;
+    return {
+      background: getComputedStyle(banner).backgroundImage.startsWith('linear-gradient'),
+      text: getComputedStyle(link.querySelector('.main')!).color,
+    };
+  });
+  expect(looks).toEqual({ background: true, text: 'rgb(255, 255, 255)' });
   await page.getByRole('link', { name: /^In corso/ }).click();
   await expect(page.getByRole('heading', { name: 'Forza! · A' })).toBeVisible();
   await expect(rest).toBeVisible();
