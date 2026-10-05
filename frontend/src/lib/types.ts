@@ -5,6 +5,8 @@ export interface User {
   username: string;
   /** Vede come usano l'app tutti gli altri. Lo dice `/auth/me`. */
   isAdmin?: boolean;
+  /** Da quando c'è l'account. Lo dice `/auth/me`. */
+  createdAt?: string;
 }
 
 /** Come un utente usa l'app: quello che ha, quanto si allena, quando c'era. Solo conti e date. */

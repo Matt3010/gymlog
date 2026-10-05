@@ -32,7 +32,7 @@ export function createApiServer({
 
   const routes = [
     ...healthController(db),
-    ...authController({ auth, admin, limiter, addressLimiter, secureCookie, allowSignup, log }),
+    ...authController({ auth, limiter, addressLimiter, secureCookie, allowSignup, log }),
     ...adminController(admin),
     ...exercisesController(createExercisesService(db)),
     ...plansController(createPlansService(db), createPlansManager(db)),

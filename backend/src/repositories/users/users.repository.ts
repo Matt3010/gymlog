@@ -6,9 +6,17 @@ export interface User {
   readonly username: string;
 }
 
+/** Who is signed in, as their profile shows it. */
+export interface Profile extends User {
+  readonly isAdmin: boolean;
+  readonly createdAt: string;
+}
+
 /** Accounts and their refresh sessions. Only hashes are stored. */
 export interface UsersRepository {
   findByUsername(username: string): Promise<(User & { passwordHash: string }) | undefined>;
+  findById(userId: number): Promise<(User & { passwordHash: string }) | undefined>;
+  profile(userId: number): Promise<Profile | undefined>;
   create(username: string, passwordHash: string): Promise<User>;
   setPasswordHash(userId: number, passwordHash: string): Promise<void>;
   deleteSessionsOf(userId: number): Promise<void>;
@@ -26,6 +34,20 @@ export function createUsersRepository(db: Executor): UsersRepository {
   return {
     async findByUsername(username) {
       const [row] = await db.select({ ...user, passwordHash: users.passwordHash }).from(users).where(eq(users.username, username));
+      return row;
+    },
+
+    async findById(userId) {
+      const [row] = await db.select({ ...user, passwordHash: users.passwordHash }).from(users).where(eq(users.id, userId));
+      return row;
+    },
+
+    async profile(userId) {
+      const [row] = await db.select({
+        ...user,
+        isAdmin: users.isAdmin,
+        createdAt: sql<string>`to_char(${users.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`,
+      }).from(users).where(eq(users.id, userId));
       return row;
     },
 

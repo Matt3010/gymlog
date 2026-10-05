@@ -5,7 +5,6 @@ import { current } from '../../lib/current.svelte';
 import { install } from '../../lib/install.svelte';
 import { nav } from '../../lib/nav.svelte';
 import type { Plan, WorkoutDetail, WorkoutSummary } from '../../lib/types';
-import { session } from '../../lib/client';
 import { fakeApi } from '../../test/fake-api';
 import Host from '../../test/Host.svelte';
 import HomePage from './HomePage.svelte';
@@ -35,35 +34,6 @@ const started = (id: number): WorkoutDetail => ({
 });
 
 describe('home', () => {
-  it('logs out only after asking, from a red icon', async () => {
-    const api = fakeApi().on('GET /workouts', []).on('GET /plans', []).on('POST /auth/logout', { ok: true });
-    render(Host, { page: HomePage });
-    const user = userEvent.setup();
-    const out = await screen.findByRole('button', { name: /^Esci/ });
-    expect(out).toHaveClass('is-danger');
-    await user.click(out);
-    const question = within(await screen.findByRole('alertdialog', { name: 'Uscire da gymlog?' }));
-    await user.click(question.getByRole('button', { name: 'Annulla' }));
-    expect(api.changes()).toEqual([]);
-    await user.click(out);
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Esci' }));
-    await vi.waitFor(() => expect(api.changes()).toEqual([{ route: 'POST /auth/logout', body: undefined }]));
-  });
-
-  it('shows the way to the usage of everyone to an admin only, next to the logout', async () => {
-    fakeApi().on('GET /workouts', []).on('GET /plans', []);
-    session.user = { id: 1, username: 'matt', isAdmin: true };
-    const { unmount } = render(Host, { page: HomePage });
-    const usage = await screen.findByRole('link', { name: 'Utilizzo dell’app' });
-    expect(usage).toHaveAttribute('href', '/admin');
-    expect(usage.closest('header')).toBe(screen.getByRole('button', { name: /^Esci/ }).closest('header'));
-    unmount();
-    session.user = { id: 2, username: 'anna', isAdmin: false };
-    render(Host, { page: HomePage });
-    await screen.findByRole('button', { name: /^Esci/ });
-    expect(screen.queryByRole('link', { name: 'Utilizzo dell’app' })).not.toBeInTheDocument();
-  });
-
   const days = () => [...document.querySelectorAll('button.day')].map((b) => b.textContent?.replace(/\s+/g, ' ').trim());
 
   it('shows one plan at a time, chosen from a dropdown, its days saying what is in them', async () => {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import AccountButton from './AccountButton.svelte';
   import Icon from './Icon.svelte';
 
   /**
@@ -46,7 +47,8 @@
     <div class="named">
       <h1>{title}</h1>
       {#if count}<span class="how-many">{count}</span>{/if}
-      {#if tools}<span class="tools">{@render tools()}</span>{/if}
+      <!-- i comandi della pagina, poi chi sei: sempre lì, in ogni pagina -->
+      <span class="tools">{@render tools?.()}<AccountButton /></span>
     </div>
     {#if lead}<p class="lead">{lead}</p>{/if}
     {@render meta?.()}

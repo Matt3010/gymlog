@@ -18,6 +18,7 @@
   import WorkoutPage from './components/workouts/WorkoutPage.svelte';
   import HistoryPage from './components/workouts/HistoryPage.svelte';
   import AdminPage from './components/admin/AdminPage.svelte';
+  import ProfilePage from './components/profile/ProfilePage.svelte';
   import NowBar from './components/workouts/NowBar.svelte';
   import { session } from './lib/client';
   import { nav } from './lib/nav.svelte';
@@ -75,6 +76,8 @@
       <HistoryPage />
     {:else if route.kind === 'admin'}
       <AdminPage />
+    {:else if route.kind === 'profile'}
+      <ProfilePage />
     {/if}
   {/key}
   <NowBar />

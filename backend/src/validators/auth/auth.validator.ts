@@ -28,3 +28,16 @@ export function parseRegister(value: unknown): { username: string; password: str
   if (password.length > 200) throw new InputError("Password: al più 200 caratteri.");
   return { username, password };
 }
+
+/** A new password, with the current one to prove it is really the owner asking. */
+export function parsePasswordChange(value: unknown): { current: string; next: string } {
+  const body = object(value);
+  const current = typeof body.current === "string" ? body.current : "";
+  if (current === "" || current.length > 200) throw new InputError("Scrivi la password attuale.");
+  const next = body.next;
+  if (typeof next !== "string" || next.length < MIN_PASSWORD_LENGTH) {
+    throw new InputError(`Password: almeno ${MIN_PASSWORD_LENGTH} caratteri.`);
+  }
+  if (next.length > 200) throw new InputError("Password: al più 200 caratteri.");
+  return { current, next };
+}

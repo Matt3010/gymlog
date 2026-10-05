@@ -123,6 +123,19 @@ test('the README screens', async ({ page }) => {
     await shoot(page, `admin${scheme === 'dark' ? '-dark' : ''}`);
   }
 
+  // Who you are, from any page: the menu, then the profile.
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    const suffix = scheme === 'dark' ? '-dark' : '';
+    await page.goto(`${base()}/plans`);
+    await page.getByRole('button', { name: /^Account di / }).click();
+    await expect(page.getByRole('button', { name: 'Profilo' })).toBeVisible();
+    await shoot(page, `account-menu${suffix}`);
+    await page.getByRole('button', { name: 'Profilo' }).click();
+    await expect(page.getByRole('heading', { name: 'Profilo' })).toBeVisible();
+    await shoot(page, `profile${suffix}`);
+  }
+
   // Today's session, halfway through the bench press, with the rest running.
   const today = await call<{ id: number }>(page, 'POST', '/workouts', { planDayId: dayA!.id });
   for (const weightKg of [77.5, 82.5]) await call(page, 'POST', `/workouts/${today.id}/sets`, { exerciseId: made['Panca piana'], reps: 6, weightKg });

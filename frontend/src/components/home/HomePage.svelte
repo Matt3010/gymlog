@@ -3,7 +3,7 @@
   import { current } from '../../lib/current.svelte';
   import { plansApi, workoutsApi } from '../../lib/endpoints';
   import { nav } from '../../lib/nav.svelte';
-  import { ADMIN_PATH, planPath, workoutPath } from '../../lib/routing';
+  import { planPath, workoutPath } from '../../lib/routing';
   import type { Plan, WorkoutSummary } from '../../lib/types';
   import { ui } from '../../lib/ui.svelte';
   import Alert from '../Alert.svelte';
@@ -51,11 +51,6 @@
   const busy = $derived(current.workout !== null);
   const blocked = $derived(starting || busy);
 
-  /** Uscire chiede prima, come ogni tasto rosso: un tocco per sbaglio in palestra costa un nuovo accesso. */
-  function askOut(anchor: HTMLElement): void {
-    ui.askSure(anchor, { title: 'Uscire da gymlog?', verb: 'Esci', onYes: () => void session.logout() });
-  }
-
   async function start(planDayId: number | null): Promise<void> {
     starting = true;
     error = '';
@@ -70,17 +65,6 @@
 </script>
 
 <PageShell title="Allenati">
-  {#snippet tools()}
-    {#if session.user?.isAdmin}
-      <Button look="icon" href={ADMIN_PATH} title="Utilizzo dell’app" aria-label="Utilizzo dell’app">
-        <Icon name="usage" />
-      </Button>
-    {/if}
-    <Button look="icon" tone="danger" title="Esci ({session.user?.username})" onclick={(event: MouseEvent) => askOut(event.currentTarget as HTMLElement)}>
-      <Icon name="logout" />
-    </Button>
-  {/snippet}
-
   <!-- in palestra l'app si apre dalla schermata Home: lo si propone qui, e «non ora» non lo ripete -->
   <InstallHint chiudibile />
 

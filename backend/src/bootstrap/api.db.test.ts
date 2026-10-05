@@ -101,6 +101,36 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect(await call("GET", "/api/auth/me")).toMatchObject({ status: 200, body: { user } });
     });
 
+    it("says when the account was made", async () => {
+      const { call } = await signedIn();
+      const { body } = await call("GET", "/api/auth/me");
+      expect(Date.now() - Date.parse(body.user.createdAt)).toBeLessThan(60_000);
+    });
+
+    it("changes the password with the current one, ending the other sessions but not this one", async () => {
+      const me = await signedIn();
+      const elsewhere = client(() => base);
+      await elsewhere.call("POST", "/api/auth/login", { username: me.username, password: PASSWORD });
+      const next = "another horse battery";
+      expect(await me.call("POST", "/api/auth/password", { current: "not the password", next }))
+        .toMatchObject({ status: 400, body: { error: "La password attuale non è giusta." } });
+      expect(await me.call("POST", "/api/auth/password", { current: PASSWORD, next: "short" }))
+        .toMatchObject({ status: 400, body: { error: "Password: almeno 10 caratteri." } });
+      expect(await me.call("POST", "/api/auth/password", { current: PASSWORD, next })).toMatchObject({ status: 200, body: { ok: true } });
+      // this browser stays in, renewing too; the other one is out at its next renewal
+      expect((await me.call("POST", "/api/auth/refresh")).status).toBe(200);
+      expect((await elsewhere.call("POST", "/api/auth/refresh")).status).toBe(401);
+      expect((await client(() => base).call("POST", "/api/auth/login", { username: me.username, password: PASSWORD })).status).toBe(401);
+      expect((await client(() => base).call("POST", "/api/auth/login", { username: me.username, password: next })).status).toBe(200);
+    });
+
+    it("stops guessing the current password after a few tries", async () => {
+      const me = await signedIn();
+      for (let i = 0; i < 3; i++) await me.call("POST", "/api/auth/password", { current: `wrong ${i}`, next: "another horse battery" });
+      expect(await me.call("POST", "/api/auth/password", { current: PASSWORD, next: "another horse battery" }))
+        .toMatchObject({ status: 429, body: { error: "Troppi tentativi. Riprova tra un quarto d'ora." } });
+    });
+
     it("refuses a wrong password", async () => {
       const { username } = await signedIn();
       const result = await client(() => base).call("POST", "/api/auth/login", { username, password: "wrong password" });
@@ -426,9 +456,9 @@ describe.skipIf(SERVER === undefined)("the API", () => {
   describe("admin", () => {
     it("says in /me whether the user is an admin", async () => {
       const { call, user } = await signedIn();
-      expect((await call("GET", "/api/auth/me")).body).toEqual({ user: { ...user, isAdmin: false } });
+      expect((await call("GET", "/api/auth/me")).body).toEqual({ user: { ...user, isAdmin: false, createdAt: expect.any(String) } });
       await handle.db.$client.query("update users set is_admin = true where id = $1", [user.id]);
-      expect((await call("GET", "/api/auth/me")).body).toEqual({ user: { ...user, isAdmin: true } });
+      expect((await call("GET", "/api/auth/me")).body).toEqual({ user: { ...user, isAdmin: true, createdAt: expect.any(String) } });
     });
 
     it("gives the usage of every user to an admin only", async () => {

@@ -185,11 +185,12 @@ describe('the app', () => {
     expect(await screen.findByRole('heading', { name: 'Bentornato' })).toBeInTheDocument();
   });
 
-  it('signs out from home', async () => {
+  it('signs out from the account menu', async () => {
     const api = home(fakeApi().on('GET /auth/me', { user: ANNA }).on('POST /auth/logout', { ok: true }));
     render(App);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Esci (anna)' }));
+    await user.click(await screen.findByRole('button', { name: 'Account di anna' }));
+    await user.click(screen.getByRole('button', { name: 'Esci' }));
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Esci' }));
     expect(await screen.findByRole('heading', { name: 'Bentornato' })).toBeInTheDocument();
     expect(api.changes().map((change) => change.route)).toEqual(['POST /auth/logout']);

@@ -44,3 +44,7 @@ export const statsApi = {
 export const adminApi = {
   usage: () => api.get<{ users: UserUsage[] }>('/admin/usage'),
 };
+
+export const accountApi = {
+  changePassword: (current: string, next: string) => api.post<{ ok: true }>('/auth/password', { current, next }),
+};

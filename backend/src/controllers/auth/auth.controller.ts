@@ -1,13 +1,11 @@
 import {
   ACCESS_COOKIE, authenticated, type Context, cookieHeader, HttpError, readCookie, REFRESH_COOKIE, route, type Route,
 } from "../../http";
-import { ACCESS_SECONDS, type AdminService, addressKey, type AuthService, type LoginLimiter, REFRESH_DAYS, type Tokens } from "../../services";
-import { parseLogin, parseRegister } from "../../validators";
+import { ACCESS_SECONDS, addressKey, type AuthService, type LoginLimiter, REFRESH_DAYS, type Tokens } from "../../services";
+import { parseLogin, parsePasswordChange, parseRegister } from "../../validators";
 
 export interface AuthControllerDeps {
   readonly auth: AuthService;
-  /** Whether who is signed in runs the app: /me says it, for the app to show the way in. */
-  readonly admin: AdminService;
   readonly limiter: LoginLimiter;
   /** Failed logins of an address whatever the name: a ceiling, never cleared by a success. */
   readonly addressLimiter: LoginLimiter;
@@ -19,7 +17,7 @@ export interface AuthControllerDeps {
 }
 
 /** Login, token renewal, logout, who is signed in. */
-export function authController({ auth, admin, limiter, addressLimiter, secureCookie, allowSignup, log }: AuthControllerDeps): Route[] {
+export function authController({ auth, limiter, addressLimiter, secureCookie, allowSignup, log }: AuthControllerDeps): Route[] {
   function setTokens(context: Context, tokens: Tokens | undefined): void {
     context.response.setHeader("set-cookie", [
       cookieHeader(ACCESS_COOKIE, "/api", tokens?.access ?? "", tokens === undefined ? 0 : ACCESS_SECONDS, secureCookie),
@@ -84,6 +82,19 @@ export function authController({ auth, admin, limiter, addressLimiter, secureCoo
       return { ok: true };
     }),
 
-    route("GET", "/api/auth/me", authenticated(async (_context, user) => ({ user: { ...user, isAdmin: await admin.isAdmin(user.id) } }))),
+    route("GET", "/api/auth/me", authenticated(async (_context, user) => ({ user: await auth.profile(user.id) }))),
+
+    route("POST", "/api/auth/password", authenticated(async (context, user) => {
+      const { current, next } = parsePasswordChange(await context.body());
+      // the current password guessed from a session left open: a few tries, then a pause
+      const key = `password:${user.id}`;
+      if (limiter.blocked(key)) throw new HttpError(429, "Troppi tentativi. Riprova tra un quarto d'ora.");
+      limiter.fail(key);
+      const tokens = await auth.changePassword(user.id, current, next);
+      if (tokens === undefined) throw new HttpError(400, "La password attuale non è giusta.");
+      limiter.succeed(key);
+      setTokens(context, tokens);
+      return { ok: true };
+    })),
   ];
 }

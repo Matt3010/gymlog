@@ -1,5 +1,6 @@
 import type { Executor } from "../../lib";
-import { createUsersRepository, type User } from "../../repositories";
+import { createUsersRepository, type Profile, type User } from "../../repositories";
+import { found } from "../../errors";
 import { InputError } from "../../validators";
 import { checkNewPassword, DUMMY_HASH, hashPassword, verifyPassword } from "./password.rules";
 import { newRefreshToken, refreshTokenHash, type TokenManager } from "./token.rules";
@@ -26,6 +27,13 @@ export interface AuthService {
   createUser(username: string, password: string): Promise<User>;
   /** Rejects a password too short; ends every session of the user. */
   setPassword(username: string, password: string): Promise<void>;
+  /** Who is signed in, from the database: whether admin, since when. */
+  profile(userId: number): Promise<Profile>;
+  /**
+   * A new password, given the current one: every session ends, and this one
+   * goes on with new tokens. Undefined when the current password is wrong.
+   */
+  changePassword(userId: number, current: string, next: string): Promise<Tokens | undefined>;
 }
 
 /**
@@ -40,6 +48,15 @@ export function createAuthService(db: Executor, tokens: TokenManager): AuthServi
     const refresh = newRefreshToken();
     await createUsersRepository(executor).createSession(refreshTokenHash(refresh), user.id, REFRESH_DAYS);
     return { access: await tokens.sign(user), refresh, user };
+  }
+
+  /** Together: a new password with the old sessions still valid would keep a stolen one alive. */
+  async function replacePassword(userId: number, hash: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      const repository = createUsersRepository(tx);
+      await repository.setPasswordHash(userId, hash);
+      await repository.deleteSessionsOf(userId);
+    });
   }
 
   function requireGoodPassword(password: string): void {
@@ -94,13 +111,19 @@ export function createAuthService(db: Executor, tokens: TokenManager): AuthServi
       requireGoodPassword(password);
       const user = await users.findByUsername(username.toLowerCase());
       if (user === undefined) throw new InputError("Utente non trovato.");
-      const hash = await hashPassword(password);
-      // Together: a new password with the old sessions still valid would keep a stolen one alive.
-      await db.transaction(async (tx) => {
-        const repository = createUsersRepository(tx);
-        await repository.setPasswordHash(user.id, hash);
-        await repository.deleteSessionsOf(user.id);
-      });
+      await replacePassword(user.id, await hashPassword(password));
+    },
+
+    async profile(userId) {
+      return found(await users.profile(userId));
+    },
+
+    async changePassword(userId, current, next) {
+      requireGoodPassword(next);
+      const user = found(await users.findById(userId));
+      if (!(await verifyPassword(current, user.passwordHash))) return undefined;
+      await replacePassword(user.id, await hashPassword(next));
+      return issue(db, { id: user.id, username: user.username });
     },
   };
 }
