@@ -30,7 +30,8 @@ interface PlanDay { id: number; name: string; position: number; exercises: PlanE
 // startsOn/endsOn come le scrive un calendario ("2026-10-05"); endsOn null finché è in uso.
 interface Plan { id: number; name: string; notes: string | null; startsOn: string; endsOn: string | null; archived: boolean; days: PlanDay[] }
 // Una scheda si salva tutta insieme: giorni ed esercizi vengono sostituiti.
-// Creandone una, quelle in uso iniziate prima finiscono il giorno prima, archiviate.
+// Creandone una in uso (non archiviata, non già finita), quelle in uso iniziate prima finiscono
+// il giorno prima; si archiviano quando la nuova è cominciata.
 interface PlanInput {
   name: string; notes: string | null; startsOn: string; endsOn?: string | null; archived: boolean;
   days: { name: string; exercises: { exerciseId: number; reps: string[]; restSeconds: number | null; notes: string | null }[] }[];

@@ -47,7 +47,8 @@ export function authController({ auth, limiter, addressLimiter, secureCookie, al
       }
       limiter.succeed(key);
       setTokens(context, tokens);
-      return { user: tokens.user };
+      // the whole profile, as /me gives it: the app knows at once whether admin, and since when
+      return { user: await auth.profile(tokens.user.id) };
     }),
 
     route("GET", "/api/auth/signup", async () => ({ open: allowSignup })),
@@ -62,7 +63,8 @@ export function authController({ auth, limiter, addressLimiter, secureCookie, al
       const tokens = await auth.register(username, password);
       log(`[gymlog] new account "${tokens.user.username}" from ${context.ip}`);
       setTokens(context, tokens);
-      return { user: tokens.user };
+      // the whole profile, as /me gives it: the app knows at once whether admin, and since when
+      return { user: await auth.profile(tokens.user.id) };
     }),
 
     route("POST", "/api/auth/refresh", async (context) => {
@@ -72,7 +74,8 @@ export function authController({ auth, limiter, addressLimiter, secureCookie, al
       // other one may have just renewed them, and clearing would log it out.
       if (tokens === undefined) throw new HttpError(401, "Accesso richiesto.");
       setTokens(context, tokens);
-      return { user: tokens.user };
+      // the whole profile, as /me gives it: the app knows at once whether admin, and since when
+      return { user: await auth.profile(tokens.user.id) };
     }),
 
     route("POST", "/api/auth/logout", async (context) => {

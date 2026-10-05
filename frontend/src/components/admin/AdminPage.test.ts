@@ -38,7 +38,7 @@ describe('the admin page', () => {
       'matt3010 admin Visto oggi · ultimo allenamento ieri 14 allenamenti (9 in 30 giorni) · 230 serie · 8 esercizi · 2 schede',
       'dek Visto 10 giorni fa · ultimo allenamento 12 giorni fa 3 allenamenti (3 in 30 giorni) · 41 serie · 2 esercizi · 1 scheda',
       'giorgia Visto 45 giorni fa · nessun allenamento 0 allenamenti · 0 serie · 2 esercizi · 0 schede',
-      'grace Mai visto · nessun allenamento 0 allenamenti · 0 serie · 0 esercizi · 0 schede',
+      'grace Non visto da 30 giorni · nessun allenamento 0 allenamenti · 0 serie · 0 esercizi · 0 schede',
     ]);
   });
 

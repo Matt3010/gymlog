@@ -15,10 +15,21 @@
   /*
    * Un guaio compare spesso in fondo, dove si stava scrivendo: lì la barra
    * delle sezioni lo coprirebbe finché non si scorre. Appena c'è, la pagina
-   * si sposta quanto basta a vederlo (niente, se si vede già).
+   * si sposta quanto basta a vederlo (niente, se si vede già) — ma non se
+   * così il campo in cui si sta scrivendo uscirebbe dallo schermo: uno
+   * comparso lontano non porta via la pagina da quello che si scrive.
    */
   let element = $state<HTMLElement>();
-  onMount(() => element?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
+  onMount(() => {
+    if (!element) return;
+    const box = element.getBoundingClientRect();
+    const needed = box.bottom + (parseFloat(getComputedStyle(element).scrollMarginBottom) || 0) - window.innerHeight;
+    if (needed <= 0) return;
+    const focused = document.activeElement;
+    const writing = focused instanceof HTMLElement && focused.matches('input, textarea, select') ? focused.getBoundingClientRect() : null;
+    if (writing && writing.top - needed < 0) return;
+    element.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  });
 </script>
 
 <p class="alert" role="alert" bind:this={element}>

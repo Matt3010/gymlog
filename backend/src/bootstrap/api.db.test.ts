@@ -89,11 +89,21 @@ describe.skipIf(SERVER === undefined)("the API", () => {
         const result = await client(() => base).call("POST", "/api/auth/login", { username, password: PASSWORD });
         return { setCookies: result.setCookies, user: result.body.user, username };
       })();
-      expect(user).toEqual({ id: expect.any(Number), username });
+      expect(user).toEqual({ id: expect.any(Number), username, isAdmin: false, createdAt: expect.any(String) });
       expect(setCookies).toEqual([
         expect.stringMatching(/^gymlog_at=[\w-]+\.[\w-]+\.[\w-]+; Path=\/api; HttpOnly; SameSite=Strict; Max-Age=900; Secure$/),
         expect.stringMatching(/^gymlog_rt=[\w-]{43}; Path=\/api\/auth; HttpOnly; SameSite=Strict; Max-Age=2592000; Secure$/),
       ]);
+    });
+
+    it("gives the whole profile on login, renewal and sign-up, as /me does", async () => {
+      const me = await signedIn();
+      const profile = (await me.call("GET", "/api/auth/me")).body.user;
+      expect(profile).toEqual({ id: me.user.id, username: me.username, isAdmin: false, createdAt: expect.any(String) });
+      expect(me.user).toEqual(profile);
+      expect((await me.call("POST", "/api/auth/refresh")).body.user).toEqual(profile);
+      const fresh = await client(() => base).call("POST", "/api/auth/register", { username: `n${Math.random().toString(36).slice(2, 10)}`, password: PASSWORD }, { "x-gymlog": "1", "x-real-ip": "203.0.113.77" });
+      expect(fresh.body.user).toEqual({ id: expect.any(Number), username: expect.any(String), isAdmin: false, createdAt: expect.any(String) });
     });
 
     it("says who is signed in", async () => {

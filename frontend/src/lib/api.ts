@@ -93,10 +93,13 @@ export function createClient({ fetch, onSignedOut }: { fetch: Fetch; onSignedOut
     return new ApiError(detail.error ?? motivo(response.status), response.status);
   }
 
+  /** Entrare, uscire, rinnovarsi, chiedere chi si è: un 401 qui è la risposta, non un biglietto scaduto. */
+  const DOORS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout', '/auth/me'];
+
   async function request<T>(path: string, method: string, payload?: unknown): Promise<T> {
     let response = await send(path, method, payload);
     // la porta stessa non si rinnova: una password sbagliata è solo un errore
-    if (response.status === 401 && !path.startsWith('/auth/')) {
+    if (response.status === 401 && !DOORS.includes(path)) {
       const renewal = await renew();
       // come una richiesta senza risposta: si dice che manca la rete, senza far uscire nessuno
       if (renewal === null) throw new ApiError(senzaRisposta());

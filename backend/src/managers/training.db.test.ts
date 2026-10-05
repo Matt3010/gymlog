@@ -93,6 +93,14 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       expect(reopened).toMatchObject({ endsOn: null, archived: false });
     });
 
+    it("close nothing when the new one is not the one in use: over already, or archived", async () => {
+      const { user, input, plans } = await setup();
+      const current = await plans.create(user.id, { ...input, name: "In uso", startsOn: "2026-03-01" });
+      await plans.create(user.id, { ...input, name: "Vecchia", startsOn: "2026-04-01", endsOn: "2026-05-01" });
+      await plans.create(user.id, { ...input, name: "Da parte", startsOn: "2026-06-01", archived: true });
+      expect(await plans.get(user.id, current.id)).toEqual(current);
+    });
+
     it("of another user are not found", async () => {
       const { user, input, plans } = await setup();
       const other = await setup();

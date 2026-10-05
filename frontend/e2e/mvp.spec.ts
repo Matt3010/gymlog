@@ -323,6 +323,16 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await scrollToEnd(page);
   await expectClearOfTabBar(page, page.getByRole('button', { name: 'Aggiungi allenamento' }));
 
+  // A message far below what is being written does not pull the page away from it.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const firstReps = page.getByLabel('Serie 1, ripetizioni').first();
+  await firstReps.fill('');
+  await expect(page.getByRole('alert')).toBeVisible();
+  await page.waitForTimeout(600);
+  await expect(firstReps).toBeInViewport();
+  await firstReps.fill('8-10');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+
   // A message that turns up at the bottom of the page, while there, shows above the tab bar, not under it.
   const failSaves = (route: Route) => (route.request().method() === 'PUT' ? route.fulfill({ status: 503, json: { error: 'Il server non si raggiunge adesso. Riprova fra poco.' } }) : route.continue());
   await page.route('**/api/plans/*', failSaves);

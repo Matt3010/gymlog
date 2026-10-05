@@ -63,7 +63,7 @@
           <li class="user">
             <span class="name">{user.username}{#if user.isAdmin}{' '}<span class="badge">admin</span>{/if}</span>
             <span class="when">
-              {user.lastSeenAt === null ? 'Mai visto' : `Visto ${when(user.lastSeenAt)}`} · {user.lastWorkoutAt === null ? 'nessun allenamento' : `ultimo allenamento ${when(user.lastWorkoutAt)}`}
+              {user.lastSeenAt === null ? 'Non visto da 30 giorni' : `Visto ${when(user.lastSeenAt)}`} · {user.lastWorkoutAt === null ? 'nessun allenamento' : `ultimo allenamento ${when(user.lastWorkoutAt)}`}
             </span>
             <span class="what">
               {count(user.workouts, 'allenamento', 'allenamenti')}{user.workouts > 0 ? ` (${user.workoutsLast30Days} in 30 giorni)` : ''}

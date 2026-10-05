@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, lt, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
 import { type Executor, exercises, planDays, planExercises, plans } from "../../lib";
 
 export interface PlanExerciseInput {
@@ -62,7 +62,11 @@ export interface PlansRepository {
   replace(userId: number, id: number, input: PlanInput): Promise<Plan | undefined>;
   delete(userId: number, id: number): Promise<boolean>;
   findDay(userId: number, dayId: number): Promise<PlanDayDetail | undefined>;
-  /** Ends the day before, archived, the plans in use (not archived, no end) that started before that day. */
+  /**
+   * The plans in use (not archived) that started before that day end the day
+   * before at the latest; archived only once that day has come (in Italy):
+   * until then they are still the ones in use.
+   */
   closeBefore(userId: number, day: string): Promise<void>;
 }
 
@@ -179,8 +183,10 @@ export function createPlansRepository(db: Executor): PlansRepository {
     },
 
     async closeBefore(userId, day) {
-      await db.update(plans).set({ endsOn: sql`${day}::date - 1`, archived: true })
-        .where(and(eq(plans.userId, userId), eq(plans.archived, false), isNull(plans.endsOn), lt(plans.startsOn, day)));
+      await db.update(plans).set({
+        endsOn: sql`least(coalesce(${plans.endsOn}, ${day}::date - 1), ${day}::date - 1)`,
+        archived: sql`${day}::date <= (now() at time zone 'Europe/Rome')::date`,
+      }).where(and(eq(plans.userId, userId), eq(plans.archived, false), lt(plans.startsOn, day)));
     },
   };
 }

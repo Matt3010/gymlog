@@ -166,13 +166,23 @@ describe.skipIf(SERVER === undefined)("the plans repository", () => {
     const ending = await repo().create(user.id, { ...input, startsOn: "2026-09-01", endsOn: "2026-12-31" });
     const shelved = await repo().create(user.id, { ...input, startsOn: "2026-09-01", endsOn: null, archived: true });
     const theirs = await repo().create(other.user.id, { ...other.input, startsOn: "2026-09-01", endsOn: null });
+    const over = await repo().create(user.id, { ...input, startsOn: "2026-08-01", endsOn: "2026-08-31" });
     await repo().closeBefore(user.id, "2026-10-05");
     expect(await repo().find(user.id, open.id)).toEqual({ ...open, endsOn: "2026-10-04", archived: true });
-    // starting that same day, already given an end, already archived, or someone else's: as they were
+    // one meant to go on longer ends then too; one already over keeps its end, archived
+    expect(await repo().find(user.id, ending.id)).toEqual({ ...ending, endsOn: "2026-10-04", archived: true });
+    expect(await repo().find(user.id, over.id)).toEqual({ ...over, archived: true });
+    // starting that same day, already archived, or someone else's: as they were
     expect(await repo().find(user.id, later.id)).toEqual(later);
-    expect(await repo().find(user.id, ending.id)).toEqual(ending);
     expect(await repo().find(user.id, shelved.id)).toEqual(shelved);
     expect(await repo().find(other.user.id, theirs.id)).toEqual(theirs);
+  });
+
+  it("closes, for a plan starting later on, the one in use on the day before, still in use until then", async () => {
+    const { user, input } = await setup();
+    const open = await repo().create(user.id, { ...input, startsOn: "2026-09-01", endsOn: null });
+    await repo().closeBefore(user.id, "2099-01-01");
+    expect(await repo().find(user.id, open.id)).toEqual({ ...open, endsOn: "2098-12-31", archived: false });
   });
 
   it("closes a plan begun on the first of a month on the last day of the one before", async () => {

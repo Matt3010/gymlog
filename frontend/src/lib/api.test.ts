@@ -178,6 +178,15 @@ describe('an expired login', () => {
     expect(onSignedOut).toHaveBeenCalledOnce();
   });
 
+  it('is renewed for a new password too: only the doors themselves are not', async () => {
+    const { fetch, calls } = server({
+      '/api/auth/password': [json(401, { error: 'Accesso richiesto.' }), json(200, { ok: true })],
+      '/api/auth/refresh': [json(200, {})],
+    });
+    expect(await createClient({ fetch, onSignedOut: vi.fn() }).post('/auth/password', {})).toEqual({ ok: true });
+    expect(calls.map((call) => call.url)).toEqual(['/api/auth/password', '/api/auth/refresh', '/api/auth/password']);
+  });
+
   it('is not renewed on the login itself: a wrong password is just an error', async () => {
     const { fetch, calls } = server({ '/api/auth/login': [json(401, { error: 'Utente o password errati.' })] });
     const onSignedOut = vi.fn();

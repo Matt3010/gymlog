@@ -15,16 +15,21 @@ export interface PlansService {
   findDay(userId: number, dayId: number): Promise<PlanDayDetail | undefined>;
 }
 
+/** Today as a calendar writes it, in Italy, where the gym is. */
+const todayInItaly = (): string => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date());
+
 export function createPlansService(db: Executor): PlansService {
   const plans = createPlansRepository(db);
   return {
     list: (userId) => plans.list(userId),
     get: async (userId, id) => found(await plans.find(userId, id)),
     // A plan, its days and their exercises are written together or not at all.
-    // A new plan takes over from the one in use before it, which ends the day before.
+    // A new plan takes over from the ones in use before it, which end the day before; one
+    // written down already over, or archived, is not the one in use and takes over nothing.
     create: (userId, input) => db.transaction(async (tx) => {
       const plans = createPlansRepository(tx);
-      await plans.closeBefore(userId, input.startsOn);
+      const inUse = !input.archived && (input.endsOn === null || input.endsOn >= todayInItaly());
+      if (inUse) await plans.closeBefore(userId, input.startsOn);
       return plans.create(userId, input);
     }),
     replace: async (userId, id, input) => found(await db.transaction(async (tx) => {

@@ -39,7 +39,8 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
 - **Esercizi:** i tuoi, con gruppo muscolare e note.
 - **Schede:** con il periodo in cui si seguono (dal… al…) e più allenamenti (A, B, C…),
   ognuno con gli esercizi in ordine, serie, ripetizioni ("8", "8-10", "max"), recupero e
-  note. Creando una scheda nuova, quella in uso finisce il giorno prima e si archivia.
+  note. Creando una scheda nuova, quella in uso finisce il giorno prima e si archivia (quando la
+  nuova comincia; una scheda già finita o archiviata non chiude niente).
 - **Allenamenti:** parti da un giorno della scheda o da un allenamento libero. Per ogni
   esercizio vedi cosa chiede la scheda e cosa hai fatto l'ultima volta; registri ogni
   serie (ripetizioni × kg), con il recupero che parte da solo. I nomi della scheda e
