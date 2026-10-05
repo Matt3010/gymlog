@@ -40,6 +40,11 @@ const status = () => screen.getByRole('status', { name: 'Salvataggio' });
 const confirmTake = async (user: ReturnType<typeof userEvent.setup>) =>
   user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Togli' }));
 const pause = () => new Promise((resolve) => setTimeout(resolve, 800));
+/** Opens the tab with the plan's own details, once it is loaded; gives back its name field. */
+async function details(): Promise<HTMLElement> {
+  await userEvent.setup().click(await screen.findByRole('tab', { name: 'Dettagli' }));
+  return screen.getByPlaceholderText('Forza, autunno');
+}
 
 describe('the plans', () => {
   it('in use are listed first, the archived apart, each with its period, workouts and exercises', async () => {
@@ -172,7 +177,7 @@ describe('a plan being written', () => {
     const dayB = within(screen.getByRole('dialog', { name: 'Aggiungi all’allenamento B' }));
     await user.type(dayB.getByPlaceholderText('Nuovo esercizio'), 'Rematore');
     await user.click(dayB.getByRole('button', { name: 'Crea e aggiungi' }));
-    await user.type(screen.getAllByLabelText('Note')[3]!, 'lento');
+    await user.type(screen.getAllByLabelText('Note')[2]!, 'lento');
 
     await settled(() => expect(planChanges(api).at(-1)?.body).toMatchObject({ days: [{}, { exercises: [{ notes: 'lento' }] }] }));
     expect(planChanges(api).every((change) => change.route === 'PUT /plans/9')).toBe(true);
@@ -235,7 +240,7 @@ describe('leaving a plan with something not valid', () => {
     nav.go('/schede/9');
     render(Host, { page: PlanEditorPage, params: { id: 9 } });
     const user = userEvent.setup();
-    const name = await screen.findByPlaceholderText('Forza, autunno');
+    const name = await details();
     await user.clear(name);
     nav.go('/schede');
     const question = within(await screen.findByRole('alertdialog', { name: 'Uscire senza salvare?' }));
@@ -252,7 +257,7 @@ describe('leaving a plan with something not valid', () => {
     nav.go('/schede/9');
     render(Host, { page: PlanEditorPage, params: { id: 9 } });
     const user = userEvent.setup();
-    const name = await screen.findByPlaceholderText('Forza, autunno');
+    const name = await details();
     await user.type(name, ' 2');
     await vi.waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument(), { timeout: 3000 });
     nav.go('/schede');
@@ -267,7 +272,7 @@ describe('leaving a plan with something not valid', () => {
     nav.go('/schede/9');
     render(Host, { page: PlanEditorPage, params: { id: 9 } });
     const user = userEvent.setup();
-    await user.clear(await screen.findByPlaceholderText('Forza, autunno'));
+    await user.clear(await details());
     await user.click(screen.getByRole('button', { name: /^Elimina la scheda/ }));
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Elimina' }));
     await vi.waitFor(() => expect(nav.path).toBe('/schede'));
@@ -278,7 +283,7 @@ describe('leaving a plan with something not valid', () => {
     fakeApi().on('GET /plans/9', NUOVA).on('GET /exercises', []);
     nav.go('/schede/9');
     render(Host, { page: PlanEditorPage, params: { id: 9 } });
-    await screen.findByPlaceholderText('Forza, autunno');
+    await details();
     nav.go('/schede');
     expect(nav.path).toBe('/schede');
   });
@@ -348,11 +353,28 @@ describe('a saved plan', () => {
     fakeApi().on('GET /plans/5', FORZA);
     render(Host, { page: PlanEditorPage, params: { id: 5 } });
     expect(await screen.findByRole('heading', { name: 'Forza' })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Forza, autunno')).toHaveValue('Forza');
     expect(setReps()).toEqual(['5', '5', '5', '5', '3', '8', '8', '8', '8', '8', '8']);
     expect(screen.getAllByLabelText('Recupero (s)').map((input) => (input as HTMLInputElement).value)).toEqual(['180', '90', '90']);
-    // the plan's own notes first, then each exercise's
-    expect(screen.getAllByLabelText('Note').map((input) => (input as HTMLInputElement).value)).toEqual(['3 volte', '', '', 'lento']);
+    expect(screen.getAllByLabelText('Note').map((input) => (input as HTMLInputElement).value)).toEqual(['', '', 'lento']);
+    expect(await details()).toHaveValue('Forza');
+    expect(screen.getByLabelText('Note')).toHaveValue('3 volte');
+  });
+
+  it('opens on its workouts; its own details sit in a tab of their own, not above them', async () => {
+    fakeApi().on('GET /plans/5', FORZA);
+    render(Host, { page: PlanEditorPage, params: { id: 5 } });
+    await screen.findByRole('heading', { name: 'Forza' });
+    expect(screen.getByRole('tab', { name: 'Allenamenti' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByPlaceholderText('Forza, autunno')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /Archiviata/ })).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText('Allenamento')).toHaveLength(2);
+    await details();
+    expect(screen.getByRole('tab', { name: 'Dettagli' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('checkbox', { name: /Archiviata/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Allenamento')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Aggiungi allenamento' })).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Allenamenti' }));
+    expect(screen.getAllByLabelText('Allenamento')).toHaveLength(2);
   });
 
   it('adds sets inside the exercise card with a primary button; exercises and days, outside the cards, with secondary ones', async () => {
@@ -375,6 +397,7 @@ describe('a saved plan', () => {
     await user.click(screen.getAllByRole('button', { name: 'Sposta su' })[3]!);
     await user.click(screen.getAllByRole('button', { name: 'Togli l’esercizio' })[2]!);
     await confirmTake(user);
+    await details();
     await user.click(screen.getByRole('checkbox', { name: /Archiviata/ }));
     await settled(() => expect(planChanges(api).at(-1)?.body).toMatchObject({ archived: true }));
     expect(planChanges(api).at(-1)).toEqual({
@@ -393,7 +416,7 @@ describe('a saved plan', () => {
   it('opens with its period, and sends a change to it', async () => {
     const api = fakeApi().on('GET /plans/5', FORZA).on('PUT /plans/5', (call: Call) => ({ ...FORZA, ...(call.body as object) }));
     render(Host, { page: PlanEditorPage, params: { id: 5 } });
-    await screen.findByRole('heading', { name: 'Forza' });
+    await details();
     expect(screen.getByLabelText('Dal')).toHaveValue('2026-10-05');
     expect(screen.getByLabelText('Al')).toHaveValue('');
     await fireEvent.input(screen.getByLabelText('Al'), { target: { value: '2026-11-15' } });
@@ -411,7 +434,7 @@ describe('a saved plan', () => {
   it('left right after a change still sends it', async () => {
     const api = fakeApi().on('GET /plans/5', FORZA).on('PUT /plans/5', FORZA);
     const { unmount } = render(Host, { page: PlanEditorPage, params: { id: 5 } });
-    await userEvent.setup().type(await screen.findByPlaceholderText('Forza, autunno'), '!');
+    await userEvent.setup().type(await details(), '!');
     unmount();
     expect(planChanges(api)).toEqual([{ route: 'PUT /plans/5', body: expect.objectContaining({ name: 'Forza!' }) }]);
   });
@@ -449,7 +472,7 @@ describe('a saved plan', () => {
     const api = fakeApi().on('GET /plans/5', FORZA).on('PUT /plans/5', { status: 400, body: { error: 'Uno degli esercizi non esiste più. Ricarica la pagina.' } });
     render(Host, { page: PlanEditorPage, params: { id: 5 } });
     const user = userEvent.setup();
-    const name = await screen.findByPlaceholderText('Forza, autunno');
+    const name = await details();
     await user.type(name, '!');
     expect(await screen.findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent('Uno degli esercizi non esiste più. Ricarica la pagina.');
     expect(name).toHaveValue('Forza!');

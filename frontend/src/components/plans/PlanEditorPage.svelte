@@ -15,6 +15,7 @@
   import Loader from '../Loader.svelte';
   import SaveStatus from '../SaveStatus.svelte';
   import Switch from '../Switch.svelte';
+  import Tabs from '../Tabs.svelte';
   import TextField from '../TextField.svelte';
   import { ui } from '../../lib/ui.svelte';
   import ExercisePicker from '../exercises/ExercisePicker.svelte';
@@ -25,13 +26,18 @@
    * ripetizioni e recupero.
    *
    * Una scheda nuova si crea su richiesta: nome, periodo, note e «Crea la scheda».
-   * Creata, la pagina diventa la sua, e da lì si salva da sé mentre la
+   * Creata, la pagina diventa la sua e si apre sugli allenamenti: il nome,
+   * il periodo e le note sono già scritti, e stanno in «Dettagli» invece di
+   * ripetersi sopra. Da lì si salva da sé mentre la
    * scrivi, tutta insieme (`Autosave`): nessun tasto «Salva». Quello che il
    * server rifiuterebbe si dice prima, e non parte.
    */
   let { id }: { id: number | null } = $props();
 
   let draft = $state<Draft | null>(null);
+  /** Quale parte di una scheda salvata si vede: di solito si torna per gli allenamenti. */
+  let part = $state<'allenamenti' | 'dettagli'>('allenamenti');
+  const PARTS = [{ id: 'allenamenti' as const, label: 'Allenamenti' }, { id: 'dettagli' as const, label: 'Dettagli' }];
   let error = $state('');
   let working = $state(false);
   /** L'ultima versione mandata, o quella aperta: uguale, non si rimanda. */
@@ -204,6 +210,9 @@
   {:else if !draft && !error}
     <Loader />
   {:else if draft}
+    <div class="parts"><Tabs value={part} options={PARTS} onpick={(id) => (part = id)} label="Parti della scheda" /></div>
+
+    {#if part === 'dettagli'}
     <PageCard>
       <label class="field">
         <span class="eyebrow">Nome</span>
@@ -221,6 +230,7 @@
         note="Non compare fra quelle da cui iniziare un allenamento."
       />
     </PageCard>
+    {:else}
 
     {#each draft.days as day, dayIndex (day.key)}
       <!-- un allenamento è un gruppo: la sua card, una card per esercizio, e il tasto per aggiungerne -->
@@ -308,6 +318,7 @@
         <Icon name="plus" /> Aggiungi allenamento
       </Button>
     </div>
+    {/if}
 
     {#if problem}<Alert message={problem} />{/if}
     {#if saver.status === 'error'}<Alert message={saver.error} />{/if}
@@ -321,6 +332,9 @@
 
 <style>
   .create { display: block; }
+
+  /* le linguette stanno nella colonna della pagina: lo spazio sotto lo dà lei, come fra le card */
+  .parts :global(.tabs.pill) { margin-bottom: 0; }
 
   @media (min-width: 601px) { .create { justify-self: end; } }
 

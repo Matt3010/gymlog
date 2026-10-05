@@ -202,6 +202,12 @@
      («Tutto lo storico», il campo per crearne uno) il tratto resta. */
   :global(ul.rows:last-child > li:last-child) > .row.is-flat::after { content: none; }
 
+  /* ai bordi della card la luce della pressione esce anche in alto e in basso,
+     come ai lati: se no una riga sola si accende con più aria sopra che di fianco */
+  :global(ul.rows:first-child > li:first-child) > .row.is-flat { margin-top: -10px; }
+
+  :global(ul.rows:last-child > li:last-child) > .row.is-flat { margin-bottom: -10px; }
+
   @media (hover: hover) {
   .row.is-flat:hover { background: transparent; }
 }

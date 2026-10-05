@@ -171,6 +171,16 @@ async function expectRoundPress(row: Locator): Promise<void> {
   expect(offset, 'text aligned with the card').toBeLessThanOrEqual(1);
 }
 
+/** A lone row lit in its card has as much room above and below the light as at its sides. */
+async function expectEvenLight(row: Locator): Promise<void> {
+  const gaps = await row.evaluate((element) => {
+    const light = element.getBoundingClientRect();
+    const card = element.closest('section.card')!.getBoundingClientRect();
+    return [light.left - card.left, card.right - light.right, light.top - card.top, card.bottom - light.bottom].map(Math.round);
+  });
+  expect(gaps, 'left, right, top, bottom around the light').toEqual([gaps[0], gaps[0], gaps[0], gaps[0]]);
+}
+
 async function expectNothingLitAfterTap(row: Locator): Promise<void> {
   await row.tap();
   await row.page().waitForTimeout(300);
@@ -309,7 +319,9 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await scrollToEnd(page);
   await expectClearOfTabBar(page, page.getByRole('button', { name: 'Aggiungi allenamento' }));
 
-  // A change made just before leaving is not lost.
+  // A change made just before leaving is not lost; the name sits in «Dettagli», not above the workouts.
+  await expect(page.getByPlaceholder('Forza, autunno')).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Dettagli' }).click();
   await page.getByPlaceholder('Forza, autunno').fill('Forza!');
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Schede' }).click();
   await expect(page.getByRole('link', { name: /^Forza!/ })).toBeVisible();
@@ -319,6 +331,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
     return getComputedStyle(row, '::after').content;
   });
   expect(lastLine).toBe('none');
+  await expectEvenLight(page.getByRole('link', { name: /^Forza!/ }).locator('xpath=ancestor::div[contains(@class,"row")][1]'));
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Allenati' }).click();
   await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
   await expectFlatRows(page);
