@@ -219,6 +219,10 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
     body: getComputedStyle(document.body).overscrollBehaviorY,
   }));
   expect(page0).toEqual({ scroll: 0, html: 'none', body: 'none' });
+  // With nothing floating over the tab bar, the room left at the bottom is the bar's and a gap,
+  // not a banner's: a page that ends above the bar does not scroll into nothing.
+  const room = () => page.locator('.page').first().evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom));
+  expect(await room()).toBe(64 + 14 + 14);
 
   // The invitation to install, when the browser offers it, keeps the same gap as the cards.
   await page.evaluate(() =>
@@ -432,6 +436,8 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expectClearOfTabBar(page, ...finishedButtons);
   await expect(page.locator('#toast')).toBeVisible();
   await expectToastClearOf(page, ...finishedButtons);
+  // the message keeps its room at the bottom while it shows
+  expect(await page.locator('.page').first().evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))).toBeGreaterThanOrEqual(64 + 14 + 84);
 
   // Leaving the page takes its message away. The next workout of day A shows the last time, and starts from its weight.
   await page.getByRole('link', { name: 'Allenati' }).first().click();

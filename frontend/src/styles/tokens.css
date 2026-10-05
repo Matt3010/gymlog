@@ -58,11 +58,12 @@
   --island-gap: max(14px, env(safe-area-inset-bottom));
   --island-side: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
   --tab-bar: calc(64px + var(--island-gap));
-  /* Lo spazio dove si posa un messaggio: 14px di stacco e due righe di testo.
-     In fondo a ogni pagina resta libero, così con la pagina tutta scorsa il
-     messaggio sta sotto i suoi ultimi tasti invece che sopra: «Scheda
-     salvata» copriva proprio «Elimina scheda». */
-  --sopra-alla-barra: calc(var(--tab-bar) + 84px);
+  /* In fondo a ogni pagina, la barra e lo stacco fra due card: una pagina che
+     finisce sopra la barra non scorre nel vuoto. Quando sopra la barra si
+     posa qualcosa (un messaggio, l'allenamento in corso) lo spazio cresce
+     (body.now-banner, body.with-message), così con la pagina tutta scorsa sta sotto i suoi
+     ultimi tasti invece che sopra: «Scheda salvata» copriva «Elimina scheda». */
+  --sopra-alla-barra: calc(var(--tab-bar) + 14px);
   --card-pad: 14px;
   --r-lg: 20px;
   --r-md: 13px;
@@ -95,6 +96,9 @@
     --shadow-3: 0 4px 10px rgb(0 0 0 / 0.4), 0 28px 60px -16px rgb(0 0 0 / 0.75);
   }
 }
+
+/* un banner sopra le sezioni (un messaggio, l'allenamento in corso): le pagine gli lasciano il posto */
+body.now-banner, body.with-message { --sopra-alla-barra: calc(var(--tab-bar) + 84px); }
 
 /* due banner sopra le sezioni (l'allenamento e il recupero): le pagine lasciano più spazio in fondo */
 body.two-banners { --sopra-alla-barra: calc(var(--tab-bar) + 150px); }

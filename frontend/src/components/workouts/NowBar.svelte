@@ -41,7 +41,8 @@
   // con due banner le pagine lasciano più spazio in fondo, se no coprirebbero gli ultimi tasti
   $effect(() => {
     document.body.classList.toggle('two-banners', open !== null && rest.running);
-    return () => document.body.classList.remove('two-banners');
+    document.body.classList.toggle('now-banner', open !== null);
+    return () => document.body.classList.remove('two-banners', 'now-banner');
   });
 
   const left = $derived(rest.total > 0 ? rest.remaining / rest.total : 0);

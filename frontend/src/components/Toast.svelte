@@ -1,6 +1,12 @@
 <script lang="ts">
   import { toast } from '../lib/toast.svelte';
   import Icon from './Icon.svelte';
+
+  // mentre c'è, le pagine gli lasciano il posto in fondo: non copre i loro ultimi tasti
+  $effect(() => {
+    document.body.classList.toggle('with-message', toast.open);
+    return () => document.body.classList.remove('with-message');
+  });
 </script>
 
 {#if toast.open}
