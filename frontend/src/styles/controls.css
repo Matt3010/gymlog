@@ -1,6 +1,4 @@
-/* Controls
-   The pieces that appear in more than one place: fields, buttons, category
-   chips, the emoji button and the colour swatch. */
+/* Controls: fields and labels (buttons live in Button.svelte). */
 
 /* ------------------------------------------------------------------- inputs */
 
@@ -10,7 +8,7 @@ input, textarea {
   color: var(--ink);
   background: var(--sunken);
   border: 1px solid transparent;
-  border-radius: var(--r-md);
+  border-radius: var(--r-in);
   padding: 9px 11px;
   width: 100%;
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
@@ -35,19 +33,9 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 
 .field { display: grid; gap: 6px; }
 
-/* I bottoni non stanno più qui: look e varianti vivono in Button.svelte, così
-   chi ne usa uno sceglie un nome ("primary", "icon"...) invece di ricordarsi
-   una classe. Qui restano solo campi ed etichette. */
-
-/*
- * Sul telefono ogni campo si scrive a 16px almeno: Safari, su iPhone, ingrandisce
- * la pagina quando metti il fuoco in un campo più piccolo, e non la rimette a
- * posto — dopo l'accesso restava zoomata, tagliata a sinistra e senza la barra
- * in fondo. Lo zoom resta permesso a chi lo vuole (niente `maximum-scale`):
- * qui si toglie solo il motivo per cui scattava da solo. `!important` perché
- * vale anche dentro i componenti che rimpiccioliscono i loro campi (le righe,
- * la misura corta): sul telefono questa regola viene prima dell'aspetto.
- */
+/* Sul telefono ogni campo si scrive a 16px almeno: Safari su iPhone ingrandisce la pagina quando metti il fuoco
+   in un campo più piccolo, e non la rimette a posto. In gymlog lo zoom resta permesso (niente `maximum-scale`):
+   qui si toglie solo il motivo per cui scattava da solo. `!important` perché vale anche dentro i componenti. */
 @media (pointer: coarse) {
   input, textarea, select { font-size: max(16px, 1em) !important; }
 }

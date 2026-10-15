@@ -1,11 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
 
-  /**
-   * Mentre una pagina o una sezione arriva dal server: una rotellina piccola
-   * in mezzo, la stessa ovunque. Compare solo se l'attesa supera un attimo
-   * (`delay`): una pagina che arriva subito non deve lampeggiare.
-   */
+  /** La rotellina d'attesa; compare solo dopo `delay`, perché una pagina che arriva subito non lampeggi. */
   let { delay = 150 }: { delay?: number } = $props();
 
   let shown = $state(false);

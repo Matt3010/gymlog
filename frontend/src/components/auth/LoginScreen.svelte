@@ -18,7 +18,6 @@
   let username = $state('');
   let password = $state('');
   let again = $state('');
-  let mostra = $state(false);
   let error = $state('');
   let working = $state(false);
 
@@ -64,39 +63,27 @@
     </label>
     <label class="field">
       <span class="eyebrow">Password</span>
-      <span class="peek">
-        <TextField
-          kind={mostra ? 'text' : 'password'}
-          name="password"
-          autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
-          maxlength={200}
-          required
-          bind:value={password}
-        />
-        <button
-          type="button"
-          class="peek-btn"
-          title={mostra ? 'Nascondi' : 'Mostra'}
-          aria-label={mostra ? 'Nascondi la password' : 'Mostra la password'}
-          aria-pressed={mostra}
-          onclick={() => (mostra = !mostra)}
-        >
-          <Icon name={mostra ? 'eyeOff' : 'eye'} />
-        </button>
-      </span>
+      <TextField
+        kind="password"
+        name="password"
+        autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
+        maxlength={200}
+        required
+        bind:value={password}
+      />
     </label>
     {#if mode === 'signup'}<span class="hint">Almeno 10 caratteri.</span>{/if}
     {#if mode === 'signup'}
       <label class="field">
         <span class="eyebrow">Ripeti la password</span>
-        <TextField kind={mostra ? 'text' : 'password'} name="again" autocomplete="new-password" maxlength={200} required bind:value={again} />
+        <TextField kind="password" name="again" autocomplete="new-password" maxlength={200} required bind:value={again} />
       </label>
     {/if}
   </div>
 
   {#if error}<Alert message={error} />{/if}
 
-  <Button look="primary" type="submit" extra="go" disabled={working}>
+  <Button look="primary" type="submit" size="lg" disabled={working}>
     {working ? 'Un attimo…' : mode === 'login' ? 'Entra' : 'Crea l’account'}
     <Icon name="submit" />
   </Button>
@@ -114,30 +101,4 @@
   .field { display: grid; gap: 6px; }
 
   .hint { margin-top: -8px; font-size: 11.5px; color: var(--ink-3); }
-
-  /* l'occhiolino sta dentro al campo, all'altezza del testo */
-  .peek { position: relative; display: block; }
-  .peek :global(.text-field) { width: 100%; padding-right: 40px; }
-  .peek-btn {
-    position: absolute;
-    top: 50%;
-    right: 5px;
-    display: grid;
-    place-items: center;
-    width: 30px;
-    height: 30px;
-    margin-top: -15px;
-    padding: 0;
-    border: 0;
-    border-radius: var(--r-sm);
-    background: none;
-    color: var(--ink-3);
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-  }
-  @media (hover: hover) {
-  .peek-btn:hover { background: var(--sunken); color: var(--ink-2); }
-}
-  .peek-btn[aria-pressed="true"] { color: var(--ink-2); }
-  .peek-btn :global(.ico) { width: 16px; height: 16px; }
 </style>

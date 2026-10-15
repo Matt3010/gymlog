@@ -1,20 +1,12 @@
-/* Base
-   Reset, page frame, the glass surface shared by sheets and cards,
-   and the two type styles used throughout. */
+/* Base: reset, page frame, the glass surface and the two type styles. */
 
 * { box-sizing: border-box; }
 
 /* several overlay pieces set their own display, which would beat the UA rule */
 [hidden] { display: none !important; }
 
-/*
- * La pagina è lunga quanto il suo contenuto, e una corta sta ferma.
- *
- * L'altezza non si forza: la barra delle sezioni è fissa in fondo da sé, e il
- * colore dello sfondo sta anche su html, così sotto a una pagina corta non
- * resta una fascia di un altro colore. Il rimbalzo si spegne: su iPhone una
- * pagina corta si trascinava lo stesso e il titolo finiva sotto l'orologio.
- */
+/* lo sfondo anche su html, se no sotto a una pagina corta resta una fascia; niente
+   rimbalzo, se no su iPhone una pagina corta si trascina sotto l'orologio */
 html {
   min-height: 100%;
   background: #e8ebef;
@@ -26,14 +18,8 @@ body {
   overscroll-behavior-y: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html { background: #0b0d10; }
-}
+html[data-theme='dark'] { background: #0b0d10; }
 
-/*
- * Il corpo scorre: qui non c'è una mappa ferma sotto ai pannelli, ci sono
- * pagine lunghe quanto il loro contenuto.
- */
 body {
   font-family: var(--font);
   font-size: 14px;
@@ -45,9 +31,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-  body { background: #0b0d10; }
-}
+[data-theme='dark'] body { background: #0b0d10; }
 
 button { font: inherit; color: inherit; cursor: pointer; }
 
@@ -56,9 +40,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
   outline-offset: 2px;
 }
 
+/* le varianti di Icon.svelte: qui e non nel componente, perché l'SVG entra con {@html} */
 .ico {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex: none;
   fill: none;
   stroke: currentColor;
@@ -66,6 +51,17 @@ button { font: inherit; color: inherit; cursor: pointer; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+.ico.is-xs { width: 10px; height: 10px; }
+.ico.is-sm { width: 12px; height: 12px; }
+.ico.is-lg { width: 20px; height: 20px; }
+.ico.is-bold { stroke-width: 2.1; }
+.ico.is-muted { color: var(--ink-3); }
+.ico.is-soft { color: var(--ink-2); }
+.ico.is-danger { color: var(--danger); }
+.ico.is-warn { color: var(--warn); }
+/* sopra una foto, chiara o scura che sia */
+.ico.is-light { color: #fff; filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.6)); }
 
 /* glass surface shared by panel, sheets, popover */
 .surface {
@@ -81,8 +77,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .surface { background: var(--glass-strong); }
 }
 
-/* no scrollbars anywhere: on a phone everything scrolls under the thumb,
-   and a bar along the edge only takes room and draws a line where there is none */
+/* no scrollbars anywhere: on a phone everything scrolls under the thumb */
 * { scrollbar-width: none; }
 *::-webkit-scrollbar { display: none; }
 
@@ -106,15 +101,12 @@ h2 {
 
 /* ------------------------------------------------------------------ sheets */
 
-/*
- * La scatola di tutto quello che si apre davanti.
- *
- * Un esercizio, una serie da correggere, un esercizio da aggiungere
- * all'allenamento: stesso posto, stessa larghezza, stesso riempimento, e su
- * un telefono prendono lo schermo allo stesso modo, maniglia compresa. La
- * scatola è una; dentro, ognuna si arreda come vuole.
- */
+/* La scatola di tutto quello che si apre davanti: una sola, dentro ognuna si arreda come vuole. */
+/* una finestra aperta: la pagina dietro non scorre, né lo scroll della finestra passa a lei */
+html.con-finestra, html.con-finestra body { overflow: hidden; }
+
 .modal {
+  overscroll-behavior: contain;
   position: fixed;
   top: 14px;
   right: 14px;
@@ -127,8 +119,7 @@ h2 {
 }
 
 @media (max-width: 600px) {
-  /* su un telefono la sheet è una cosa che si spinge via, la maniglia lo dice
-     e swipeToClose la fa seguire il dito */
+  /* su un telefono la sheet si spinge via, e la maniglia lo dice */
   .modal { padding-top: 22px; }
 
   .modal::before {
@@ -143,26 +134,14 @@ h2 {
     background: var(--hairline);
   }
 
-  /*
-   * Su un telefono una finestra è un foglio che sale dal fondo e si ferma
-   * appena sotto l'orologio, come quelli del sistema.
-   *
-   * Arriva in fondo e prende quasi tutto lo schermo, perché appoggiata in
-   * basso e alta quanto il contenuto lasciava sopra mezzo schermo di nero.
-   * Ma non passa sotto la barra di stato: così sopra il titolo non serve lo
-   * spazio per l'orologio, che dentro al foglio si leggeva come un vuoto, e
-   * gli angoli tondi in alto dicono che è un foglio appoggiato sopra alla
-   * pagina, che si spinge via col dito. In basso restano dritti, perché lì
-   * finisce lo schermo, non il foglio.
-   *
-   * `.surface.modal` e non `.modal`: il vestito — bordo, angoli, ombra — lo
-   * mette `.surface`, e per vincere su di lei ci vogliono due classi.
-   */
+  /* su un telefono un foglio dal fondo fin sotto la barra di stato, come quelli del sistema;
+     `.surface.modal` perché per vincere su `.surface` servono due classi */
   .surface.modal {
     top: calc(env(safe-area-inset-top) + 10px);
     left: 0;
     right: 0;
-    bottom: 0;
+    /* sopra la tastiera, che altrimenti copre i campi in fondo (lib/tastiera) */
+    bottom: var(--tastiera, 0px);
     width: auto;
     height: auto;
     max-height: none;
@@ -173,10 +152,6 @@ h2 {
   }
 }
 
-/*
- * Niente zoom col doppio tocco: premendo «+» due volte di fila per i chili,
- * Safari su iPhone ingrandiva la pagina invece di contare il secondo tocco.
- * `manipulation` toglie il doppio tocco (e la sua attesa), e lascia lo zoom
- * con due dita a chi lo vuole. Sul documento e su ogni cosa che si preme.
- */
+/* niente zoom col doppio tocco (Safari iPhone ingrandiva invece di contare il secondo tocco);
+   lo zoom con due dita resta */
 html, body, button, a, input, textarea, select, label, [role='button'] { touch-action: manipulation; }

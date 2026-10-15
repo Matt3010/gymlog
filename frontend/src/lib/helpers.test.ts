@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { alCentro, centra } from './centra';
-import { placeAnchored, placeBeside } from './popover';
+import { placeAnchored } from './popover';
 import { portal } from './portal';
 import { swipeToClose } from './swipe';
 import { unici } from './unici';
@@ -101,30 +101,6 @@ describe('a popover', () => {
     expect(placeAnchored(boxed({ left: 100, top: 100, height: 20 }), 200, 500)).toEqual({ left: 20, top: 130, max: 262 });
     expect(placeAnchored(boxed({ left: 100, top: 300, height: 20 }), 200, 500)).toEqual({ left: 20, top: 8, max: 282 });
     expect(placeAnchored(boxed({ left: 100, top: 30, height: 340 }), 200, 500)).toEqual({ left: 20, top: 380, max: 120 });
-  });
-
-  it('opens beside the sheet its button is in, when there is room', () => {
-    screenSized(1200, 800);
-    const sheet = boxed({ left: 800, top: 0, width: 360, height: 800 }, 'aside');
-    const button = boxed({ left: 900, top: 300 });
-    sheet.append(button);
-    expect(placeBeside(button, 264, 100)).toEqual({ left: 526, top: 292, max: 784 });
-  });
-
-  it('keeps beside the sheet inside the screen at the bottom', () => {
-    screenSized(1200, 800);
-    const sheet = boxed({ left: 800, top: 0, width: 360, height: 800 }, 'aside');
-    const button = boxed({ left: 900, top: 780 });
-    sheet.append(button);
-    expect(placeBeside(button, 264, 100).top).toBe(692);
-  });
-
-  it('falls back under the button when the sheet leaves no room beside it', () => {
-    screenSized(400, 800);
-    const sheet = boxed({ left: 40, top: 0, width: 360, height: 800 }, 'aside');
-    const button = boxed({ left: 100, top: 100 });
-    sheet.append(button);
-    expect(placeBeside(button, 264, 100)).toEqual(placeAnchored(button, 264, 100, 100));
   });
 });
 

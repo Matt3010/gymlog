@@ -25,7 +25,6 @@
   anchor={request.anchor}
   width={240}
   height={300}
-  place="beside"
   id="pick-popover"
   onclose={() => (ui.pick = null)}
 >

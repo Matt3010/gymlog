@@ -1,10 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  /**
-   * Quando non c'è ancora niente: cosa manca, e da dove si comincia.
-   * Lo stesso disegno di restaurant-index, con le parole che passa chi lo usa.
-   */
+  /** Quando non c'è ancora niente: cosa manca, e da dove si comincia. */
   let {
     title,
     line,
@@ -47,5 +44,5 @@
 
   .empty :global(.btn) { margin-top: 4px; }
 
-  @media (min-width: 601px) { .empty :global(.btn) { justify-self: start; } }
+  .empty :global(.btn) { justify-self: start; }
 </style>

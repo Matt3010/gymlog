@@ -2,18 +2,7 @@
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
 
-  /**
-   * Avanti e indietro in un elenco lungo.
-   *
-   * Dice sempre dove si è e quanto manca — «9-16 di 42» — perché un «avanti»
-   * da solo non si preme: non si sa se porta a un'altra riga o ad altre
-   * quaranta. Quando ci sta tutto in una pagina sparisce: una barra di
-   * navigazione per tre righe è arredamento.
-   *
-   * Non sa niente di quello che sta paginando e non tiene niente: chiede, e
-   * chi lo usa va a prendere. Cosi' vale per un elenco che sta in memoria
-   * come per uno che arriva dal server venti alla volta.
-   */
+  /** Avanti e indietro in un elenco lungo, con «9-16 di 42»; sparisce quando ci sta tutto in una pagina. Non tiene niente: chiede. */
   let {
     total,
     offset,
@@ -21,6 +10,8 @@
     onpick,
     busy = false,
     what = 'righe',
+    previous = 'Più recenti',
+    next = 'Più vecchi',
   }: {
     total: number;
     offset: number;
@@ -31,6 +22,9 @@
     busy?: boolean;
     /** Come si chiamano le cose contate: «avvisi», «luoghi». */
     what?: string;
+    /** I nomi dei due tasti, come vanno le righe: dalle più recenti, o in un altro ordine. */
+    previous?: string;
+    next?: string;
   } = $props();
 
   const first = $derived(total ? offset + 1 : 0);
@@ -46,7 +40,7 @@
     <div class="frecce">
       <Button
         look="icon"
-        title="Più recenti"
+        title={previous}
         disabled={!indietro || busy}
         onclick={() => onpick(Math.max(0, offset - limit))}
       >
@@ -54,7 +48,7 @@
       </Button>
       <Button
         look="icon"
-        title="Più vecchi"
+        title={next}
         disabled={!avanti || busy}
         onclick={() => onpick(offset + limit)}
       >
@@ -81,5 +75,6 @@
     color: var(--ink-3);
   }
 
-  .frecce { display: flex; gap: 2px; }
+  /* come gli altri tasti-icona vicini: non si toccano */
+  .frecce { display: flex; gap: 6px; }
 </style>

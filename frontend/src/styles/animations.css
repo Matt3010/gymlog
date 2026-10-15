@@ -1,8 +1,4 @@
-/* Animations
-   Every keyframe in one place, and the switch that turns them all off.
-   No fill-mode: the resting state is always the element's own style. */
-
-/* -------------------------------------------------------------- animations */
+/* Every keyframe, and the switch that turns them off. No fill-mode: the resting state is the element's own. */
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(8px); }

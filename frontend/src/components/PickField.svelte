@@ -12,9 +12,9 @@
    * giorno di una scena, l'attesa fra due righe, e la scelta del luogo di un
    * agente, ognuna con il suo tasto e il suo elenco.
    *
-   * Due vestiti, perché due sono i posti dove serve: `field` accanto a un
-   * campo di testo, `pill` dentro a una riga, dove deve pesare meno di
-   * quello che la riga dice.
+   * Due vestiti, perché due sono i posti dove serve: `field` in un modulo,
+   * un campo come gli altri, `pill` dentro a una riga, dove deve pesare meno
+   * di quello che la riga dice.
    */
   let {
     value,
@@ -61,12 +61,12 @@
   onclick={() => (open = !open)}
 >
   <span class="letto">{scelto?.label ?? value}</span>
-  {#if look === 'field'}<Icon name="expand" />{/if}
+  {#if look === 'field'}<Icon name="expand" size="sm" tone="muted" />{/if}
 </button>
 
 {#if open && anchor}
   <Popover {anchor} width={drop ? anchor.offsetWidth : width} height={248} place={drop ? 'drop' : 'anchored'} onclose={() => (open = false)}>
-    <PickList {options} current={value} {title} onpick={choose} />
+    <PickList {options} current={value} {title} {drop} onpick={choose} />
   </Popover>
 {/if}
 
@@ -82,14 +82,17 @@
     transition: background 0.14s, border-color 0.14s, color 0.14s;
   }
 
-  /* accanto a un campo di testo: stessa altezza, stesso bordo */
+  /* in un modulo è un campo come gli altri: largo quanto la colonna, alto quanto un campo di testo,
+     e si tocca col pollice */
   .pick-field.field {
-    height: 26px;
-    padding: 0 8px 0 10px;
+    box-sizing: border-box;
+    width: 100%;
+    height: 40px;
+    justify-content: space-between;
+    padding: 0 11px;
     border: 1px solid var(--hairline);
-    border-radius: var(--r-sm);
+    border-radius: var(--r-in);
     background: var(--sunken);
-    font-size: 12.5px;
   }
 
   @media (hover: hover) {
@@ -119,6 +122,4 @@
       color: var(--ink-2);
     }
 }
-
-  .pick-field :global(.ico) { width: 12px; height: 12px; color: var(--ink-3); }
 </style>

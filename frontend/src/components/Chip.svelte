@@ -28,11 +28,7 @@
     [key: string]: unknown;
   } = $props();
 
-  /*
-   * Un nome troppo lungo si taglia coi puntini dentro la pastiglia, e allora
-   * il nome intero si legge passandoci sopra. Si misura quando ci si arriva,
-   * col puntatore o col fuoco, perché solo lì serve saperlo.
-   */
+  // un nome tagliato coi puntini si legge intero passandoci sopra; si misura solo lì, col puntatore o col fuoco
   let nome = $state<HTMLElement>();
   let tagliato = $state(false);
   const misura = () => (tagliato = !!nome && nome.scrollWidth > nome.clientWidth);
@@ -86,23 +82,12 @@
   .chip:hover { transform: translateY(-1px); }
 }
 
-/* Dove si tocca, una pastiglia è alta quanto un dito. Trenta pixel bastano a
-   un puntatore che arriva preciso; un polpastrello ne copre quaranta, e fra
-   due filtri vicini prende quello sbagliato. */
-/* La misura piccola. Sta qui e non in chi la ospita, se no ogni schermata si
-   inventa la sua e poi divergono di un pixel per volta. */
+/* Dove si tocca, una pastiglia è alta quanto un dito (40px, non 30). */
 .chip.is-sm { height: 26px; padding: 0 10px 0 9px; font-size: 11.5px; }
 
-/* Dove si tocca, anche la piccola è alta quanto un dito. Scritta dopo e non
-   prima: stava sopra alla misura piccola, che a parità di peso vinceva lei,
-   e «Apri, Ferma, Chiudi» di una tenda restavano alti ventisei pixel. */
-@media (hover: none) {
-  .chip { height: 40px; }
-  .chip.is-sm { height: 36px; }
-}
+/* anche la piccola, dove si tocca: scritta dopo la misura piccola, che a parità di peso vincerebbe */
 
-/* il segno dentro alla pillola: un disegno prende il colore del testo, e
-   un'emoji di quelle vecchie si porta ancora i suoi */
+/* il segno dentro alla pillola: un disegno prende il colore del testo */
 .chip .emo { display: inline-grid; place-items: center; line-height: 1; }
 
 /* a stringersi è solo il nome: il segno, il pallino e il numero restano interi */

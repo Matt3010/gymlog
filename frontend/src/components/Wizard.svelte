@@ -79,7 +79,7 @@
 {#if !inFinestra}
   <div class="fondo">
     {#each azioni() as azione (azione.label)}
-      <Button look={azione.look} onclick={(event: MouseEvent) => void azione.onpick(event.currentTarget as HTMLElement)}>
+      <Button look={azione.look === 'danger' ? 'ghost' : azione.look} tone={azione.look === 'danger' ? 'danger' : azione.tone} onclick={(event: MouseEvent) => void azione.onpick(event.currentTarget as HTMLElement)}>
         {azione.label}
       </Button>
     {/each}

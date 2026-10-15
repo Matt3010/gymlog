@@ -63,7 +63,7 @@ export interface SureRequest {
  */
 export interface ModalAction {
   label: string;
-  look?: 'primary' | 'ghost' | 'danger' | 'danger-solid' | 'link';
+  look?: 'primary' | 'ghost' | 'danger' | 'danger-solid';
   tone?: 'danger';
   /** Un disegno prima della scritta, per i tasti che si riconoscono da quello. */
   icon?: IconName;

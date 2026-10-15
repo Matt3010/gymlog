@@ -3,14 +3,7 @@
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
 
-  /**
-   * Una riga da copiare, con il suo tasto.
-   *
-   * Esiste perché le cose che si vedono una volta sola e poi si portano
-   * altrove sono più d'una: il comando che installa un agente, il link che
-   * invita qualcuno su una mappa. Si leggono uguali e si copiano uguali, e
-   * scritte due volte avrebbero finito per copiarsi in due modi diversi.
-   */
+  /** Una riga da copiare, con il suo tasto. */
   let {
     text,
     title,
@@ -39,31 +32,31 @@
 </script>
 
 <div class="copy-line">
-  <code>{text}</code>
   <Button look="icon" {title} onclick={copy}>
     <Icon name={copied ? 'check' : 'link'} />
   </Button>
+  <code>{text}</code>
 </div>
 
 <style>
-  /* si legge come un terminale perché è una cosa da incollare altrove. I
-     `min-width` non sono decorativi: dentro una griglia una cella non scende
-     sotto la larghezza del suo contenuto, e una riga senza a capo è larga
-     quanto vuole — è così che sfondava il bordo della scheda. */
+  /* i `min-width` servono: in una griglia una cella non scende sotto il suo contenuto, e la riga sfondava la scheda */
   .copy-line {
-    display: flex;
-    align-items: center;
-    gap: 2px;
+    /* contiene il tasto che galleggia, anche con un comando di una riga sola */
+    display: flow-root;
     min-width: 0;
-    padding: 4px 4px 4px 9px;
-    border-radius: var(--r-sm);
+    padding: 6px 6px 6px 10px;
+    border-radius: var(--r-in);
     background: var(--sunken-hover);
     box-shadow: inset 0 0 0 1px var(--hairline-soft);
   }
 
+  /* il tasto in alto a destra, e il comando che gli gira intorno: nessun vuoto sopra o sotto */
+  .copy-line :global(.btn.icon) { float: right; margin-left: 8px; }
+
   .copy-line code {
-    flex: 1;
-    min-width: 0;
+    display: block;
+    /* la prima riga a metà del tasto */
+    padding-top: 7px;
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
     font-size: 11px;
     line-height: 1.5;

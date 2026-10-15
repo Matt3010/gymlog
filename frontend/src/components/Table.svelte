@@ -2,6 +2,8 @@
   import type { Snippet } from 'svelte';
   import type { Column } from '../lib/table';
   import type { Vista } from '../lib/vista.svelte';
+  import { SvelteSet } from 'svelte/reactivity';
+  import Button from './Button.svelte';
   import Icon from './Icon.svelte';
 
   /**
@@ -25,12 +27,19 @@
     foot,
     label,
     vista,
-    inRiga = false,
+    striped = false,
+    fitta = false,
+    figli,
+    nomeFigli = 'righe',
   }: {
     columns: Column[];
     rows: T[];
     /** Le celle di una riga: `<td>` e basta. */
-    row: Snippet<[T]>;
+    /**
+     * Con `figli`, il secondo argomento è il chevron della riga (o il pallino di una riga sotto): la riga lo mette
+     * in testa alla sua prima cella. Una riga senza righe sotto non ne ha, e non lascia spazio.
+     */
+    row: Snippet<[T, Snippet | undefined]>;
     /** Cosa si legge quando non c'è niente. Il vuoto è una risposta. */
     empty?: Snippet;
     /**
@@ -53,15 +62,26 @@
      * memoria, o chiedendole di nuovo al server.
      */
     vista?: Vista<T>;
+    /** Una riga sì e una no ombreggiata: in una tabella larga l'occhio segue la riga fino in fondo. */
+    striped?: boolean;
+    /** Le celle strette: tante colonne di poche cifre che su un telefono stanno senza scorrere. */
+    fitta?: boolean;
     /**
-     * In righe anche sul telefono, con l'intestazione una volta sola.
-     *
-     * Per le tabelle di numeri corti — le sessioni di un esercizio, sette
-     * colonne di due o tre cifre — che in 358px ci stanno: impilate, ogni
-     * riga diventava sette righe col nome davanti, e la pagina non finiva più.
+     * Le righe che stanno sotto una riga, in ordine: con un chevron in testa alla sua prima cella la riga si apre su
+     * di loro, disegnate con le stesse celle e unite da una linea con un pallino ciascuna, come una cronologia.
+     * Chiusa, la riga mostra l'ultima di loro: com'è andata a finire.
      */
-    inRiga?: boolean;
+    figli?: (row: T) => T[];
+    /** Come si chiamano, per il tasto che le apre: «Mostra 2 riprogrammati». */
+    nomeFigli?: string;
   } = $props();
+
+  /** Le righe chiuse, per id: aperte da sole, la loro cronologia è quello che c'è da vedere; chiuse restano chiuse cambiando pagina o ordine. */
+  const chiuse = new SvelteSet<string>();
+  function apri(id: string): void {
+    if (chiuse.has(id)) chiuse.delete(id);
+    else chiuse.add(id);
+  }
 
   /** Il verso di una colonna, per chi legge lo schermo ad alta voce. */
   const versoDi = (column: Column): 'ascending' | 'descending' | undefined =>
@@ -71,33 +91,17 @@
         : 'descending'
       : undefined;
 
-  /*
-   * Il nome della colonna scritto su ogni cella, per il telefono.
-   *
-   * Lì la tabella non scorre di lato: cinque colonne non stanno in 390
-   * pixel, e quella che finiva fuori era proprio la frase che si voleva
-   * leggere. Ogni riga diventa un blocco, una cella sotto l'altra, e davanti
-   * a ogni cella si legge di quale colonna è. Le celle le disegna chi usa la
-   * tabella, quindi il nome lo mette qui chi conosce le colonne.
-   */
-  function etichette(corpo: HTMLTableSectionElement): void {
-    $effect(() => {
-      void rows;
-      const nomi = columns.map((column) => column.label);
-      for (const riga of corpo.rows) {
-        [...riga.cells].forEach((cella, at) => (cella.dataset.colonna = nomi[at] ?? ''));
-      }
-    });
-  }
 </script>
+
+<!-- nella riga sotto, al posto del chevron: largo quanto lui, così il pallino sta sotto di lui -->
+{#snippet pallino()}<span class="pallino" aria-hidden="true"></span>{/snippet}
 
 {#if rows.length}
   <!-- Le colonne non si tolgono quando lo schermo è stretto: quella che
-       sparisce è sempre quella che a qualcuno serviva. Su uno schermo medio
-       scorre di lato; su un telefono ogni riga si mette in colonna, con il
-       nome davanti a ogni cella (vedi `etichette`). -->
-  <div class="scorre" class:in-riga={inRiga}>
-    <table aria-label={label}>
+       sparisce è sempre quella che a qualcuno serviva. Una riga resta una riga
+       anche sul telefono, e la tabella scorre di lato. -->
+  <div class="scorre" class:is-fitta={fitta}>
+    <table aria-label={label} class:is-striped={striped}>
       <colgroup>
         {#each columns as column, at (at)}
           <!-- `1%` non è una larghezza: è il modo di dire a una tabella di
@@ -113,7 +117,6 @@
               scope="col"
               class:end={column.align === 'end'}
               class:fit={column.width === 'fit'}
-              class:is-vuota={!column.label}
               aria-sort={versoDi(column)}
             >
               {#if vista && column.ordina}
@@ -127,7 +130,7 @@
                   <!-- la freccia c'è solo sulla colonna scelta: sulle altre
                        direbbe un verso che non stanno seguendo -->
                   {#if column.ordina === vista.ordine}
-                    <Icon name={vista.verso === 'asc' ? 'sortAsc' : 'sortDesc'} />
+                    <Icon name={vista.verso === 'asc' ? 'sortAsc' : 'sortDesc'} size="sm" />
                   {/if}
                 </button>
               {:else}
@@ -138,9 +141,32 @@
         </tr>
       </thead>
 
-      <tbody use:etichette>
-        {#each rows as one (one.id)}
-          <tr>{@render row(one)}</tr>
+      <tbody>
+        {#each rows as one, pos (one.id)}
+          {@const sotto = figli?.(one) ?? []}
+          {@const aperta = sotto.length > 0 && !chiuse.has(one.id)}
+          <!-- a righe alterne conta la riga con le sue: aperta, le sue righe hanno la sua fascia -->
+          {#snippet chevron()}
+            <Button
+              look="icon"
+              aria-expanded={aperta}
+              aria-label="{aperta ? 'Nascondi' : 'Mostra'} {sotto.length} {nomeFigli}"
+              title="{aperta ? 'Nascondi' : 'Mostra'} {sotto.length} {nomeFigli}"
+              onclick={() => apri(one.id)}
+            >
+              <Icon name={aperta ? 'expand' : 'next'} />
+            </Button>
+          {/snippet}
+          <tr class:is-even={pos % 2 === 1} class:is-open={aperta}>
+            {@render row(aperta || sotto.length === 0 ? one : sotto.at(-1)!, sotto.length > 0 ? chevron : undefined)}
+          </tr>
+          {#if aperta}
+            {#each sotto as figlio, at (figlio.id)}
+              <tr class="is-sub" class:is-even={pos % 2 === 1} class:is-last={at === sotto.length - 1}>
+                {@render row(figlio, pallino)}
+              </tr>
+            {/each}
+          {/if}
         {/each}
       </tbody>
     </table>
@@ -205,21 +231,99 @@
      l'inizio di un'altra tabella */
   tbody tr:last-child :global(td) { border-bottom: 0; }
 
-  /* le celle ai bordi si allineano al filo della scheda: una tabella che
-     rientra di dieci pixel sembra appoggiata sopra invece che dentro */
+  /* La tabella si appoggia ai bordi della scheda, su ogni schermo: esce di
+     tutto il suo margine interno, e le celle ai bordi rientrano di altrettanto
+     (più due pixel), così la fascia e il filo arrivano al bordo e il testo
+     resta allineato al titolo e al resto della scheda. */
+  .scorre { margin: 0 calc(-1 * var(--card-pad)); }
+
+  /* l'ultima cosa della scheda (niente frecce sotto): a filo anche in fondo, con l'angolo della scheda
+     meno il suo bordo, così una riga ombreggiata non esce dalla curva */
+  .scorre:last-child {
+    margin-bottom: calc(-1 * var(--card-pad));
+    /* l'ultima riga non ha filo da mostrare: il pixel sotto sarebbe una riga di sfondo sotto quella ombreggiata */
+    padding-bottom: 0;
+    border-radius: 0 0 calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px);
+  }
+
+  /* in fondo alla scheda i tasti dell'ultima riga stanno a 13px dal bordo anche sotto: l'angolo segue il suo */
+  .scorre:last-child tbody tr:last-child :global(td) { padding-bottom: var(--card-pad); }
+
   th:first-child,
-  tbody :global(td:first-child) { padding-left: 2px; }
+  tbody :global(td:first-child) { padding-left: calc(var(--card-pad) + 2px); }
 
   th:last-child,
-  tbody :global(td:last-child) { padding-right: 2px; }
+  tbody :global(td:last-child) { padding-right: var(--card-pad); }
 
   tbody tr :global(td) { transition: background 0.14s; }
 
+  /* a righe alterne la riga la dice lo sfondo: la linea sotto non serve più */
+  .is-striped tbody tr.is-even :global(td) { background: var(--sunken); }
+
+  /* La cronologia di una riga aperta: dal suo chevron una linea scende di riga in riga, con un pallino per ognuna,
+     e si ferma sull'ultima. Il chevron e il pallino sono in testa alla prima cella: la linea passa per il loro centro. */
+  tbody tr.is-open :global(td:first-child),
+  tbody tr.is-sub :global(td:first-child) { position: relative; }
+
+  tbody tr.is-open :global(td:first-child)::after,
+  tbody tr.is-sub :global(td:first-child)::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--card-pad) + 2px + 15px);
+    width: 1.5px;
+    margin-left: -0.75px;
+    background: var(--hairline);
+    pointer-events: none;
+  }
+
+  /* sotto il chevron, fino in fondo alla riga */
+  tbody tr.is-open :global(td:first-child)::after { top: calc(50% + 15px); bottom: 0; }
+
+  tbody tr.is-sub :global(td:first-child)::before { top: 0; bottom: 0; }
+
+  tbody tr.is-sub.is-last :global(td:first-child)::before { bottom: 50%; }
+
+  /* largo quanto il chevron, con il pallino al centro */
+  .pallino {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    width: 30px;
+    height: 30px;
+  }
+
+  .pallino::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    margin: -3.5px 0 0 -3.5px;
+    border-radius: 50%;
+    background: var(--ink-3);
+  }
+
+  /* la riga aperta e le sue sono un blocco: niente filo fra loro, solo dopo l'ultima */
+  tbody tr.is-open :global(td),
+  tbody tr.is-sub:not(.is-last) :global(td) { border-bottom-color: transparent; }
+
+  .is-striped tbody :global(td) { border-bottom-color: transparent; }
+
   @media (hover: hover) {
-  /* Una fascia dritta, senza angoli tondi. La linea che separa le righe sta
-       sulle stesse celle, e con gli angoli tondi si piegava anche lei ai due
-       capi, come un nastro invece che un filo. */
+    /* sotto il mouse, anche su una riga ombreggiata, si vede */
+    .is-striped tbody tr:hover :global(td) { background: var(--sunken-hover); }
+  }
+
+  @media (hover: hover) {
+  /* Una fascia dritta, da un bordo all'altro della scheda come le righe alterne:
+       senza angoli tondi, che su una riga che tocca i bordi non seguono niente. */
     tbody tr:hover :global(td) { background: var(--sunken); }
+}
+
+  @media (hover: hover) {
+    /* la linea sotto la riga sparisce finché c'è la fascia */
+    tbody tr:hover :global(td) { border-bottom-color: transparent; }
 }
 
   th.end,
@@ -254,97 +358,22 @@
     .ordina.is-on { color: var(--ink); }
 }
 
-  .ordina :global(.ico) { width: 12px; height: 12px; }
-
   th.end .ordina { flex-direction: row-reverse; }
 
-  /*
-   * Sul telefono niente scorre di lato: ogni riga è un blocco e le celle
-   * vanno una sotto l'altra, col nome della colonna davanti. L'intestazione
-   * resta, in fila e senza le celle vuote, perché è lei che mette in ordine.
-   * Scritto dopo le regole di sopra, che a parità di peso vincerebbero.
-   */
-  @media (max-width: 600px) {
-    .scorre:not(.in-riga) { overflow-x: visible; scroll-snap-type: none; }
-
-    .scorre:not(.in-riga) table,
-    .scorre:not(.in-riga) thead,
-    .scorre:not(.in-riga) tbody,
-    .scorre:not(.in-riga) table,
-    .scorre:not(.in-riga) thead,
-    .scorre:not(.in-riga) tbody,
-    .scorre:not(.in-riga) tr { display: block; }
-
-    .scorre:not(.in-riga) colgroup { display: none; }
-
-    .scorre:not(.in-riga) thead tr {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px 14px;
-      padding-bottom: 9px;
-      border-bottom: 1px solid var(--hairline);
-    }
-
-    .scorre:not(.in-riga) th { display: block; padding: 0; border: 0; }
-
-    .scorre:not(.in-riga) th.is-vuota { display: none; }
-
-    .scorre:not(.in-riga) tbody tr { padding: 8px 0; border-bottom: 1px solid var(--hairline-soft); }
-
-    .scorre:not(.in-riga) tbody tr:last-child { border-bottom: 0; }
-
-    .scorre:not(.in-riga) tbody :global(td),
-    .scorre:not(.in-riga) tbody :global(td:first-child),
-    .scorre:not(.in-riga) tbody :global(td),
-    .scorre:not(.in-riga) tbody :global(td:first-child),
-    .scorre:not(.in-riga) tbody :global(td:last-child) {
-      /* il nome sta nel rientro a sinistra, e la cella è alta almeno quanto
-         lui anche quando va a capo («Ti avviso quando») */
-      display: flow-root;
-      padding: 2px 0 2px 86px;
-      border: 0;
-      text-align: left;
-      /* a capo, anche in mezzo a una parola che non ci sta */
-      white-space: normal;
-      overflow-wrap: anywhere;
-    }
-
-    .scorre:not(.in-riga) tbody :global(td)::before {
-      content: attr(data-colonna);
-      float: left;
-      width: 78px;
-      margin: 2px 0 0 -86px;
-      line-height: 1.3;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--ink-3);
-    }
-
-    /* la cella senza nome è quella dei tasti: sta a filo, senza rientro */
-    .scorre:not(.in-riga) tbody :global(td[data-colonna=''])::before { content: none; }
-
-    .scorre:not(.in-riga) tbody :global(td[data-colonna='']) { padding-left: 0; }
-
-    .scorre:not(.in-riga) tbody tr:hover :global(td) { background: none; }
-
-    /* in righe: piccola e fitta, i numeri a destra, nessuno scorrimento */
-    .scorre.in-riga table { font-size: 12px; }
-
-    .scorre.in-riga :global(td),
-    .scorre.in-riga th { padding: 8px 4px; white-space: nowrap; }
-
-    .scorre.in-riga :global(td:first-child),
-    .scorre.in-riga th:first-child { padding-left: 0; }
-
-    .scorre.in-riga :global(td:last-child),
-    .scorre.in-riga th:last-child { padding-right: 0; }
-  }
 
   /* dove si tocca, l'intestazione è alta quanto un dito senza spostare la
      riga: lo spazio si aggiunge dentro e si toglie fuori */
   @media (hover: none) {
     .ordina { padding: 12px 0; margin: -12px 0; }
   }
+
+  /* fitta: fra una colonna e l'altra 8px invece di 20; i bordi restano allineati alla scheda */
+  .is-fitta th:not(:first-child):not(:last-child),
+  .is-fitta tbody :global(td:not(:first-child):not(:last-child)) { padding-left: 4px; padding-right: 4px; }
+
+  .is-fitta th:first-child,
+  .is-fitta tbody :global(td:first-child) { padding-right: 4px; }
+
+  .is-fitta th:last-child,
+  .is-fitta tbody :global(td:last-child) { padding-left: 4px; }
 </style>

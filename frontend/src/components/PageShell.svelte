@@ -35,7 +35,8 @@
   } = $props();
 </script>
 
-<div class="page">
+<!-- il contenuto della pagina: un lettore di schermo ci salta subito -->
+<main class="page">
   <header>
     {#if back}
       <a class="back" href={back.href}>
@@ -57,7 +58,7 @@
   <div class="cards">
     {@render children()}
   </div>
-</div>
+</main>
 
 <style>
   .page {
@@ -65,19 +66,12 @@
     /* Gli angoli del telefono: installata nella schermata home la pagina
        arriva fin sotto l'orologio. In fondo, lo spazio della barra e quello
        di un messaggio, che non deve coprire gli ultimi tasti. */
-    padding: calc(24px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
-      var(--sopra-alla-barra) max(16px, env(safe-area-inset-left));
-  }
-
-  @media (max-width: 600px) {
-    .page {
-      padding-right: max(12px, env(safe-area-inset-right));
-      padding-left: max(12px, env(safe-area-inset-left));
-    }
+    padding: calc(24px + env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+      var(--sopra-alla-barra) max(10px, env(safe-area-inset-left));
   }
 
   header {
-    max-width: 640px;
+    max-width: var(--page-max);
     margin: 0 auto 18px;
     display: grid;
     gap: 6px;
@@ -139,7 +133,7 @@
      colonna, non il margine di ognuno, così anche quello che non è una card
      (l'invito a installare) non si appiccica alla card sotto. */
   .cards {
-    max-width: 640px;
+    max-width: var(--page-max);
     margin: 0 auto;
     display: grid;
     grid-template-columns: minmax(0, 1fr);

@@ -177,8 +177,8 @@
     <div class="modal-foot">
       {#each inFondo as azione, at (azione.label)}
         <Button
-          look={azione.look ?? 'ghost'}
-          tone={azione.tone}
+          look={azione.look === 'danger' ? 'ghost' : (azione.look ?? 'ghost')}
+          tone={azione.look === 'danger' ? 'danger' : azione.tone}
           disabled={azione.disabled}
           onclick={(event: MouseEvent) => void press(at, event.currentTarget as HTMLElement)}
         >
@@ -327,15 +327,5 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-  }
-
-  @media (max-width: 600px) {
-    /* in fondo i tasti si allargano, perché un dito non mira e qui sotto non
-       c'è nient'altro da premere per sbaglio */
-    .modal-foot :global(.btn) { flex: 1; justify-content: center; }
-
-    /* Quello che porta via qualcosa no. Allargato sembrava uno dei due
-       grandi, e la sua scritta — «Elimina luogo» — andava a capo. */
-    .modal-foot :global(.btn.danger) { flex: none; white-space: nowrap; }
   }
 </style>

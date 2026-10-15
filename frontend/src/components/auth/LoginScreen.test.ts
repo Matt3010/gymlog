@@ -112,12 +112,15 @@ describe('signing up', () => {
     expect(session.status).not.toBe('in');
   });
 
-  it('shows the eye on both passwords', async () => {
+  it('gives each password its own eye', async () => {
     door(true);
     const user = await openSignup();
-    await user.click(screen.getByRole('button', { name: 'Mostra la password' }));
-    expect(field('Password')).toHaveAttribute('type', 'text');
+    const [first, second] = screen.getAllByRole('button', { name: 'Mostra la password' });
+    await user.click(second!);
     expect(field('Ripeti la password')).toHaveAttribute('type', 'text');
+    expect(field('Password')).toHaveAttribute('type', 'password');
+    await user.click(first!);
+    expect(field('Password')).toHaveAttribute('type', 'text');
   });
 
   it('goes back to the login with «Ho già un account»', async () => {

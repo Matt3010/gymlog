@@ -226,7 +226,7 @@
         checked={draft.archived}
         onchange={(value) => draft && (draft.archived = value)}
         label="Archiviata"
-        note="Non compare fra quelle da cui iniziare un allenamento."
+        hint="Non compare fra quelle da cui iniziare un allenamento."
       />
     </PageCard>
     {:else}
@@ -346,13 +346,17 @@
 
   .period input { width: 100%; min-width: 0; }
 
+  /* il nome sopra, poi il campo e i tasti sulla stessa riga, centrati sul campo */
   .day-head {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 8px;
   }
 
-  .day-name { flex: 1; min-width: 0; }
+  .day-name { display: contents; }
+
+  .day-name .eyebrow { grid-column: 1 / -1; }
 
   .tools { display: flex; align-items: center; gap: 2px; flex: none; }
 

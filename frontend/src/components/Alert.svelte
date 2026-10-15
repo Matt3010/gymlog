@@ -7,17 +7,17 @@
   let {
     message,
     action,
+    tone = 'danger',
   }: {
     message: string;
     action?: { label: string; run: () => void };
+    /** `warn`: non è andato storto niente, ma c'è da fare qualcosa prima che vada storto. */
+    tone?: 'danger' | 'warn';
   } = $props();
 
   /*
-   * Un guaio compare spesso in fondo, dove si stava scrivendo: lì la barra
-   * delle sezioni lo coprirebbe finché non si scorre. Appena c'è, la pagina
-   * si sposta quanto basta a vederlo (niente, se si vede già) — ma non se
-   * così il campo in cui si sta scrivendo uscirebbe dallo schermo: uno
-   * comparso lontano non porta via la pagina da quello che si scrive.
+   * Appena compare, la pagina scorre quanto basta a vederlo sopra la barra delle sezioni,
+   * ma non se così il campo in cui si sta scrivendo uscirebbe dallo schermo.
    */
   let element = $state<HTMLElement>();
   onMount(() => {
@@ -32,11 +32,11 @@
   });
 </script>
 
-<p class="alert" role="alert" bind:this={element}>
-  <Icon name="alert" />
+<p class="alert" class:is-warn={tone === 'warn'} role="alert" bind:this={element}>
+  <Icon name="alert" tone={tone} />
   <span>{message}</span>
   {#if action}
-    <Button look="link" extra="alert-fix" onclick={action.run}>{action.label}</Button>
+    <Button look="pill" onclick={action.run}>{action.label}</Button>
   {/if}
 </p>
 
@@ -47,7 +47,7 @@
     gap: 9px;
     margin: 0;
     padding: 9px 10px 9px 12px;
-    border-radius: var(--r-md);
+    border-radius: var(--r-in);
     background: color-mix(in srgb, var(--danger) 11%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 26%, transparent);
     font-size: 12.5px;
@@ -59,24 +59,10 @@
     scroll-margin-bottom: calc(var(--tab-bar) + var(--card-pad));
   }
 
-  .alert :global(.ico) { width: 15px; height: 15px; flex: none; color: var(--danger); }
-
-  .alert span { flex: 1; min-width: 0; }
-
-  .alert :global(.btn.alert-fix) {
-    flex: none;
-    padding: 4px 10px;
-    border: 0;
-    border-radius: 99px;
-    background: var(--sunken-hover);
-    color: var(--ink);
-    font: inherit;
-    font-size: 12px;
-    font-weight: 560;
-    transition: background 0.14s;
+  .alert.is-warn {
+    background: color-mix(in srgb, var(--warn) 13%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 34%, transparent);
   }
 
-  @media (hover: hover) {
-  .alert :global(.btn.alert-fix:hover) { background: var(--sunken); }
-}
+  .alert span { flex: 1; min-width: 0; }
 </style>

@@ -55,7 +55,7 @@
   onclick={() => (open = !open)}
 >
   <span class="letto">{value}</span>
-  <Icon name="expand" />
+  <Icon name="expand" size="sm" tone="muted" />
 </button>
 
 {#if open && anchor}
@@ -83,17 +83,21 @@
 {/if}
 
 <style>
+  /* un campo come gli altri del modulo: largo quanto la colonna, alto quanto un campo di testo */
   .time-btn {
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
+    justify-content: space-between;
     gap: 6px;
-    padding: 5px 8px 5px 10px;
+    width: 100%;
+    height: 40px;
+    padding: 0 11px;
     border: 1px solid var(--hairline);
-    border-radius: var(--r-sm);
+    border-radius: var(--r-in);
     background: var(--sunken);
     color: var(--ink);
     font: inherit;
-    font-size: 12.5px;
     font-variant-numeric: tabular-nums;
     cursor: pointer;
     transition: background 0.14s, border-color 0.14s;
@@ -107,8 +111,6 @@
 }
 
   .letto { letter-spacing: 0.01em; }
-
-  .time-btn :global(.ico) { width: 12px; height: 12px; color: var(--ink-3); }
 
   .colonne { display: flex; align-items: stretch; gap: 6px; }
 
@@ -133,7 +135,7 @@
   .voce {
     padding: 7px 0;
     border: 0;
-    border-radius: var(--r-sm);
+    border-radius: var(--voce-r);
     background: transparent;
     color: var(--ink-2);
     font: inherit;

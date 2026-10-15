@@ -3,19 +3,13 @@
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
 
-  /**
-   * L'invito a installare l'app, con il motivo.
-   *
-   * In cima alla home è un invito, e chi dice «non ora» non lo rivede
-   * (`chiudibile`). Senza, non si chiude: serve dove spiega perché manca
-   * qualcosa che c'è solo da installata.
-   */
+  /** L'invito a installare l'app. `chiudibile`: «non ora» non lo ripete; senza, spiega cosa c'è solo da installata. */
   let { chiudibile = false }: { chiudibile?: boolean } = $props();
 </script>
 
 {#if install.possibile && !(chiudibile && install.nonOra)}
   <div class="invito" class:is-card={chiudibile}>
-    <Icon name="download" />
+    <Icon name="download" tone="muted" />
     <span class="testo">
       {#if install.iPhone}
         Aggiungi gymlog alla schermata Home e in palestra si apre come un’app, anche senza rete. Tocca
@@ -45,17 +39,17 @@
     color: var(--ink-2);
   }
 
-  .invito > :global(.ico) { width: 16px; height: 16px; flex: none; color: var(--ink-3); }
-
   .testo { flex: 1; min-width: 0; }
 
   .testo b { font-weight: 600; color: var(--ink); }
 
-  /* in cima alla home è una cosa a sé, e si stacca dal resto come le righe
-     dell'elenco: un fondo appena più chiaro, niente ombra */
+  /* un fondo appena più chiaro, niente ombra, come le righe dell'elenco */
   .is-card {
-    padding: 10px 6px 10px 12px;
-    border-radius: var(--r-md);
+    /* 6px tutto intorno ai tasti: sopra, sotto e a destra la stessa distanza, così l'angolo segue */
+    padding: 6px 6px 6px 12px;
+    /* sta nella pagina, non in una scheda: l'angolo è quello della × (7) più i 6 che la separano dal bordo */
+    border-radius: calc(var(--r-in) + 6px);
     background: var(--sunken);
   }
+
 </style>

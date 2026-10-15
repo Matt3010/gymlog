@@ -382,11 +382,11 @@ describe('a saved plan', () => {
     await screen.findByRole('heading', { name: 'Forza' });
     expect(screen.getByRole('tab', { name: 'Allenamenti' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByPlaceholderText('Forza, autunno')).not.toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: /Archiviata/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: /Archiviata/ })).not.toBeInTheDocument();
     expect(screen.getAllByLabelText('Allenamento')).toHaveLength(2);
     await details();
     expect(screen.getByRole('tab', { name: 'Dettagli' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('checkbox', { name: /Archiviata/ })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /Archiviata/ })).toBeInTheDocument();
     expect(screen.queryByLabelText('Allenamento')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Aggiungi allenamento' })).not.toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('tab', { name: 'Allenamenti' }));
@@ -414,7 +414,7 @@ describe('a saved plan', () => {
     await user.click(screen.getAllByRole('button', { name: 'Togli l’esercizio' })[2]!);
     await confirmTake(user);
     await details();
-    await user.click(screen.getByRole('checkbox', { name: /Archiviata/ }));
+    await user.click(screen.getByRole('switch', { name: /Archiviata/ }));
     await settled(() => expect(planChanges(api).at(-1)?.body).toMatchObject({ archived: true }));
     expect(planChanges(api).at(-1)).toEqual({
       route: 'PUT /plans/5',

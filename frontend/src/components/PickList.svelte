@@ -1,5 +1,6 @@
 <script lang="ts">
   import { alCentro } from '../lib/centra';
+  import { quasiInFondo } from '../lib/elenco';
   import type { Choice } from '../lib/table';
   import { unici } from '../lib/unici';
 
@@ -16,23 +17,40 @@
     current,
     onpick,
     title,
+    drop = false,
   }: {
     options: Choice[];
     current?: string;
     onpick: (id: string) => void;
     title?: string;
+    /** In un menu a tendina: voci più alte, che si toccano col pollice. */
+    drop?: boolean;
   } = $props();
 
   const reveal = alCentro;
+
+  /**
+   * Le voci si disegnano a pezzi, come i contatti: le prime, poi altre man mano che si scende. Due anni di giorni
+   * disegnati tutti insieme sarebbero settecento tasti per sceglierne uno. Quella di adesso c'è sempre, anche lontana.
+   */
+  const PEZZO = 60;
+  const tutte = $derived(unici(options, (one) => one.id));
+  let quante = $state(PEZZO);
+  const mostrate = $derived(tutte.slice(0, Math.max(quante, tutte.findIndex((one) => one.id === current) + PEZZO)));
+
+  function onscroll(event: Event): void {
+    if (quasiInFondo(event.currentTarget as HTMLElement)) quante += PEZZO;
+  }
 </script>
 
 {#if title}<p class="what">{title}</p>{/if}
 
-<div class="list" use:reveal>
-  {#each unici(options, (one) => one.id) as option (option.id)}
+<div class="list" use:reveal {onscroll}>
+  {#each mostrate as option (option.id)}
     <button
       type="button"
       class="one"
+      class:is-drop={drop}
       class:is-on={option.id === current}
       onclick={() => onpick(option.id)}
     >
@@ -43,6 +61,9 @@
 </div>
 
 <style>
+  /* le voci di un menu a tendina si toccano col pollice */
+  .one.is-drop { min-height: 44px; align-items: center; font-size: 15px; }
+
   .what {
     margin: 0 2px 7px;
     font-size: 12px;
@@ -69,7 +90,7 @@
     width: 100%;
     padding: 7px 8px;
     border: 0;
-    border-radius: var(--r-sm);
+    border-radius: var(--voce-r);
     background: transparent;
     color: var(--ink-2);
     font: inherit;

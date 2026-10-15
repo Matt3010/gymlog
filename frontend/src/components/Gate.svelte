@@ -2,14 +2,7 @@
   import type { Snippet } from 'svelte';
   import Icon from './Icon.svelte';
 
-  /**
-   * La porta: una scheda sola in mezzo allo schermo.
-   *
-   * È quella di restaurant-index senza la mappa dietro: qui il paesaggio è un
-   * velo di luce sul fondo, perché una porta su un fondo piatto sembra un
-   * errore e non un ingresso. Se c'è `onsubmit` la scheda è un modulo, così
-   * l'invio da tastiera funziona senza che nessuno ci pensi.
-   */
+  /** La porta: una scheda sola in mezzo allo schermo. Con `onsubmit` è un modulo, e Invio funziona da sé. */
   let {
     title,
     lead,
@@ -72,8 +65,6 @@
     color: var(--ink-3);
   }
 
-  .wordmark :global(.ico) { width: 15px; height: 15px; }
-
   h1 {
     margin: 2px 0 0;
     font-size: 22px;
@@ -86,22 +77,5 @@
     font-size: 13px;
     line-height: 1.5;
     color: var(--ink-3);
-  }
-
-  /* il tasto grande in fondo, quello che fa andare avanti */
-  .route :global(.go) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px 18px;
-    font-size: 14.5px;
-  }
-
-  .route :global(.go .ico) { width: 17px; height: 17px; }
-  .route :global(.go:disabled) { opacity: 0.6; }
-
-  @media (max-width: 600px) {
-    h1 { font-size: 20px; }
   }
 </style>

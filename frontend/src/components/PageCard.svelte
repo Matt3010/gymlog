@@ -1,15 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  /**
-   * Una scheda nella colonna di una pagina di servizio.
-   *
-   * Il riquadro di vetro con il bordo sottile: è lo stesso in ogni pagina, e
-   * scritto una volta sola non può più venire di due grigi diversi a seconda
-   * di dove guardi. Le pagine che hanno bisogno di un'altra scheda — quella
-   * tratteggiata del «creane un altro» — se la disegnano da sé: è un'altra
-   * cosa, e fingere che sia la stessa costerebbe più di quanto risparmia.
-   */
+  /** Una scheda nella colonna di una pagina di servizio: il riquadro di vetro, scritto una volta sola. */
   let {
     wide = false,
     dashed = false,
@@ -17,31 +9,11 @@
     label,
     children,
   }: {
-    /**
-     * Attraverso tutte le colonne invece che dentro una.
-     *
-     * Una tabella è fatta di righe che si leggono per intero: in trecento
-     * pixel ogni riga va a capo due volte e le colonne non si incolonnano
-     * più — tanto vale un elenco. Chi ha bisogno di larghezza la chiede.
-     */
+    /** Attraverso tutte le colonne: una tabella in trecento pixel non si incolonna più. */
     wide?: boolean;
-    /**
-     * Tratteggiata invece che piena.
-     *
-     * È il vestito di quello che non è ancora niente — il campo per creare
-     * un altro agente, un'altra mappa — e di quello che sta di contorno:
-     * una nota, un elenco di cose altrui. Il tratteggio dice «qui non c'è
-     * una cosa tua, c'è un posto per farla».
-     */
+    /** Tratteggiata: il posto per una cosa che non c'è ancora, o una nota di contorno. */
     dashed?: boolean;
-    /**
-     * Senza vestito: il posto nella colonna e basta.
-     *
-     * La scheda di un agente, di una scena, di una mappa ha già il suo
-     * riquadro, e un bordo intorno a un bordo è una cornice alla cornice. Il
-     * resto — non spezzarsi fra due colonne, lo spazio sotto, la griglia —
-     * è lo stesso, e ogni pagina lo riscriveva per conto suo.
-     */
+    /** Senza vestito, per chi ha già il suo riquadro: il posto nella colonna e basta. */
     bare?: boolean;
     /** Il nome della sezione, per chi non la vede: la card diventa una regione. */
     label?: string;
@@ -58,11 +30,7 @@
     /* non si spezza fra due colonne: si sposta intera */
     break-inside: avoid;
     display: grid;
-    /* In riga le schede prendono tutte l'altezza della più alta, ed è giusto
-       cosi': il bordo di sotto dev'essere uno solo. Ma quell'altezza in più
-       è della scheda, non delle righe che ha dentro — senza questo lo spazio
-       che avanza si infilava fra un rigo e l'altro, e una levetta finiva a
-       mezz'aria fra la sua etichetta e la sua spiegazione. */
+    /* l'altezza in più (schede in riga) resta in fondo, non fra le righe dentro */
     align-content: start;
     gap: 10px;
     min-width: 0;

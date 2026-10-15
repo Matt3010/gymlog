@@ -11,11 +11,14 @@
    *
    * Le varianti sono quelle che l'app usa davvero: testo, posta, password,
    * ricerca, e in gymlog il testo lungo delle note (`multiline`, un
-   * `textarea` con gli stessi accorgimenti). Non una in più — un componente
+   * `textarea` con gli stessi accorgimenti). `password` ha dentro il suo
+   * occhio, per leggere quello che si è scritto. Non una in più — un componente
    * con dieci vestiti è un foglio di stile con un nome diverso.
    */
   import { modifiche } from '../lib/fondo.svelte';
   import { ui } from '../lib/ui.svelte';
+  import Button from './Button.svelte';
+  import Icon from './Icon.svelte';
 
   type Kind = 'text' | 'email' | 'password' | 'search' | 'multiline';
 
@@ -78,6 +81,7 @@
   } = $props();
 
   let touched = $state(false);
+  let mostra = $state(false);
 
   /*
    * Sola lettura per davvero, quando chi lo usa lo chiede.
@@ -137,10 +141,27 @@
     onblur={(event) => consegna(event.currentTarget.value)}
     {...rest}
   ></textarea>
+{:else if kind === 'password'}
+  <span class="peek">
+    {@render campo()}
+    <Button
+      look="icon"
+      title={mostra ? 'Nascondi' : 'Mostra'}
+      aria-label={mostra ? 'Nascondi la password' : 'Mostra la password'}
+      aria-pressed={mostra}
+      onclick={() => (mostra = !mostra)}
+    >
+      <Icon name={mostra ? 'eyeOff' : 'eye'} />
+    </Button>
+  </span>
 {:else}
+  {@render campo()}
+{/if}
+
+{#snippet campo()}
 <!-- svelte-ignore a11y_autofocus -->
 <input
-  type={kind}
+  type={kind === 'password' && mostra ? 'text' : kind}
   class={extra ? `text-field ${extra}` : 'text-field'}
   class:is-sm={size === 'sm'}
   bind:this={element}
@@ -164,7 +185,7 @@
   data-1p-ignore={shy ? 'true' : undefined}
   {...rest}
 />
-{/if}
+{/snippet}
 
 <style>
   /* la misura corta: la stessa di una pastiglia e dei campi dell'orario,
@@ -175,4 +196,9 @@
     border-radius: var(--r-sm);
     font-size: 11.5px;
   }
+
+  /* l'occhio sta dentro al campo, all'altezza del testo: a 5px dal bordo, e il testo non ci va sotto */
+  .peek { position: relative; display: block; }
+  .peek input { width: 100%; padding-right: 40px; }
+  .peek > :global(.btn) { position: absolute; top: 50%; right: 5px; margin-top: -15px; }
 </style>

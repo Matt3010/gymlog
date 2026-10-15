@@ -26,7 +26,7 @@
   {#each SECTIONS as section (section.href)}
     {@const here = section.owns.includes(nav.route.kind)}
     <a href={section.href} class:here aria-current={here ? 'page' : undefined}>
-      <span class="pill"><Icon name={section.icon} /></span>
+      <span class="pill"><Icon name={section.icon} size="lg" bold={here} /></span>
       <span>{section.label}</span>
     </a>
   {/each}
@@ -46,16 +46,16 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
     height: 64px;
     padding: 0 6px;
-    border: 1px solid var(--hairline);
+    border: 1px solid var(--bar-line);
     border-radius: 32px;
-    background: var(--glass);
+    background: var(--bar-glass);
     -webkit-backdrop-filter: blur(28px) saturate(180%);
     backdrop-filter: blur(28px) saturate(180%);
     box-shadow: var(--shadow-2);
   }
 
   @supports not (backdrop-filter: blur(1px)) {
-    .bar { background: var(--glass-strong); }
+    .bar { background: var(--bar-glass-strong); }
   }
 
   a {
@@ -91,13 +91,9 @@
 
   a.here .pill { background: var(--sunken-hover); }
 
-  a :global(.ico) { width: 20px; height: 20px; }
-
   @media (hover: hover) {
   a:hover { color: var(--ink-2); }
 }
 
   a.here { color: var(--ink); }
-
-  a.here :global(.ico) { stroke-width: 2.1; }
 </style>

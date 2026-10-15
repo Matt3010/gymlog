@@ -48,6 +48,7 @@
   width={264}
   height={request.detail ? 132 : 108}
   id="sure-popover"
+  look="dialog"
   role="alertdialog"
   label={request.title}
   onclose={() => (ui.sure = null)}
@@ -65,12 +66,6 @@
 
 <style>
   /* il vetro, la posizione e l'entrata li mette il foglietto */
-  /* sul telefono il foglio ha il suo spazio, quello di Popover: qui no, perché
-     un id vincerebbe sui suoi margini e i tasti toccherebbero il bordo */
-  @media (min-width: 601px) {
-    :global(#sure-popover) { padding: 14px; }
-  }
-
   .sure-what {
     margin: 0;
     font-size: 13.5px;

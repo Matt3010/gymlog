@@ -87,7 +87,7 @@
 {:else if session.status === 'unreachable'}
   <Gate title="Il server non risponde">
     <Alert message={session.problem} />
-    <Button look="primary" extra="go" onclick={() => void session.check()}>Riprova</Button>
+    <Button look="primary" size="lg" onclick={() => void session.check()}>Riprova</Button>
   </Gate>
 {/if}
 

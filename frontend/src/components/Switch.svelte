@@ -1,129 +1,88 @@
 <script lang="ts">
-  /**
-   * Un interruttore solo per tutta l'app. Con la nota sotto il nome resta
-   * sempre acceso di colore; da solo, il nome segue lo stato.
-   *
-   * `side` dice da che parte sta la levetta. Di solito prima lei e poi il
-   * nome; ma in fondo a una riga che finisce a destra il nome viene prima,
-   * se no la levetta resta in mezzo al discorso.
-   */
+  /** Un interruttore acceso/spento: tutta la riga si tocca, il nome è il suo, la riga sotto lo spiega. */
   let {
     checked,
-    onchange,
     label,
-    note,
-    title,
-    side = 'start',
+    hint,
     disabled = false,
-    ...rest
+    onchange,
   }: {
     checked: boolean;
-    onchange: (value: boolean) => void;
     label: string;
-    note?: string;
-    title?: string;
-    /** Dove sta la levetta: prima del nome, o dopo. */
-    side?: 'start' | 'end';
+    /** Una riga che dice a cosa serve. */
+    hint?: string;
     disabled?: boolean;
-    [key: string]: unknown;
+    onchange: (checked: boolean) => void;
   } = $props();
+
+  const id = $props.id();
 </script>
 
-<label
+<button
+  type="button"
+  role="switch"
   class="switch"
-  class:is-on={checked}
-  class:has-note={!!note}
-  class:is-off={disabled}
-  class:is-end={side === 'end'}
-  {title}
+  aria-checked={checked}
+  aria-labelledby="{id}-label"
+  aria-describedby={hint ? `${id}-hint` : undefined}
+  {disabled}
+  onclick={() => onchange(!checked)}
 >
-  <input
-    type="checkbox"
-    {checked}
-    {disabled}
-    onchange={(event) => {
-      /*
-       * La levetta dice quello che dice chi la usa, non il clic. Se lui la
-       * lascia com'era, per esempio perché il browser ha negato gli avvisi,
-       * Svelte non la riscrive (il valore non è cambiato), e restava accesa
-       * sotto una nota che diceva «Spenti». Si rimette com'era, e si sposta
-       * quando cambia `checked`.
-       */
-      const voluto = event.currentTarget.checked;
-      event.currentTarget.checked = checked;
-      onchange(voluto);
-    }}
-    {...rest}
-  />
-  <span class="switch-track"><span class="switch-dot"></span></span>
-  <span class="switch-text">
-    <span class="switch-name">{label}</span>
-    {#if note}<span class="switch-note">{note}</span>{/if}
+  <span class="text">
+    <span class="label" id="{id}-label">{label}</span>
+    {#if hint}<span class="hint" id="{id}-hint">{hint}</span>{/if}
   </span>
-</label>
+  <span class="track" aria-hidden="true"><span class="knob"></span></span>
+</button>
 
 <style>
-  /* spento: si vede e non si tocca */
-  .switch.is-off { opacity: 0.5; cursor: default; pointer-events: none; }
-
   .switch {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    width: 100%;
+    margin: 0;
+    padding: 8px 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
     cursor: pointer;
   }
 
-  /* solo al contrario da vedere: nel documento la casella resta prima della
-     levetta, che è quello che tiene in piedi i selettori qui sotto */
-  .switch.is-end { flex-direction: row-reverse; }
+  .switch:disabled { cursor: default; opacity: 0.6; }
 
-  .switch input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-  }
+  .text { flex: 1; min-width: 0; display: grid; gap: 2px; }
 
-  .switch-track {
+  .label { font-size: 13.5px; font-weight: 560; letter-spacing: -0.012em; color: var(--ink); }
+
+  .hint { font-size: 12.5px; line-height: 1.4; color: var(--ink-3); }
+
+  .track {
     position: relative;
     flex: none;
-    width: 38px;
-    height: 22px;
+    width: 40px;
+    height: 24px;
     border-radius: 99px;
     background: var(--sunken-hover);
     box-shadow: inset 0 0 0 1px var(--hairline);
-    transition: background 0.18s;
+    transition: background 0.18s var(--ease);
   }
 
-  .switch-dot {
+  .knob {
     position: absolute;
     top: 3px;
     left: 3px;
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: var(--glass-strong);
-    box-shadow: var(--shadow-1);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
     transition: transform 0.18s var(--ease);
   }
 
-  .switch input:checked + .switch-track { background: var(--accent); }
-  .switch input:checked + .switch-track .switch-dot { transform: translateX(16px); }
-  .switch input:focus-visible + .switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .switch[aria-checked='true'] .track { background: var(--accent); box-shadow: none; }
 
-  .switch-text { display: grid; gap: 1px; }
-
-  .switch-name {
-    font-size: 13px;
-    font-weight: 540;
-    color: var(--ink-3);
-    transition: color 0.16s;
-  }
-
-  /* con la spiegazione sotto, il nome è un titolo: non si spegne */
-  .switch.has-note .switch-name, .switch.is-on .switch-name { color: var(--ink); }
-
-  .switch:not(.has-note) .switch-name { font-size: 12.5px; }
-
-  .switch-note { font-size: 11.5px; line-height: 1.4; color: var(--ink-3); }
+  .switch[aria-checked='true'] .knob { transform: translateX(16px); background: var(--on-accent); }
 </style>

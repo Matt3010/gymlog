@@ -81,7 +81,7 @@
         <span class="eyebrow">Sessione per sessione</span>
         <!-- senza peso (trazioni) il massimale è sempre zero: la freccia guarda le ripetizioni -->
         {@const measure = (one: { reps: number; bestE1rm: number }) => (bodyweight ? one.reps : one.bestE1rm)}
-        <Table inRiga columns={COLUMNS} rows={stats.sessions.map((session, index) => {
+        <Table fitta columns={COLUMNS} rows={stats.sessions.map((session, index) => {
           const before = stats!.sessions[index + 1];
           return { ...session, id: String(session.workoutId), now: measure(session), before: before && measure(before) };
         })} label="Le sessioni di {stats.exercise.name}">

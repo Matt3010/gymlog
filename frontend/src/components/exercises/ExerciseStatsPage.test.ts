@@ -94,11 +94,11 @@ describe('the stats of an exercise', () => {
     }
   });
 
-  it('keeps the table of sessions in rows on a phone too, the header once', async () => {
+  it('keeps the table of sessions in rows, tight enough for a phone, the header once', async () => {
     fakeApi().on('GET /stats/exercises/1', SQUAT);
     render(ExerciseStatsPage, { id: 1 });
     const table = await screen.findByRole('table');
-    expect(table.closest('.scorre')).toHaveClass('in-riga');
+    expect(table.closest('.scorre')).toHaveClass('is-fitta');
     expect(within(table).getAllByRole('row')[0]!.parentElement!.tagName).toBe('THEAD');
   });
 
