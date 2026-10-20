@@ -183,10 +183,21 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const workout = await workouts.start(user.id, null);
       expect(workout).toMatchObject({ planId: null, planName: null, plan: [], sets: [] });
       expect(workout.previous).toEqual({
-        [squat.id]: { workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 5, weightKg: 90, toFailure: false, note: null }], note: null, before: [] },
+        [squat.id]: { workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 5, weightKg: 90, toFailure: false, note: null, continues: false }], note: null, before: [] },
       });
       expect(workout.exerciseNotes).toEqual({});
       expect(workout.previousNote).toBeNull();
+    });
+
+    it("take a part of a set only after a set of the same exercise", async () => {
+      const { user, squat, bench, workouts } = await setup();
+      const workout = await workouts.start(user.id, null);
+      await expect(workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 3, weightKg: 10, continues: true }))
+        .rejects.toThrow(new InputError("Non c’è una serie di questo esercizio da continuare."));
+      await workouts.addSet(user.id, workout.id, { exerciseId: bench.id, reps: 6, weightKg: 32 });
+      await expect(workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 3, weightKg: 10, continues: true })).rejects.toThrow(InputError);
+      await workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 6, weightKg: 32 });
+      expect(await workouts.addSet(user.id, workout.id, { exerciseId: squat.id, reps: 3, weightKg: 10, continues: true })).toMatchObject({ continues: true });
     });
 
     it("say which of the user's exercises are done without weights", async () => {

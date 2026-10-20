@@ -14,7 +14,7 @@ function bySession(sets: readonly StatSet[]): SessionSets[] {
   const sessions = new Map<number, { workoutId: number; startedAt: string; sets: DoneSet[] }>();
   for (const set of sets) {
     const session = sessions.get(set.workoutId) ?? { workoutId: set.workoutId, startedAt: set.startedAt, sets: [] };
-    session.sets.push({ reps: set.reps, weightKg: set.weightKg });
+    session.sets.push({ reps: set.reps, weightKg: set.weightKg, continues: set.continues });
     sessions.set(set.workoutId, session);
   }
   return [...sessions.values()];

@@ -29,6 +29,8 @@ export interface SetChange {
 
 export interface SetInput extends SetChange {
   readonly exerciseId: number;
+  /** A part of the set before it (a drop set, the left arm after): not said is no. */
+  readonly continues?: boolean;
   /** The app's name for it: the same key twice in a workout is the same set. */
   readonly key?: string;
 }
@@ -39,11 +41,13 @@ export interface PastSet {
   readonly weightKg: number | null;
   readonly toFailure: boolean;
   readonly note: string | null;
+  readonly continues: boolean;
 }
 
 export interface WorkoutSet extends SetInput {
   readonly toFailure: boolean;
   readonly note: string | null;
+  readonly continues: boolean;
   readonly id: number;
   readonly exerciseName: string;
   readonly createdAt: string;
@@ -105,6 +109,8 @@ export interface WorkoutsRepository {
   addSet(workoutId: number, input: SetInput): Promise<WorkoutSet>;
   /** How many sets a workout has; and the one under a key, if it is there. */
   countSets(workoutId: number): Promise<number>;
+  /** Whether the workout has a set of that exercise already: one a part can continue. */
+  hasSetOf(workoutId: number, exerciseId: number): Promise<boolean>;
   findSetByKey(workoutId: number, key: string | undefined): Promise<WorkoutSet | undefined>;
   /** One note per exercise in a workout; null takes it away. */
   setExerciseNote(workoutId: number, exerciseId: number, note: string | null): Promise<void>;
@@ -142,6 +148,7 @@ const setColumns = {
   weightKg: workoutSets.weightKg,
   toFailure: workoutSets.toFailure,
   note: workoutSets.note,
+  continues: workoutSets.continues,
   createdAt: workoutSets.createdAt,
 };
 
@@ -162,7 +169,8 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
         .select({
           ...columns,
           exercises: sql<number>`count(distinct ${workoutSets.exerciseId})::int`,
-          sets: sql<number>`count(${workoutSets.id})::int`,
+          // the parts of a set count with it: one set
+          sets: sql<number>`(count(${workoutSets.id}) filter (where not ${workoutSets.continues}))::int`,
           volume: sql<number>`coalesce(sum(${workoutSets.reps} * ${workoutSets.weightKg}), 0)::float8`,
         })
         .from(workouts)
@@ -231,7 +239,7 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
       // Raw rows: Drizzle leaves timestamps as Postgres writes them ("2026-09-03 17:00:00+00").
       const { rows } = await db.execute<{
         exercise_id: number; workout_id: number; started_at: string; rank: number;
-        reps: number | null; weight_kg: number | null; to_failure: boolean; set_note: string | null; note: string | null;
+        reps: number | null; weight_kg: number | null; to_failure: boolean; set_note: string | null; continues: boolean; note: string | null;
       }>(sql`
         with done as (
           select s.exercise_id, w.id as workout_id, w.started_at,
@@ -244,7 +252,7 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
             and w.id < (select id from workouts where id = ${workoutId} and user_id = ${userId})
           group by s.exercise_id, w.id, w.started_at
         )
-        select d.exercise_id, d.workout_id, d.started_at, d.rank::int as rank, s.reps, s.weight_kg, s.to_failure, s.note as set_note, n.note
+        select d.exercise_id, d.workout_id, d.started_at, d.rank::int as rank, s.reps, s.weight_kg, s.to_failure, s.note as set_note, s.continues, n.note
         from done d
         join workout_sets s on s.workout_id = d.workout_id and s.exercise_id = d.exercise_id
         left join workout_exercise_notes n on n.workout_id = d.workout_id and n.exercise_id = d.exercise_id
@@ -253,7 +261,7 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
       // The last time first (rank 1), then the time before it (rank 2) goes under it.
       const previous = new Map<number, PreviousSets>();
       for (const row of rows) {
-        const set = { reps: row.reps, weightKg: row.weight_kg, toFailure: row.to_failure, note: row.set_note };
+        const set = { reps: row.reps, weightKg: row.weight_kg, toFailure: row.to_failure, note: row.set_note, continues: row.continues };
         const entry = previous.get(row.exercise_id);
         // ordered by rank: the last time (rank 1) is always there before the time before it
         if (row.rank === 2) entry!.before.push(set);
@@ -311,6 +319,12 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
       return row!.count;
     },
 
+    async hasSetOf(workoutId, exerciseId) {
+      const [row] = await db.select({ id: workoutSets.id }).from(workoutSets)
+        .where(and(eq(workoutSets.workoutId, workoutId), eq(workoutSets.exerciseId, exerciseId))).limit(1);
+      return row !== undefined;
+    },
+
     async findSetByKey(workoutId, key) {
       const [row] = await db.select({ id: workoutSets.id }).from(workoutSets)
         .where(and(eq(workoutSets.workoutId, workoutId), sql`${workoutSets.clientKey} = ${key ?? null}`));
@@ -323,8 +337,17 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
     },
 
     async deleteSet(userId, setId) {
-      const deleted = await db.delete(workoutSets).where(mySet(userId, setId)).returning({ id: workoutSets.id });
-      return deleted.length > 0;
+      const [gone] = await db.delete(workoutSets).where(mySet(userId, setId))
+        .returning({ workoutId: workoutSets.workoutId, exerciseId: workoutSets.exerciseId, continues: workoutSets.continues });
+      if (gone === undefined) return false;
+      // the first part of a set gone, the next part (if any) is where the set starts now
+      if (!gone.continues) {
+        await db.execute(sql`
+          update workout_sets set continues = false
+          where id = (select min(id) from workout_sets where workout_id = ${gone.workoutId} and exercise_id = ${gone.exerciseId} and id > ${setId})
+            and continues`);
+      }
+      return true;
     },
   };
 }

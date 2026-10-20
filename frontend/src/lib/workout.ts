@@ -11,9 +11,36 @@ export interface Block {
   /** Cosa chiede la scheda; `null` per un esercizio fuori scheda. */
   target: PlanExercise | null;
   sets: WorkoutSet[];
+  /** Le serie di oggi, ognuna con i suoi pezzi: quante sono, conta queste. */
+  groups: WorkoutSet[][];
   previous: PreviousSets | null;
   /** Senza pesi: il peso si scrive solo come zavorra. */
   bodyweight: boolean;
+}
+
+/**
+ * Le serie con i loro pezzi: un pezzo (`continues`) va con la serie prima,
+ * nell'ordine in cui sono state segnate. «6 × 32 → 3 × 10 SX» è una serie.
+ */
+export function groupsOf<T extends { continues: boolean }>(sets: readonly T[]): T[][] {
+  const groups: T[][] = [];
+  for (const set of sets) {
+    if (set.continues && groups.length > 0) groups.at(-1)!.push(set);
+    else groups.push([set]);
+  }
+  return groups;
+}
+
+/**
+ * Le serie senza quella tolta, come le tiene il server: tolto il primo pezzo
+ * di una serie, il pezzo dopo (se c'è) è dove la serie comincia.
+ */
+export function withoutSet(sets: readonly WorkoutSet[], id: number): WorkoutSet[] {
+  const gone = sets.find((set) => set.id === id);
+  const left = sets.filter((set) => set.id !== id);
+  if (!gone || gone.continues) return left;
+  const next = left.find((set) => set.exerciseId === gone.exerciseId && set.id > id);
+  return next?.continues ? left.map((set) => (set === next ? { ...set, continues: false } : set)) : left;
 }
 
 /**
@@ -29,7 +56,7 @@ export function blocksOf(detail: WorkoutDetail, added: { id: number; name: strin
   const open = (exerciseId: number, name: string, target: PlanExercise | null) => {
     if (blocks.has(exerciseId)) return;
     blocks.set(exerciseId, {
-      exerciseId, name, target, sets: [], previous: detail.previous[String(exerciseId)] ?? null, bodyweight: detail.bodyweight.includes(exerciseId),
+      exerciseId, name, target, sets: [], groups: [], previous: detail.previous[String(exerciseId)] ?? null, bodyweight: detail.bodyweight.includes(exerciseId),
     });
   };
 
@@ -39,6 +66,7 @@ export function blocksOf(detail: WorkoutDetail, added: { id: number; name: strin
     blocks.get(done.exerciseId)!.sets.push(done);
   }
   for (const exercise of added) open(exercise.id, exercise.name, null);
+  for (const block of blocks.values()) block.groups = groupsOf(block.sets);
   return [...blocks.values()];
 }
 
@@ -57,7 +85,7 @@ export function targetReps(reps: string): number | null {
  */
 export function prefill(block: Block): { reps: number | null; weightKg: number | null } {
   const last = block.sets.at(-1) ?? block.previous?.sets[0];
-  const planned = block.target?.reps[block.sets.length];
+  const planned = block.target?.reps[groupsOf(block.sets).length];
   const reps = (planned === undefined ? null : targetReps(planned)) ?? last?.reps ?? null;
   return { reps, weightKg: last?.weightKg ?? null };
 }

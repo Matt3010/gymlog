@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanExercise, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types';
-import { blocksOf, describeTarget, inProgress, prefill, readSet, targetReps } from './workout';
+import { blocksOf, describeTarget, groupsOf, inProgress, prefill, readSet, targetReps, withoutSet } from './workout';
 
 const target = (exerciseId: number, exerciseName: string, extra: Partial<PlanExercise> = {}): PlanExercise => ({
   id: exerciseId * 10, exerciseId, exerciseName, position: 0, reps: ['8-10', '8-10', '8-10'], restSeconds: 90, notes: null, ...extra,
@@ -8,7 +8,7 @@ const target = (exerciseId: number, exerciseName: string, extra: Partial<PlanExe
 
 let nextSet = 1;
 const set = (exerciseId: number, exerciseName: string, reps: number, weightKg: number): WorkoutSet => ({
-  id: nextSet++, exerciseId, exerciseName, reps, weightKg, toFailure: false, note: null, createdAt: '2026-10-01T17:00:00.000Z',
+  id: nextSet++, exerciseId, exerciseName, reps, weightKg, toFailure: false, note: null, continues: false, createdAt: '2026-10-01T17:00:00.000Z',
 });
 
 const detail = (extra: Partial<WorkoutDetail> = {}): WorkoutDetail => ({
@@ -21,11 +21,11 @@ describe('the blocks of a workout', () => {
     const squat = target(1, 'Squat');
     const bench = target(2, 'Panca', { reps: ['10', '10', '8', '6'] });
     const done = [set(1, 'Squat', 8, 100), set(2, 'Panca', 10, 60), set(1, 'Squat', 8, 102.5)];
-    const previous = { '1': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 97.5, toFailure: false, note: null }], note: null, before: [] } };
+    const previous = { '1': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 97.5, toFailure: false, note: null, continues: false }], note: null, before: [] } };
     const blocks = blocksOf(detail({ plan: [squat, bench], sets: done, previous }));
     expect(blocks).toEqual([
-      { exerciseId: 1, name: 'Squat', target: squat, sets: [done[0], done[2]], previous: previous['1'], bodyweight: false },
-      { exerciseId: 2, name: 'Panca', target: bench, sets: [done[1]], previous: null, bodyweight: false },
+      { exerciseId: 1, name: 'Squat', target: squat, sets: [done[0], done[2]], groups: [[done[0]], [done[2]]], previous: previous['1'], bodyweight: false },
+      { exerciseId: 2, name: 'Panca', target: bench, sets: [done[1]], groups: [[done[1]]], previous: null, bodyweight: false },
     ]);
   });
 
@@ -51,7 +51,7 @@ describe('the blocks of a workout', () => {
   });
 
   it('carry the last time for exercises outside the plan too', () => {
-    const previous = { '3': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 12, weightKg: 14, toFailure: false, note: null }], note: null, before: [] } };
+    const previous = { '3': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 12, weightKg: 14, toFailure: false, note: null, continues: false }], note: null, before: [] } };
     const blocks = blocksOf(detail({ sets: [set(3, 'Curl', 12, 15)], previous }));
     expect(blocks[0]!.previous).toEqual(previous['3']);
   });
@@ -71,8 +71,8 @@ describe('the reps a plan asks for', () => {
 });
 
 describe('the next set, proposed', () => {
-  const block = { exerciseId: 1, name: 'Squat', target: target(1, 'Squat', { reps: ['12', '10', '8-9', 'max'] }), sets: [] as WorkoutSet[], previous: null, bodyweight: false };
-  const previous = { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 95, toFailure: false, note: null }, { reps: 6, weightKg: 100, toFailure: false, note: null }], note: null, before: [] };
+  const block = { exerciseId: 1, name: 'Squat', target: target(1, 'Squat', { reps: ['12', '10', '8-9', 'max'] }), sets: [] as WorkoutSet[], previous: null, bodyweight: false, groups: [] };
+  const previous = { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 95, toFailure: false, note: null, continues: false }, { reps: 6, weightKg: 100, toFailure: false, note: null, continues: false }], note: null, before: [] };
 
   it('takes the reps the plan asks for that set, and the weight of the last set', () => {
     expect(prefill(block)).toEqual({ reps: 12, weightKg: null });
@@ -169,5 +169,31 @@ describe('a set as typed', () => {
 
   it('refuses more than two decimals, which the server would not keep', () => {
     expect(readSet('8', '62,555')).toEqual({ error: 'Il peso ha al più due decimali.' });
+  });
+});
+
+describe('the parts of a set', () => {
+  const part = (id: number, exerciseId: number, continues: boolean): WorkoutSet => ({ ...set(exerciseId, 'X', 5, 10), id, continues });
+
+  it('go with the set before them, in order', () => {
+    const sets = [part(1, 1, false), part(2, 1, true), part(3, 1, true), part(4, 1, false), part(5, 1, true)];
+    expect(groupsOf(sets).map((group) => group.map((one) => one.id))).toEqual([[1, 2, 3], [4, 5]]);
+    expect(groupsOf([])).toEqual([]);
+    // a part with nothing before it starts a set of its own
+    expect(groupsOf([part(9, 1, true)]).map((group) => group.length)).toEqual([1]);
+  });
+
+  it('count for the plan as one set: the next set is asked as the plan says for it', () => {
+    const block = blocksOf(detail({ plan: [target(1, 'Squat', { reps: ['8', '6', '4'] })], sets: [part(1, 1, false), part(2, 1, true)] }))[0]!;
+    expect(block.groups).toHaveLength(1);
+    expect(prefill(block).reps).toBe(6);
+  });
+
+  it('taking the first part away, the next part starts the set; another part goes alone', () => {
+    const sets = [part(1, 1, false), part(2, 1, true), part(3, 1, true), part(4, 2, false)];
+    expect(withoutSet(sets, 1).map((one) => [one.id, one.continues])).toEqual([[2, false], [3, true], [4, false]]);
+    expect(withoutSet(sets, 2).map((one) => [one.id, one.continues])).toEqual([[1, false], [3, true], [4, false]]);
+    expect(withoutSet(sets, 4).map((one) => one.id)).toEqual([1, 2, 3]);
+    expect(withoutSet(sets, 99)).toEqual(sets);
   });
 });

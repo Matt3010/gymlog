@@ -26,7 +26,7 @@ export const workoutsApi = {
   get: (id: number) => api.get<WorkoutDetail>(`/workouts/${id}`),
   update: (id: number, change: { notes?: string | null; finished?: boolean }) => api.patch<WorkoutDetail>(`/workouts/${id}`, change),
   remove: (id: number) => api.delete<{ ok: true }>(`/workouts/${id}`),
-  addSet: (workoutId: number, set: SetInput & { exerciseId: number }) =>
+  addSet: (workoutId: number, set: SetInput & { exerciseId: number; continues?: boolean }) =>
     api.post<WorkoutSet>(`/workouts/${workoutId}/sets`, set),
   updateSet: (id: number, set: SetInput) => api.patch<WorkoutSet>(`/sets/${id}`, set),
   /** Vuota o `null` la toglie. */

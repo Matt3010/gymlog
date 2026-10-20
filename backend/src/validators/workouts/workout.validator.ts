@@ -40,7 +40,12 @@ export function parseSetChange(value: unknown): SetChange {
 export function parseSet(value: unknown): SetInput {
   const body = object(value);
   const key = optionalText(body, "key", 64);
-  return { exerciseId: id(body, "exerciseId"), ...parseSetChange(body), ...(key === null ? {} : { key }) };
+  return {
+    exerciseId: id(body, "exerciseId"),
+    ...parseSetChange(body),
+    continues: body.continues === undefined ? false : bool(body, "continues"),
+    ...(key === null ? {} : { key }),
+  };
 }
 
 /** The note on one exercise in a workout: blank takes it away. The key must be there. */

@@ -9,6 +9,7 @@ export interface StatSet {
   readonly startedAt: string;
   readonly reps: number | null;
   readonly weightKg: number | null;
+  readonly continues: boolean;
 }
 
 /** What the statistics are made from: every set done. */
@@ -28,6 +29,7 @@ export function createStatsRepository(db: Executor): StatsRepository {
           startedAt: workouts.startedAt,
           reps: workoutSets.reps,
           weightKg: workoutSets.weightKg,
+          continues: workoutSets.continues,
         })
         .from(workoutSets)
         .innerJoin(workouts, eq(workouts.id, workoutSets.workoutId))

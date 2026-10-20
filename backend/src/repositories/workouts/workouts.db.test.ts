@@ -54,7 +54,7 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     const workout = await repo().create(user.id, null);
     const first = await repo().addSet(workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100 });
     await repo().addSet(workout.id, { exerciseId: bench.id, reps: 8, weightKg: 62.5 });
-    expect(first).toEqual({ id: expect.any(Number), exerciseId: squat.id, exerciseName: "Squat", reps: 5, weightKg: 100, toFailure: false, note: null, createdAt: expect.stringMatching(ISO) });
+    expect(first).toEqual({ id: expect.any(Number), exerciseId: squat.id, exerciseName: "Squat", reps: 5, weightKg: 100, toFailure: false, note: null, continues: false, createdAt: expect.stringMatching(ISO) });
     expect((await repo().sets(workout.id)).map((set) => [set.exerciseName, set.reps, set.weightKg])).toEqual([["Squat", 5, 100], ["Panca", 8, 62.5]]);
   });
 
@@ -75,9 +75,29 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     // and the last time shows them as they were
     const next = await repo().create(user.id, null);
     expect((await repo().previous(user.id, next.id)).get(bench.id)?.sets).toEqual([
-      { reps: null, weightKg: 10, toFailure: true, note: null },
-      { reps: 5, weightKg: 12, toFailure: true, note: null },
+      { reps: null, weightKg: 10, toFailure: true, note: null, continues: false },
+      { reps: 5, weightKg: 12, toFailure: true, note: null, continues: false },
     ]);
+  });
+
+  it("counts the parts of a set as one; taking the first away, the next part starts the set", async () => {
+    const { user, squat, bench } = await setup();
+    const workout = await repo().create(user.id, null);
+    const head = await repo().addSet(workout.id, { exerciseId: bench.id, reps: 6, weightKg: 32 });
+    const part = await repo().addSet(workout.id, { exerciseId: bench.id, reps: 3, weightKg: 10, note: "SX", continues: true });
+    const last = await repo().addSet(workout.id, { exerciseId: bench.id, reps: 1, weightKg: 8, continues: true });
+    await repo().addSet(workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100 });
+    expect(part.continues).toBe(true);
+    expect((await repo().list(user.id, 10, 0))[0]).toMatchObject({ sets: 2, exercises: 2 });
+    expect(await repo().hasSetOf(workout.id, bench.id)).toBe(true);
+    expect(await repo().hasSetOf(workout.id, 999_999)).toBe(false);
+
+    expect(await repo().deleteSet(user.id, head.id)).toBe(true);
+    const left = await repo().sets(workout.id);
+    expect(left.map((set) => [set.id, set.continues])).toEqual([[part.id, false], [last.id, true], [expect.any(Number), false]]);
+    // a part taken away leaves the others as they are
+    await repo().deleteSet(user.id, last.id);
+    expect((await repo().sets(workout.id)).map((set) => set.continues)).toEqual([false, false]);
   });
 
   it("refuses a set with neither reps nor to failure", async () => {
@@ -256,8 +276,8 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     await repo().setExerciseNote(first.id, squat.id, "di una sessione più vecchia");
 
     expect(await repo().previous(user.id, current.id)).toEqual(new Map([
-      [squat.id, { workoutId: second.id, startedAt: "2026-09-03T17:00:00.000Z", sets: [{ reps: 5, weightKg: 95, toFailure: false, note: null }, { reps: 4, weightKg: 97.5, toFailure: false, note: null }], note: "scendere di peso", before: [{ reps: 5, weightKg: 90, toFailure: false, note: null }] }],
-      [bench.id, { workoutId: first.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 8, weightKg: 60, toFailure: false, note: null }, { reps: 6, weightKg: 65, toFailure: false, note: null }], note: null, before: [] }],
+      [squat.id, { workoutId: second.id, startedAt: "2026-09-03T17:00:00.000Z", sets: [{ reps: 5, weightKg: 95, toFailure: false, note: null, continues: false }, { reps: 4, weightKg: 97.5, toFailure: false, note: null, continues: false }], note: "scendere di peso", before: [{ reps: 5, weightKg: 90, toFailure: false, note: null, continues: false }] }],
+      [bench.id, { workoutId: first.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 8, weightKg: 60, toFailure: false, note: null, continues: false }, { reps: 6, weightKg: 65, toFailure: false, note: null, continues: false }], note: null, before: [] }],
     ]));
     expect(await repo().previous(user.id, first.id)).toEqual(new Map());
     expect(await repo().previous(other.user.id, current.id)).toEqual(new Map());

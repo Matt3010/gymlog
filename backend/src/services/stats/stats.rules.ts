@@ -1,9 +1,10 @@
 import type { StatSet } from "../../repositories";
 
-/** No reps: to failure, not counted; no weight: done without one. */
+/** No reps: to failure, not counted; no weight: done without one; `continues`: a part of the set before. */
 export interface DoneSet {
   readonly reps: number | null;
   readonly weightKg: number | null;
+  readonly continues?: boolean;
 }
 
 export interface SetStats {
@@ -51,7 +52,8 @@ export function setStats(sets: readonly DoneSet[]): SetStats {
   const weights = sets.flatMap((set) => (set.weightKg === null ? [] : [set.weightKg]));
   const both = sets.flatMap((set) => (set.reps === null || set.weightKg === null ? [] : [{ reps: set.reps, weightKg: set.weightKg }]));
   return {
-    sets: sets.length,
+    // the parts of a set (a drop set) are one set; each part counts for the rest
+    sets: sets.filter((set) => !set.continues).length,
     reps: sum(reps),
     maxReps: most(reps),
     volume: round(sum(both.map((set) => set.reps * set.weightKg))),

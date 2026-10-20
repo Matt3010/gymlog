@@ -8,7 +8,7 @@ const FIELD_LABELS: Record<string, string> = {
   username: "Utente", name: "Nome", muscleGroup: "Gruppo muscolare", notes: "Note",
   exercises: "Esercizi", exerciseId: "Esercizio", reps: "Ripetizioni",
   restSeconds: "Recupero", planId: "Scheda", finished: "Terminato", weightKg: "Peso", note: "Testo della nota", key: "Chiave",
-  bodyweight: "Corpo libero", toFailure: "MAX",
+  bodyweight: "Corpo libero", toFailure: "MAX", continues: "Stessa serie",
 };
 
 export const field = (key: string): string => FIELD_LABELS[key] ?? key;

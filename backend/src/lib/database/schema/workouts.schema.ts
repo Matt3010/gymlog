@@ -33,6 +33,11 @@ export const workoutSets = pgTable("workout_sets", {
   toFailure: boolean("to_failure").notNull().default(false),
   /** A word about this set alone: "SX", "con riposo". */
   note: text("note"),
+  /**
+   * A part of the set before it, of the same exercise in the same workout:
+   * a drop set, the left arm after both. Counted with it as one set.
+   */
+  continues: boolean("continues").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   /**
    * The app's own name for the set, when it has one: the app may send a set

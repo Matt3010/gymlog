@@ -63,11 +63,15 @@ export function createWorkoutsService(db: Executor): WorkoutsService {
         const again = await workouts.findSetByKey(workoutId, input.key);
         if (again === undefined) throw new InputError(`Al più ${MAX_SETS} serie in un allenamento.`);
       }
+      // a part continues a set of the same exercise: the first one cannot
+      if (input.continues && !(await workouts.hasSetOf(workoutId, input.exerciseId))) {
+        throw new InputError("Non c’è una serie di questo esercizio da continuare.");
+      }
       const set = await workouts.addSet(workoutId, input);
       // a key already used: the same set sent again, unless it says something else
       // a set just made has the numbers it was given: only one already there under the key can differ
       const same = set.exerciseId === input.exerciseId && set.reps === input.reps && set.weightKg === input.weightKg
-        && set.toFailure === (input.toFailure ?? false) && set.note === (input.note ?? null);
+        && set.toFailure === (input.toFailure ?? false) && set.note === (input.note ?? null) && set.continues === (input.continues ?? false);
       if (!same) {
         throw new ConflictError("Questa serie è già segnata con altri numeri. Ricarica la pagina.");
       }

@@ -14,7 +14,7 @@ const target = (id: number, exerciseId: number, exerciseName: string, reps: stri
 });
 
 const set = (id: number, exerciseId: number, exerciseName: string, reps: number, weightKg: number): WorkoutSet => ({
-  id, exerciseId, exerciseName, reps, weightKg, toFailure: false, note: null, createdAt: '2026-10-01T17:05:00.000Z',
+  id, exerciseId, exerciseName, reps, weightKg, toFailure: false, note: null, continues: false, createdAt: '2026-10-01T17:05:00.000Z',
 });
 
 /** Forza · A in progress: Squat with one set done and a last time, Panca still to do. */
@@ -24,8 +24,8 @@ const DETAIL: WorkoutDetail = {
   plan: [target(1, 1, 'Squat', ['10', '8-10', '6'], 90), target(2, 2, 'Panca piana', ['10', '10', '10'], null)],
   sets: [set(100, 1, 'Squat', 8, 60)],
   previous: {
-    1: { workoutId: 3, startedAt: '2026-09-20T17:00:00.000Z', sets: [{ reps: 8, weightKg: 60, toFailure: false, note: null }, { reps: 8, weightKg: 60, toFailure: false, note: null }, { reps: 6, weightKg: 62.5, toFailure: false, note: null }], note: 'ginocchio un po’ dentro',
-      before: [{ reps: 8, weightKg: 57.5, toFailure: false, note: null }, { reps: 8, weightKg: 60, toFailure: false, note: null }] },
+    1: { workoutId: 3, startedAt: '2026-09-20T17:00:00.000Z', sets: [{ reps: 8, weightKg: 60, toFailure: false, note: null, continues: false }, { reps: 8, weightKg: 60, toFailure: false, note: null, continues: false }, { reps: 6, weightKg: 62.5, toFailure: false, note: null, continues: false }], note: 'ginocchio un po’ dentro',
+      before: [{ reps: 8, weightKg: 57.5, toFailure: false, note: null, continues: false }, { reps: 8, weightKg: 60, toFailure: false, note: null, continues: false }] },
   },
   exerciseNotes: { 1: 'scendere più lento' },
   previousNote: { workoutId: 3, startedAt: '2026-09-20T17:00:00.000Z', note: 'poco riposo fra le serie' },
@@ -39,8 +39,8 @@ function server(detail: WorkoutDetail = DETAIL) {
   return fakeApi()
     .on('GET /workouts/7', detail)
     .on('POST /workouts/7/sets', (call: Call) => {
-      const body = call.body as { exerciseId: number; reps: number; weightKg: number; toFailure: boolean; note: string | null };
-      return { ...set(nextId++, body.exerciseId, names[body.exerciseId]!, body.reps, body.weightKg), toFailure: body.toFailure, note: body.note };
+      const body = call.body as { exerciseId: number; reps: number; weightKg: number; toFailure: boolean; note: string | null; continues: boolean };
+      return { ...set(nextId++, body.exerciseId, names[body.exerciseId]!, body.reps, body.weightKg), toFailure: body.toFailure, note: body.note, continues: body.continues };
     })
     .on('PATCH /sets/100', (call: Call) => ({ ...detail.sets[0], ...(call.body as object) }))
     .on('DELETE /sets/100', { ok: true })
@@ -96,7 +96,7 @@ describe('a workout in progress', () => {
     expect(kg()).toHaveValue('62,5');
     expect(reps()).toHaveValue('7');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 7, weightKg: 62.5, toFailure: false, note: null } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 7, weightKg: 62.5, toFailure: false, note: null, continues: false } }]);
     expect(await screen.findByRole('button', { name: 'Segna la serie 3' })).toBeInTheDocument();
     expect(doneSets()).toEqual(['8 × 60 kg', '7 × 62,5 kg']);
     expect(screen.getByRole('button', { name: /^Squat/ })).toHaveTextContent('2/3');
@@ -233,7 +233,7 @@ describe('a workout in progress', () => {
     await user.clear(kg());
     await user.type(kg(), '61,25');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 61.25, toFailure: false, note: null } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 61.25, toFailure: false, note: null, continues: false } }]);
   });
 
   it('takes a weight typed a key at a time with the comma, saying nothing on the way', async () => {
@@ -248,7 +248,7 @@ describe('a workout in progress', () => {
     }
     expect(kg()).toHaveValue('22,5');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 22.5, toFailure: false, note: null } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 22.5, toFailure: false, note: null, continues: false } }]);
   });
 
   it('takes a weight ending in a separator as the whole number', async () => {
@@ -259,7 +259,7 @@ describe('a workout in progress', () => {
     await user.clear(kg());
     await user.type(kg(), '22,');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 22, toFailure: false, note: null } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 8, weightKg: 22, toFailure: false, note: null, continues: false } }]);
   });
 
   it('puts reps and weight on two rows, each with big buttons', async () => {
@@ -278,7 +278,7 @@ describe('a workout in progress', () => {
     expect(reps()).toHaveValue('10');
     expect(kg()).toHaveValue('');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 1' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 2, reps: 10, weightKg: null, toFailure: false, note: null } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 2, reps: 10, weightKg: null, toFailure: false, note: null, continues: false } }]);
     expect(await screen.findByRole('button', { name: /10 rip\./ })).toBeInTheDocument();
   });
 
@@ -291,7 +291,7 @@ describe('a workout in progress', () => {
     await user.clear(reps());
     await user.type(screen.getByLabelText('Nota della serie'), ' SX ');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: null, weightKg: 60, toFailure: true, note: 'SX' } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: null, weightKg: 60, toFailure: true, note: 'SX', continues: false } }]);
     expect(await screen.findByRole('button', { name: 'Segna la serie 3' })).toBeInTheDocument();
     expect(doneSets()).toEqual(['8 × 60 kg', 'MAX × 60 kgSX']);
     // MAX and the note were that set's: the next one starts without them
@@ -319,12 +319,40 @@ describe('a workout in progress', () => {
     expect(screen.getByRole('tab', { name: 'Serie' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByLabelText('Peso', { selector: 'input' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Segna la serie 1' }));
-    expect(api.changes().at(-1)).toEqual({ route: 'POST /workouts/7/sets', body: { exerciseId: 2, reps: 10, weightKg: null, toFailure: false, note: null } });
+    expect(api.changes().at(-1)).toEqual({ route: 'POST /workouts/7/sets', body: { exerciseId: 2, reps: 10, weightKg: null, toFailure: false, note: null, continues: false } });
     await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Segna la serie 2' })).toBeEnabled());
     await user.click(screen.getByRole('button', { name: 'Zavorra' }));
     await user.type(screen.getByLabelText('Zavorra', { selector: 'input' }), '5');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 2' }));
-    expect(api.changes().at(-1)).toEqual({ route: 'POST /workouts/7/sets', body: { exerciseId: 2, reps: 10, weightKg: 5, toFailure: false, note: null } });
+    expect(api.changes().at(-1)).toEqual({ route: 'POST /workouts/7/sets', body: { exerciseId: 2, reps: 10, weightKg: 5, toFailure: false, note: null, continues: false } });
+  });
+
+  it('continues the last set with a part of it, counted as one set, without moving to the next', async () => {
+    const api = server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    await screen.findByRole('button', { name: 'Segna la serie 2' });
+    await user.clear(reps());
+    await user.type(reps(), '3');
+    await user.clear(kg());
+    await user.type(kg(), '10');
+    await user.type(screen.getByLabelText('Nota della serie'), 'SX');
+    await user.click(screen.getByRole('button', { name: 'Continua la serie 1' }));
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 1, reps: 3, weightKg: 10, toFailure: false, note: 'SX', continues: true } }]);
+    // still the second set to do, and one set done, in two parts on one row
+    expect(await screen.findByRole('button', { name: 'Segna la serie 2' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Squat/ })).toHaveTextContent('1/3');
+    const rows = [...document.querySelectorAll('.sets:not(.warmup) > .set')].map((row) => row.textContent?.replace(/\s+/g, ' ').replace(/ ?→ ?/g, ' → ').trim());
+    expect(rows).toEqual(['1 8 × 60 kg → 3 × 10 kgSX']);
+  });
+
+  it('offers to continue a set only once there is one', async () => {
+    server();
+    render(Host, { page: WorkoutPage, params: { id: 7 } });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^Panca piana/ }));
+    expect(screen.getByRole('button', { name: 'Segna la serie 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Continua la serie/ })).not.toBeInTheDocument();
   });
 
   it('corrects a set to failure and its note from its row', async () => {
@@ -410,7 +438,7 @@ describe('a workout in progress', () => {
     await user.type(kg(), '12');
     await user.type(reps(), '12');
     await user.click(screen.getByRole('button', { name: 'Segna la serie 1' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 9, reps: 12, weightKg: 12, toFailure: false, note: null } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts/7/sets', body: { exerciseId: 9, reps: 12, weightKg: 12, toFailure: false, note: null, continues: false } }]);
     expect(await screen.findByRole('button', { name: /^Curl/ })).toHaveTextContent('1 serie');
   });
 

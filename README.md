@@ -44,7 +44,9 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
   esercizio vedi cosa chiede la scheda e cosa hai fatto l'ultima volta; registri ogni
   serie (ripetizioni × kg), con il recupero che parte da solo. Una serie può essere
   **MAX** (a cedimento: le ripetizioni, se non le hai contate, restano vuote), senza
-  peso, e avere una nota sua ("SX", "con riposo"). Gli esercizi **a corpo libero**
+  peso, e avere una nota sua ("SX", "con riposo"). Una serie può avere più pezzi con pesi
+  diversi (stripping, il braccio sinistro dopo): «Continua la serie» ne aggiunge uno, e si
+  conta come una serie sola. Gli esercizi **a corpo libero**
   (trazioni) non chiedono i chili, che si aggiungono solo come zavorra, e nelle
   statistiche contano le ripetizioni. Il nome della scheda
   resta nello Storico (una sezione sua, nella barra in basso) anche se poi la cancelli.

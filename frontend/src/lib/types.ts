@@ -103,14 +103,19 @@ export interface SetInput {
   note: string | null;
 }
 
-export interface WorkoutSet extends SetInput {
+/** Una serie fatta: `continues` è un pezzo della serie prima (stripping, il braccio SX dopo). */
+export interface PastSet extends SetInput {
+  continues: boolean;
+}
+
+export interface WorkoutSet extends PastSet {
   id: number;
   exerciseId: number;
   exerciseName: string;
   createdAt: string;
 }
 
-export type DoneSet = SetInput;
+export type DoneSet = PastSet;
 
 export interface PreviousSets {
   workoutId: number;

@@ -195,13 +195,13 @@ describe("a text", () => {
 
 describe("a set", () => {
   it("has an exercise, reps and kg", () => {
-    expect(parseSet({ exerciseId: 2, reps: 8, weightKg: 62.5 })).toEqual({ exerciseId: 2, reps: 8, weightKg: 62.5, toFailure: false, note: null });
+    expect(parseSet({ exerciseId: 2, reps: 8, weightKg: 62.5 })).toEqual({ exerciseId: 2, reps: 8, weightKg: 62.5, toFailure: false, note: null, continues: false });
     expect(parseSet({ exerciseId: 2, reps: 100, weightKg: 0 })).toMatchObject({ reps: 100, weightKg: 0 });
     expect(parseSet({ exerciseId: 2, reps: 1, weightKg: 1000 })).toMatchObject({ reps: 1, weightKg: 1000 });
   });
 
   it("may carry a key of the app, to be logged once however many times it is sent", () => {
-    expect(parseSet({ exerciseId: 2, reps: 8, weightKg: 60, key: "3f2a-9c" })).toEqual({ exerciseId: 2, reps: 8, weightKg: 60, toFailure: false, note: null, key: "3f2a-9c" });
+    expect(parseSet({ exerciseId: 2, reps: 8, weightKg: 60, key: "3f2a-9c" })).toEqual({ exerciseId: 2, reps: 8, weightKg: 60, toFailure: false, note: null, continues: false, key: "3f2a-9c" });
     expect(() => parseSet({ exerciseId: 2, reps: 8, weightKg: 60, key: "x".repeat(65) })).toThrow("Chiave: troppo lungo");
   });
 
@@ -221,6 +221,11 @@ describe("a set", () => {
     expect(parseSet({ exerciseId: 2, reps: 3, weightKg: 10, note: " SX " }).note).toBe("SX");
     expect(parseSet({ exerciseId: 2, reps: 3, weightKg: 10, note: " " }).note).toBeNull();
     expect(() => parseSet({ exerciseId: 2, reps: 3, weightKg: 10, note: "x".repeat(101) })).toThrow("Testo della nota: troppo lungo.");
+  });
+
+  it("may continue the set before it, as a part of it", () => {
+    expect(parseSet({ exerciseId: 2, reps: 3, weightKg: 10, continues: true }).continues).toBe(true);
+    expect(() => parseSet({ exerciseId: 2, reps: 3, weightKg: 10, continues: 1 })).toThrow("Stessa serie: valore non valido.");
   });
 
   it("keeps two decimals of kg", () => {

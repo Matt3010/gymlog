@@ -39,11 +39,12 @@ interface Workout {
   id: number; planId: number | null; planName: string | null;   // il nome della scheda, copiato all'inizio
   startedAt: string; finishedAt: string | null; notes: string | null;
 }
-interface WorkoutSummary extends Workout { exercises: number; sets: number; volume: number }
+interface WorkoutSummary extends Workout { exercises: number; sets: number; volume: number }   // sets: le serie, i pezzi contano con la loro
 // Una serie: reps null solo se toFailure (MAX, a cedimento, senza contarle); weightKg null è senza peso;
 // note è una parola sulla serie sola ("SX", "con riposo"), fino a 100 caratteri.
 interface SetInput { reps: number | null; weightKg: number | null; toFailure?: boolean; note?: string | null }
-interface PastSet { reps: number | null; weightKg: number | null; toFailure: boolean; note: string | null }
+// continues: un pezzo della serie prima dello stesso esercizio (stripping, il braccio SX dopo): conta con lei come una serie
+interface PastSet { reps: number | null; weightKg: number | null; toFailure: boolean; note: string | null; continues: boolean }
 interface WorkoutSet extends PastSet { id: number; exerciseId: number; exerciseName: string; createdAt: string }
 interface PreviousSets { workoutId: number; startedAt: string; sets: PastSet[]; note: string | null; before: PastSet[] }
 interface WorkoutDetail extends Workout {
@@ -103,7 +104,7 @@ interface ExerciseSummary { exerciseId: number; name: string; sessions: number; 
 | GET | /api/workouts/:id | – | `WorkoutDetail` |
 | PATCH | /api/workouts/:id | `{ notes?: string \| null, finished?: boolean }` | `WorkoutDetail`; `finished: false` dà 409 se un altro è in corso |
 | DELETE | /api/workouts/:id | – | `{ ok: true }` |
-| POST | /api/workouts/:id/sets | `SetInput & { exerciseId, key? }` (`key`, fino a 64 caratteri: la stessa due volte nello stesso allenamento dà la serie già segnata, non una nuova; con altri numeri 409. Al più 200 serie per allenamento) | `WorkoutSet` |
+| POST | /api/workouts/:id/sets | `SetInput & { exerciseId, continues?, key? }` (`continues` vuole una serie dello stesso esercizio già segnata, se no 400. `key`, fino a 64 caratteri: la stessa due volte nello stesso allenamento dà la serie già segnata, non una nuova; con altri numeri 409. Al più 200 serie per allenamento) | `WorkoutSet` |
 | PUT | /api/workouts/:id/exercises/:exerciseId/note | `{ note: string \| null }` (vuota o null la toglie, fino a 1000 caratteri) | `{ exerciseId, note }` |
 | PATCH | /api/sets/:id | `SetInput` (la serie intera: quello che manca torna vuoto) | `WorkoutSet` |
 | DELETE | /api/sets/:id | – | `{ ok: true }` |

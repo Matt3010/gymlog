@@ -11,7 +11,7 @@
   import type { Exercise, WorkoutDetail, WorkoutSet } from '../../lib/types';
   import { trendOf } from '../../lib/trend';
   import { warmupFor } from '../../lib/warmup';
-  import { blocksOf, describeTarget, prefill, readSet, type Block } from '../../lib/workout';
+  import { blocksOf, describeTarget, groupsOf, prefill, readSet, withoutSet, type Block } from '../../lib/workout';
   import Alert from '../Alert.svelte';
   import Button from '../Button.svelte';
   import Tabs from '../Tabs.svelte';
@@ -82,7 +82,9 @@
      dallo storico, non tocca quello in corso. */
   $effect(() => {
     if (!detail) return;
-    const open = detail.finishedAt === null ? { id, title, startedAt: detail.startedAt, sets: detail.sets.length } : null;
+    // i pezzi di una serie sono quella serie: si contano le serie
+    const sets = detail.sets.filter((set) => !set.continues).length;
+    const open = detail.finishedAt === null ? { id, title, startedAt: detail.startedAt, sets } : null;
     untrack(() => {
       if (open || current.workout?.id === id) current.set(open);
     });
@@ -94,7 +96,7 @@
         detail = loaded;
         // si apre il primo esercizio con delle serie ancora da fare
         const all = blocksOf(loaded);
-        const next = all.find((block) => block.sets.length < (block.target?.reps.length ?? 1)) ?? all[0];
+        const next = all.find((block) => block.groups.length < (block.target?.reps.length ?? 1)) ?? all[0];
         if (next && loaded.finishedAt === null) untrack(() => open(next));
       },
       (failure: Error) => (error = failure.message),
@@ -118,7 +120,8 @@
      di un doppio tocco cade su un tasto spento, e due serie in mezzo secondo non si fanno */
   let cooling = $state(false);
 
-  async function addSet(block: Block): Promise<void> {
+  /** La prossima serie, o (`continues`) un pezzo dell'ultima: lo stripping, il braccio SX dopo. */
+  async function addSet(block: Block, continues = false): Promise<void> {
     const typed = readSet(reps, weighted ? kg : '', toFailure, setNote);
     if ('error' in typed) {
       error = typed.error;
@@ -129,7 +132,7 @@
     setTimeout(() => (cooling = false), 600);
     error = '';
     try {
-      const done = await workoutsApi.addSet(id, { exerciseId: block.exerciseId, ...typed });
+      const done = await workoutsApi.addSet(id, { exerciseId: block.exerciseId, ...typed, continues });
       detail?.sets.push(done);
       added = added.filter((one) => one.id !== block.exerciseId);
       // la prossima serie si propone da capo: quello che chiede la scheda per lei
@@ -138,6 +141,7 @@
       // MAX e la nota sono di quella serie: la prossima riparte senza
       toFailure = false;
       setNote = '';
+      // il recupero riparte a ogni serie e a ogni suo pezzo: dall'ultimo si riposa
       if (block.target?.restSeconds) rest.start(block.target.restSeconds);
     } catch (failure) {
       error = (failure as Error).message;
@@ -208,7 +212,7 @@
         set,
         number,
         onsaved: (saved: WorkoutSet) => detail && (detail.sets = detail.sets.map((one) => (one.id === saved.id ? saved : one))),
-        ondeleted: (setId: number) => detail && (detail.sets = detail.sets.filter((one) => one.id !== setId)),
+        ondeleted: (setId: number) => detail && (detail.sets = withoutSet(detail.sets, setId)),
       },
     });
   }
@@ -253,8 +257,8 @@
       <PageCard>
         <button type="button" class="head" aria-expanded={isOpen} onclick={() => (isOpen ? (active = null) : open(block))}>
           <span class="name">{block.name}</span>
-          <span class="count" class:done={block.target !== null && block.sets.length >= block.target.reps.length}>
-            {block.target ? `${block.sets.length}/${block.target.reps.length}` : block.sets.length === 1 ? '1 serie' : `${block.sets.length} serie`}
+          <span class="count" class:done={block.target !== null && block.groups.length >= block.target.reps.length}>
+            {block.target ? `${block.groups.length}/${block.target.reps.length}` : block.groups.length === 1 ? '1 serie' : `${block.groups.length} serie`}
           </span>
           <Icon name={isOpen ? 'collapse' : 'expand'} />
         </button>
@@ -287,23 +291,33 @@
               <div class="line">
                 <span class="eyebrow" id="past-{block.exerciseId}">L’ultima volta · {formatDay(block.previous.startedAt)}</span>
                 <ol class="past" aria-labelledby="past-{block.exerciseId}">
-                  {#each block.previous.sets as set, index (index)}
-                    <li><span class="nr">{index + 1}</span> {formatSet(set)}{#if set.note}<span class="set-note">{set.note}</span>{/if} <Trend trend={trendOf(set, block.previous.before[index])} against="before" /></li>
+                  {#each groupsOf(block.previous.sets) as group, index (index)}
+                    <li>
+                      <span class="nr">{index + 1}</span>
+                      {#each group as set, at (at)}{#if at > 0}<span class="then" aria-hidden="true">→</span>{/if}{formatSet(set)}{#if set.note}<span class="set-note">{set.note}</span>{/if}{/each}
+                      <Trend trend={trendOf(group[0]!, groupsOf(block.previous.before)[index]?.[0])} against="before" />
+                    </li>
                   {/each}
                 </ol>
               </div>
             {/if}
 
-            {#if block.sets.length > 0}
+            {#if block.groups.length > 0}
+              {@const before = groupsOf(block.previous?.sets ?? [])}
+              <!-- una riga per serie, con i suoi pezzi in fila: ogni pezzo si tocca e si corregge -->
               <ol class="sets">
-                {#each block.sets as done, index (done.id)}
-                  <li>
-                    <button type="button" class="set" onclick={() => editSet(done, index + 1)}>
-                      <span class="nr">{index + 1}</span>
-                      <span class="what">{formatSet(done)}{#if done.note}<span class="set-note">{done.note}</span>{/if}</span>
-                      <Trend trend={trendOf(done, block.previous?.sets[index])} />
-                      <Icon name="edit" />
-                    </button>
+                {#each block.groups as group, index (group[0]!.id)}
+                  <li class="set">
+                    <span class="nr">{index + 1}</span>
+                    <span class="parts">
+                      {#each group as done, at (done.id)}
+                        {#if at > 0}<span class="then" aria-hidden="true">→</span>{/if}
+                        <button type="button" class="what" onclick={() => editSet(done, index + 1)}>
+                          {formatSet(done)}{#if done.note}<span class="set-note">{done.note}</span>{/if}
+                        </button>
+                      {/each}
+                    </span>
+                    <Trend trend={trendOf(group[0]!, before[index]?.[0])} />
                   </li>
                 {/each}
               </ol>
@@ -344,8 +358,14 @@
               <TextField bind:value={setNote} label="Nota della serie" placeholder="Nota della serie: SX, con riposo…" maxlength={100} />
               {#if error}<Alert message={error} />{/if}
               <Button look="primary" extra="log" disabled={working || cooling} onclick={() => void addSet(block)}>
-                <Icon name="check" /> Segna la serie {block.sets.length + 1}
+                <Icon name="check" /> Segna la serie {block.groups.length + 1}
               </Button>
+              <!-- lo stripping, il braccio SX dopo: un pezzo in più della serie appena fatta -->
+              {#if block.groups.length > 0}
+                <Button look="ghost" disabled={working || cooling} onclick={() => void addSet(block, true)}>
+                  <Icon name="plus" /> Continua la serie {block.groups.length}
+                </Button>
+              {/if}
             </div>
           {/if}
         {/if}
@@ -494,24 +514,41 @@
 
   .note { display: grid; gap: 8px; }
 
+  /* una serie per riga: il numero, i suoi pezzi in fila, la freccia */
   .set {
     display: flex;
     align-items: center;
     gap: 12px;
-    width: 100%;
     min-height: 40px;
     padding: 6px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .parts { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; min-width: 0; }
+
+  /* ogni pezzo si tocca per correggerlo: la luce gli esce un poco attorno */
+  .parts .what {
+    margin: -4px -2px;
+    padding: 4px 6px;
     border: 0;
     border-radius: var(--r-sm);
     background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 560;
     text-align: left;
-    font-variant-numeric: tabular-nums;
     transition: background 0.15s;
   }
 
   @media (hover: hover) {
-  .set:hover { background: var(--sunken); }
-}
+    .parts .what:hover { background: var(--sunken); }
+  }
+
+  .parts .what:active { background: var(--sunken); }
+
+  .then { color: var(--ink-3); font-size: 13px; }
+
+  .past .then { margin: 0 2px; }
 
   .nr {
     display: grid;
@@ -525,7 +562,7 @@
     color: var(--ink-2);
   }
 
-  .set .what { flex: 1; font-weight: 560; }
+  .warmup .set .what { flex: 1; }
 
   /* la nota di una serie le sta accanto, più piccola: «SX» */
   .set-note {

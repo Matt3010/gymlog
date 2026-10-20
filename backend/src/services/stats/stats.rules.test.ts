@@ -54,6 +54,12 @@ describe("the stats of some sets", () => {
     expect(setStats([{ reps: 10, weightKg: 50 }, { reps: 12, weightKg: null }])).toMatchObject({ avgWeight: 50, maxWeight: 50, volume: 500, reps: 22 });
   });
 
+  it("count the parts of a set (a drop set) as one set, each part for the rest", () => {
+    expect(setStats([{ reps: 6, weightKg: 32 }, { reps: 3, weightKg: 10, continues: true }, { reps: 4, weightKg: 32 }])).toMatchObject({
+      sets: 2, reps: 13, maxWeight: 32, volume: 192 + 30 + 128,
+    });
+  });
+
   it("count a set to failure without reps as a set, with its weight, but no reps", () => {
     expect(setStats([{ reps: null, weightKg: 10 }, { reps: 8, weightKg: 12 }])).toEqual({
       sets: 2, reps: 8, maxReps: 8, volume: 96, avgWeight: 11, maxWeight: 12, bestE1rm: 15.2,
@@ -96,10 +102,10 @@ describe("an exercise's history", () => {
 
 describe("the summary of each exercise", () => {
   const sets = [
-    { exerciseId: 1, exerciseName: "Squat", workoutId: 1, startedAt: "2026-08-01T18:00:00.000Z", reps: 5, weightKg: 80 },
-    { exerciseId: 1, exerciseName: "Squat", workoutId: 2, startedAt: "2026-09-01T12:00:00.000Z", reps: 5, weightKg: 90 },
-    { exerciseId: 1, exerciseName: "Squat", workoutId: 2, startedAt: "2026-09-01T12:00:00.000Z", reps: 5, weightKg: 100 },
-    { exerciseId: 2, exerciseName: "Panca", workoutId: 3, startedAt: "2026-09-20T18:00:00.000Z", reps: 10, weightKg: 50 },
+    { exerciseId: 1, exerciseName: "Squat", workoutId: 1, startedAt: "2026-08-01T18:00:00.000Z", reps: 5, weightKg: 80, continues: false },
+    { exerciseId: 1, exerciseName: "Squat", workoutId: 2, startedAt: "2026-09-01T12:00:00.000Z", reps: 5, weightKg: 90, continues: false },
+    { exerciseId: 1, exerciseName: "Squat", workoutId: 2, startedAt: "2026-09-01T12:00:00.000Z", reps: 5, weightKg: 100, continues: false },
+    { exerciseId: 2, exerciseName: "Panca", workoutId: 3, startedAt: "2026-09-20T18:00:00.000Z", reps: 10, weightKg: 50, continues: false },
   ];
 
   it("gives sessions, average and heaviest weight, and the last time, the most recently done first", () => {
@@ -118,7 +124,7 @@ describe("many sets", () => {
   // years of training, or someone filling the server on purpose: the stats must not stop it for everyone
   const many = Array.from({ length: 200_000 }, (_, i) => ({
     exerciseId: 1 + (i % 2), exerciseName: i % 2 ? "Panca" : "Squat", workoutId: 1 + Math.floor(i / 20),
-    startedAt: new Date(Date.UTC(2020, 0, 1) + Math.floor(i / 20) * 86_400_000).toISOString(), reps: 5 + (i % 6), weightKg: 50 + (i % 40),
+    startedAt: new Date(Date.UTC(2020, 0, 1) + Math.floor(i / 20) * 86_400_000).toISOString(), reps: 5 + (i % 6), weightKg: 50 + (i % 40), continues: false,
   }));
 
   it("are summed up in a moment, without running out of stack", () => {

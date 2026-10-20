@@ -30,9 +30,9 @@ describe.skipIf(SERVER === undefined)("the stats repository", () => {
     await workouts.addSet(theirs.id, { exerciseId: other.squat.id, reps: 1, weightKg: 300 });
 
     expect(await repo().sets(user.id)).toEqual([
-      { exerciseId: bench.id, exerciseName: "Panca", workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", reps: 8, weightKg: 60 },
-      { exerciseId: squat.id, exerciseName: "Squat", workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", reps: 5, weightKg: 92.5 },
-      { exerciseId: squat.id, exerciseName: "Squat", workoutId: later.id, startedAt: "2026-09-03T17:00:00.000Z", reps: 5, weightKg: 100 },
+      { exerciseId: bench.id, exerciseName: "Panca", workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", reps: 8, weightKg: 60, continues: false },
+      { exerciseId: squat.id, exerciseName: "Squat", workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", reps: 5, weightKg: 92.5, continues: false },
+      { exerciseId: squat.id, exerciseName: "Squat", workoutId: later.id, startedAt: "2026-09-03T17:00:00.000Z", reps: 5, weightKg: 100, continues: false },
     ]);
     expect((await repo().sets(user.id, squat.id)).map((set) => set.weightKg)).toEqual([92.5, 100]);
     expect(await repo().sets(other.user.id, squat.id)).toEqual([]);

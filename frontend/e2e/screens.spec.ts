@@ -133,8 +133,8 @@ test('the README screens', async ({ page }) => {
   // Today's session, halfway through the bench press, with the rest running.
   const today = await call<{ id: number }>(page, 'POST', '/workouts', { planId: upper.id });
   for (const weightKg of [77.5, 82.5]) await call(page, 'POST', `/workouts/${today.id}/sets`, { exerciseId: made['Panca piana'], reps: 6, weightKg });
-  // the last one to failure, with a note of its own
-  await call(page, 'POST', `/workouts/${today.id}/sets`, { exerciseId: made['Panca piana'], reps: null, weightKg: 75, toFailure: true, note: 'fermo al petto' });
+  // the second one stripped down, to failure, with a note of its own
+  await call(page, 'POST', `/workouts/${today.id}/sets`, { exerciseId: made['Panca piana'], reps: null, weightKg: 75, toFailure: true, note: 'fermo al petto', continues: true });
   await sql(`update workouts set started_at = now() - interval '18 minutes' where id = $1`, [today.id]);
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
