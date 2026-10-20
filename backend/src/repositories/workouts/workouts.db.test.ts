@@ -54,8 +54,36 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     const workout = await repo().create(user.id, null);
     const first = await repo().addSet(workout.id, { exerciseId: squat.id, reps: 5, weightKg: 100 });
     await repo().addSet(workout.id, { exerciseId: bench.id, reps: 8, weightKg: 62.5 });
-    expect(first).toEqual({ id: expect.any(Number), exerciseId: squat.id, exerciseName: "Squat", reps: 5, weightKg: 100, createdAt: expect.stringMatching(ISO) });
+    expect(first).toEqual({ id: expect.any(Number), exerciseId: squat.id, exerciseName: "Squat", reps: 5, weightKg: 100, toFailure: false, note: null, createdAt: expect.stringMatching(ISO) });
     expect((await repo().sets(workout.id)).map((set) => [set.exerciseName, set.reps, set.weightKg])).toEqual([["Squat", 5, 100], ["Panca", 8, 62.5]]);
+  });
+
+  it("keeps a set without weight, one to failure without reps, and a note of its own", async () => {
+    const { user, squat, bench } = await setup();
+    const workout = await repo().create(user.id, null);
+    await repo().addSet(workout.id, { exerciseId: squat.id, reps: 4, weightKg: null, note: "3+1" });
+    await repo().addSet(workout.id, { exerciseId: bench.id, reps: null, weightKg: 10, toFailure: true });
+    const third = await repo().addSet(workout.id, { exerciseId: bench.id, reps: 3, weightKg: 10, note: "SX" });
+    expect((await repo().sets(workout.id)).map(({ reps, weightKg, toFailure, note }) => ({ reps, weightKg, toFailure, note }))).toEqual([
+      { reps: 4, weightKg: null, toFailure: false, note: "3+1" },
+      { reps: null, weightKg: 10, toFailure: true, note: null },
+      { reps: 3, weightKg: 10, toFailure: false, note: "SX" },
+    ]);
+    // changed whole: the note goes, it becomes to failure
+    expect(await repo().updateSet(user.id, third.id, { reps: 5, weightKg: 12, toFailure: true, note: null }))
+      .toMatchObject({ reps: 5, weightKg: 12, toFailure: true, note: null });
+    // and the last time shows them as they were
+    const next = await repo().create(user.id, null);
+    expect((await repo().previous(user.id, next.id)).get(bench.id)?.sets).toEqual([
+      { reps: null, weightKg: 10, toFailure: true, note: null },
+      { reps: 5, weightKg: 12, toFailure: true, note: null },
+    ]);
+  });
+
+  it("refuses a set with neither reps nor to failure", async () => {
+    const { user, squat } = await setup();
+    const workout = await repo().create(user.id, null);
+    await expect(repo().addSet(workout.id, { exerciseId: squat.id, reps: null, weightKg: 10 })).rejects.toThrow();
   });
 
   it("logs a set sent twice with the same key once: an answer lost on a flaky network makes the app send it again", async () => {
@@ -228,8 +256,8 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     await repo().setExerciseNote(first.id, squat.id, "di una sessione più vecchia");
 
     expect(await repo().previous(user.id, current.id)).toEqual(new Map([
-      [squat.id, { workoutId: second.id, startedAt: "2026-09-03T17:00:00.000Z", sets: [{ reps: 5, weightKg: 95 }, { reps: 4, weightKg: 97.5 }], note: "scendere di peso", before: [{ reps: 5, weightKg: 90 }] }],
-      [bench.id, { workoutId: first.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 8, weightKg: 60 }, { reps: 6, weightKg: 65 }], note: null, before: [] }],
+      [squat.id, { workoutId: second.id, startedAt: "2026-09-03T17:00:00.000Z", sets: [{ reps: 5, weightKg: 95, toFailure: false, note: null }, { reps: 4, weightKg: 97.5, toFailure: false, note: null }], note: "scendere di peso", before: [{ reps: 5, weightKg: 90, toFailure: false, note: null }] }],
+      [bench.id, { workoutId: first.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 8, weightKg: 60, toFailure: false, note: null }, { reps: 6, weightKg: 65, toFailure: false, note: null }], note: null, before: [] }],
     ]));
     expect(await repo().previous(user.id, first.id)).toEqual(new Map());
     expect(await repo().previous(other.user.id, current.id)).toEqual(new Map());

@@ -41,7 +41,7 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const { user, squat, bench, exercises } = await setup();
       expect((await exercises.list(user.id)).map((exercise) => exercise.name)).toEqual(["Panca", "Squat"]);
       expect(await exercises.update(user.id, squat.id, { name: "Squat basso", muscleGroup: null, notes: null }))
-        .toEqual({ id: squat.id, name: "Squat basso", muscleGroup: null, notes: null });
+        .toEqual({ id: squat.id, name: "Squat basso", muscleGroup: null, notes: null, bodyweight: false });
       await exercises.delete(user.id, bench.id);
       expect((await exercises.list(user.id)).map((exercise) => exercise.id)).toEqual([squat.id]);
     });
@@ -183,10 +183,18 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const workout = await workouts.start(user.id, null);
       expect(workout).toMatchObject({ planId: null, planName: null, plan: [], sets: [] });
       expect(workout.previous).toEqual({
-        [squat.id]: { workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 5, weightKg: 90 }], note: null, before: [] },
+        [squat.id]: { workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 5, weightKg: 90, toFailure: false, note: null }], note: null, before: [] },
       });
       expect(workout.exerciseNotes).toEqual({});
       expect(workout.previousNote).toBeNull();
+    });
+
+    it("say which of the user's exercises are done without weights", async () => {
+      const { user, squat, exercises, workouts } = await setup();
+      const pullUp = await exercises.create(user.id, { name: "Trazioni", muscleGroup: null, notes: null, bodyweight: true });
+      const workout = await workouts.start(user.id, null);
+      expect(workout.bodyweight).toEqual([pullUp.id]);
+      expect(workout.bodyweight).not.toContain(squat.id);
     });
 
     it("start from a plan, with what it asks for", async () => {
@@ -284,8 +292,8 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const result = await stats.exercise(user.id, squat.id);
       expect(result.exercise).toEqual(squat);
       expect(result.sessions).toEqual([
-        { workoutId: second.id, startedAt: "2026-09-03T17:00:00.000Z", sets: 1, reps: 3, volume: 330, avgWeight: 110, maxWeight: 110, bestE1rm: 121 },
-        { workoutId: first.id, startedAt: "2026-09-01T17:00:00.000Z", sets: 2, reps: 10, volume: 950, avgWeight: 95, maxWeight: 100, bestE1rm: 116.67 },
+        { workoutId: second.id, startedAt: "2026-09-03T17:00:00.000Z", sets: 1, reps: 3, maxReps: 3, volume: 330, avgWeight: 110, maxWeight: 110, bestE1rm: 121 },
+        { workoutId: first.id, startedAt: "2026-09-01T17:00:00.000Z", sets: 2, reps: 10, maxReps: 5, volume: 950, avgWeight: 95, maxWeight: 100, bestE1rm: 116.67 },
       ]);
       expect(result.overall).toMatchObject({ sessions: 2, sets: 3, avgWeight: 100, maxWeight: 110 });
     });
@@ -306,7 +314,7 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const theirs = await workoutsRepo.create(other.user.id, null);
       await workoutsRepo.addSet(theirs.id, { exerciseId: other.squat.id, reps: 1, weightKg: 300 });
       expect(await stats.exercises(user.id)).toEqual([
-        { exerciseId: squat.id, name: "Squat", sessions: 2, avgWeight: 90, maxWeight: 100, lastAt: "2026-09-20T17:00:00.000Z" },
+        { exerciseId: squat.id, name: "Squat", sessions: 2, avgWeight: 90, maxWeight: 100, maxReps: 5, lastAt: "2026-09-20T17:00:00.000Z" },
       ]);
     });
   });

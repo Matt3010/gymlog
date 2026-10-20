@@ -61,12 +61,17 @@ describe("a sign-up", () => {
 
 describe("an exercise", () => {
   it("has a name, and maybe a muscle group and notes", () => {
-    expect(parseExercise({ name: " Squat ", muscleGroup: " Gambe ", notes: "  " })).toEqual({ name: "Squat", muscleGroup: "Gambe", notes: null });
-    expect(parseExercise({ name: "Squat", muscleGroup: null, notes: null })).toEqual({ name: "Squat", muscleGroup: null, notes: null });
+    expect(parseExercise({ name: " Squat ", muscleGroup: " Gambe ", notes: "  " })).toEqual({ name: "Squat", muscleGroup: "Gambe", notes: null, bodyweight: false });
+    expect(parseExercise({ name: "Squat", muscleGroup: null, notes: null })).toEqual({ name: "Squat", muscleGroup: null, notes: null, bodyweight: false });
   });
 
-  it("takes missing optional fields as nothing", () => {
-    expect(parseExercise({ name: "Squat" })).toEqual({ name: "Squat", muscleGroup: null, notes: null });
+  it("takes missing optional fields as nothing, and done with weights", () => {
+    expect(parseExercise({ name: "Squat" })).toEqual({ name: "Squat", muscleGroup: null, notes: null, bodyweight: false });
+  });
+
+  it("may be done without weights", () => {
+    expect(parseExercise({ name: "Trazioni", bodyweight: true }).bodyweight).toBe(true);
+    expect(() => parseExercise({ name: "Trazioni", bodyweight: "sì" })).toThrow("Corpo libero: valore non valido.");
   });
 
   it.each([
@@ -190,14 +195,32 @@ describe("a text", () => {
 
 describe("a set", () => {
   it("has an exercise, reps and kg", () => {
-    expect(parseSet({ exerciseId: 2, reps: 8, weightKg: 62.5 })).toEqual({ exerciseId: 2, reps: 8, weightKg: 62.5 });
+    expect(parseSet({ exerciseId: 2, reps: 8, weightKg: 62.5 })).toEqual({ exerciseId: 2, reps: 8, weightKg: 62.5, toFailure: false, note: null });
     expect(parseSet({ exerciseId: 2, reps: 100, weightKg: 0 })).toMatchObject({ reps: 100, weightKg: 0 });
     expect(parseSet({ exerciseId: 2, reps: 1, weightKg: 1000 })).toMatchObject({ reps: 1, weightKg: 1000 });
   });
 
   it("may carry a key of the app, to be logged once however many times it is sent", () => {
-    expect(parseSet({ exerciseId: 2, reps: 8, weightKg: 60, key: "3f2a-9c" })).toEqual({ exerciseId: 2, reps: 8, weightKg: 60, key: "3f2a-9c" });
+    expect(parseSet({ exerciseId: 2, reps: 8, weightKg: 60, key: "3f2a-9c" })).toEqual({ exerciseId: 2, reps: 8, weightKg: 60, toFailure: false, note: null, key: "3f2a-9c" });
     expect(() => parseSet({ exerciseId: 2, reps: 8, weightKg: 60, key: "x".repeat(65) })).toThrow("Chiave: troppo lungo");
+  });
+
+  it("may have no weight: done without one", () => {
+    expect(parseSet({ exerciseId: 2, reps: 8 })).toMatchObject({ reps: 8, weightKg: null });
+    expect(parseSet({ exerciseId: 2, reps: 8, weightKg: null })).toMatchObject({ reps: 8, weightKg: null });
+  });
+
+  it("to failure, may leave out the reps", () => {
+    expect(parseSet({ exerciseId: 2, weightKg: 10, toFailure: true })).toMatchObject({ reps: null, weightKg: 10, toFailure: true });
+    expect(parseSet({ exerciseId: 2, reps: 12, weightKg: 10, toFailure: true })).toMatchObject({ reps: 12, toFailure: true });
+    expect(() => parseSet({ exerciseId: 2, weightKg: 10 })).toThrow("Ripetizioni: numero tra 1 e 100 (intero).");
+    expect(() => parseSet({ exerciseId: 2, reps: 0, weightKg: 10, toFailure: true })).toThrow("Ripetizioni: numero tra 1 e 100 (intero).");
+  });
+
+  it("carries a short note of its own, trimmed, blank as none", () => {
+    expect(parseSet({ exerciseId: 2, reps: 3, weightKg: 10, note: " SX " }).note).toBe("SX");
+    expect(parseSet({ exerciseId: 2, reps: 3, weightKg: 10, note: " " }).note).toBeNull();
+    expect(() => parseSet({ exerciseId: 2, reps: 3, weightKg: 10, note: "x".repeat(101) })).toThrow("Testo della nota: troppo lungo.");
   });
 
   it("keeps two decimals of kg", () => {
@@ -214,12 +237,13 @@ describe("a set", () => {
     [{ exerciseId: 2, reps: 8, weightKg: 1000.5 }, "Peso: numero tra 0 e 1000."],
     [{ exerciseId: 2, reps: 8, weightKg: "10" }, "Peso: numero tra 0 e 1000."],
     [{ exerciseId: 2, reps: 8, weightKg: Number.NaN }, "Peso: numero tra 0 e 1000."],
+    [{ exerciseId: 2, reps: 8, weightKg: 10, toFailure: "sì" }, "MAX: valore non valido."],
   ])("is refused: %j", (body, message) => {
     expect(() => parseSet(body)).toThrow(message);
   });
 
-  it("changes reps and kg only", () => {
-    expect(parseSetChange({ exerciseId: 9, reps: 6, weightKg: 70 })).toEqual({ reps: 6, weightKg: 70 });
-    expect(() => parseSetChange({ reps: 6 })).toThrow("Peso: numero tra 0 e 1000.");
+  it("changes what a set says, not its exercise", () => {
+    expect(parseSetChange({ exerciseId: 9, reps: 6, weightKg: 70 })).toEqual({ reps: 6, weightKg: 70, toFailure: false, note: null });
+    expect(parseSetChange({ reps: null, toFailure: true, note: "SX" })).toEqual({ reps: null, weightKg: null, toFailure: true, note: "SX" });
   });
 });

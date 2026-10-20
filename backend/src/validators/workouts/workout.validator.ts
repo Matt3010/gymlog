@@ -1,5 +1,5 @@
-import type { SetInput, WorkoutChange } from "../../repositories";
-import { type Body, bool, id, InputError, number, object, optionalText } from "../common";
+import type { SetChange, SetInput, WorkoutChange } from "../../repositories";
+import { type Body, bool, id, InputError, number, object, optionalNumber, optionalText } from "../common";
 
 export function parseWorkoutStart(value: unknown): { planId: number | null } {
   const body = object(value);
@@ -22,9 +22,19 @@ function weight(body: Body): number {
   return kg;
 }
 
-export function parseSetChange(value: unknown): { reps: number; weightKg: number } {
+/**
+ * A set as written: the reps, which only a set to failure may leave out; the
+ * weight, none for a set without one; to failure or not; a short note.
+ */
+export function parseSetChange(value: unknown): SetChange {
   const body = object(value);
-  return { reps: number(body, "reps", 1, 100, true), weightKg: weight(body) };
+  const toFailure = body.toFailure === undefined ? false : bool(body, "toFailure");
+  return {
+    reps: toFailure ? optionalNumber(body, "reps", 1, 100, true) : number(body, "reps", 1, 100, true),
+    weightKg: body.weightKg === undefined || body.weightKg === null ? null : weight(body),
+    toFailure,
+    note: optionalText(body, "note", 100),
+  };
 }
 
 export function parseSet(value: unknown): SetInput {

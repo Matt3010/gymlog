@@ -53,7 +53,7 @@ test('the README screens', async ({ page }) => {
   for (const [name, muscleGroup] of [
     ['Panca piana', 'Petto'], ['Rematore bilanciere', 'Dorso'], ['Military press', 'Spalle'],
     ['Squat', 'Gambe'], ['Stacco da terra', 'Dorso'], ['Trazioni', 'Dorso'],
-  ]) made[name!] = (await call<{ id: number }>(page, 'POST', '/exercises', { name, muscleGroup, notes: null })).id;
+  ]) made[name!] = (await call<{ id: number }>(page, 'POST', '/exercises', { name, muscleGroup, notes: null, bodyweight: name === 'Trazioni' })).id;
 
   const rows = (list: [string, string[], number][]) => list.map(([name, reps, restSeconds]) => ({ exerciseId: made[name], reps, restSeconds, notes: null }));
   const upper = await call<{ id: number }>(page, 'POST', '/plans', {
@@ -66,13 +66,13 @@ test('the README screens', async ({ page }) => {
   });
 
   // Six sessions in three weeks, the two plans in turn, the weights going up.
-  const sessions: [number, number, [string, number, number[]][]][] = [
+  const sessions: [number, number, [string, number, (number | null)[]][]][] = [
     [20, upper.id, [['Panca piana', 8, [70, 75, 75, 77.5]], ['Rematore bilanciere', 10, [60, 60, 62.5]], ['Military press', 8, [40, 40, 42.5]]]],
-    [18, lower.id, [['Squat', 5, [90, 95, 95, 95]], ['Stacco da terra', 5, [110, 115, 120]], ['Trazioni', 8, [0, 0, 0]]]],
+    [18, lower.id, [['Squat', 5, [90, 95, 95, 95]], ['Stacco da terra', 5, [110, 115, 120]], ['Trazioni', 8, [null, null, null]]]],
     [13, upper.id, [['Panca piana', 8, [72.5, 77.5, 77.5, 80]], ['Rematore bilanciere', 10, [62.5, 62.5, 65]], ['Military press', 8, [42.5, 42.5, 42.5]]]],
-    [11, lower.id, [['Squat', 5, [95, 100, 100, 100]], ['Stacco da terra', 5, [115, 120, 125]], ['Trazioni', 9, [0, 0, 0]]]],
+    [11, lower.id, [['Squat', 5, [95, 100, 100, 100]], ['Stacco da terra', 5, [115, 120, 125]], ['Trazioni', 9, [null, null, null]]]],
     [6, upper.id, [['Panca piana', 7, [75, 80, 80, 82.5]], ['Rematore bilanciere', 10, [62.5, 65, 65]], ['Military press', 8, [42.5, 45, 45]]]],
-    [4, lower.id, [['Squat', 5, [100, 102.5, 105, 105]], ['Stacco da terra', 5, [120, 125, 130]], ['Trazioni', 10, [0, 0, 0]]]],
+    [4, lower.id, [['Squat', 5, [100, 102.5, 105, 105]], ['Stacco da terra', 5, [120, 125, 130]], ['Trazioni', 10, [null, null, null]]]],
   ];
   for (const [daysAgo, planId, done] of sessions) {
     const workout = await call<{ id: number }>(page, 'POST', '/workouts', { planId });
@@ -133,6 +133,8 @@ test('the README screens', async ({ page }) => {
   // Today's session, halfway through the bench press, with the rest running.
   const today = await call<{ id: number }>(page, 'POST', '/workouts', { planId: upper.id });
   for (const weightKg of [77.5, 82.5]) await call(page, 'POST', `/workouts/${today.id}/sets`, { exerciseId: made['Panca piana'], reps: 6, weightKg });
+  // the last one to failure, with a note of its own
+  await call(page, 'POST', `/workouts/${today.id}/sets`, { exerciseId: made['Panca piana'], reps: null, weightKg: 75, toFailure: true, note: 'fermo al petto' });
   await sql(`update workouts set started_at = now() - interval '18 minutes' where id = $1`, [today.id]);
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });

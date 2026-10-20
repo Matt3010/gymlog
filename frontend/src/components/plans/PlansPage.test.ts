@@ -9,9 +9,9 @@ import Host from '../../test/Host.svelte';
 import PlanEditorPage from './PlanEditorPage.svelte';
 import PlansPage from './PlansPage.svelte';
 
-const SQUAT: Exercise = { id: 1, name: 'Squat', muscleGroup: 'Gambe', notes: null };
-const PANCA: Exercise = { id: 2, name: 'Panca piana', muscleGroup: null, notes: null };
-const REMATORE: Exercise = { id: 3, name: 'Rematore', muscleGroup: null, notes: null };
+const SQUAT: Exercise = { id: 1, name: 'Squat', muscleGroup: 'Gambe', notes: null, bodyweight: false };
+const PANCA: Exercise = { id: 2, name: 'Panca piana', muscleGroup: null, notes: null, bodyweight: false };
+const REMATORE: Exercise = { id: 3, name: 'Rematore', muscleGroup: null, notes: null, bodyweight: false };
 
 const planExercise = (id: number, exercise: Exercise, position: number, change = {}) => ({
   id, exerciseId: exercise.id, exerciseName: exercise.name, position, reps: ['8', '8', '8'], restSeconds: 90, notes: null, ...change,

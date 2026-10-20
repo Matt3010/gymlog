@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, formatDay, formatDuration, formatKg, formatNumber, formatRest, normalise, parseKg } from './format';
+import { formatClock, formatDay, formatDuration, formatKg, formatNumber, formatRest, formatSet, normalise, parseKg } from './format';
 
 describe('a weight', () => {
   it('is written the Italian way, without useless decimals', () => {
@@ -87,6 +87,25 @@ describe('a day', () => {
 
   it('has its time on the clock', () => {
     expect(formatClock(new Date(2026, 8, 28, 7, 5).toISOString())).toBe('07:05');
+  });
+});
+
+describe('a set', () => {
+  const set = (reps: number | null, weightKg: number | null, toFailure = false) => formatSet({ reps, weightKg, toFailure });
+
+  it('is reps times kilos', () => {
+    expect(set(8, 62.5)).toBe('8 × 62,5 kg');
+  });
+
+  it('without weight is its reps', () => {
+    expect(set(4, null)).toBe('4 rip.');
+  });
+
+  it('to failure says MAX: in place of the reps not counted, or after them', () => {
+    expect(set(null, 10, true)).toBe('MAX × 10 kg');
+    expect(set(12, 10, true)).toBe('12 × 10 kg MAX');
+    expect(set(12, null, true)).toBe('12 rip. MAX');
+    expect(set(null, null, true)).toBe('MAX');
   });
 });
 

@@ -36,8 +36,13 @@
     );
   });
 
+  /** Con i pesi la media e il massimo dei chili; senza (mai un chilo) le ripetizioni della serie migliore. */
   const howItGoes = (row: ExerciseOverview): string =>
-    `media ${formatKg(row.avgWeight)} · max ${formatKg(row.maxWeight)} · ${row.sessions === 1 ? '1 sessione' : `${row.sessions} sessioni`} · l’ultima ${formatDay(row.lastAt).toLowerCase()}`;
+    [
+      ...(row.maxWeight === 0 ? [`max ${row.maxReps} rip.`] : [`media ${formatKg(row.avgWeight)}`, `max ${formatKg(row.maxWeight)}`]),
+      row.sessions === 1 ? '1 sessione' : `${row.sessions} sessioni`,
+      `l’ultima ${formatDay(row.lastAt).toLowerCase()}`,
+    ].join(' · ');
 
   /*
    * Si cerca per nome o per gruppo, con la vista di restaurant-index; l'ordine

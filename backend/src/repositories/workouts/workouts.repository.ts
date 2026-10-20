@@ -17,15 +17,33 @@ export interface WorkoutSummary extends Workout {
   readonly volume: number;
 }
 
-export interface SetInput {
+/** What a set says: reps (none only to failure), the weight (none without one), to failure, a note. */
+export interface SetChange {
+  readonly reps: number | null;
+  readonly weightKg: number | null;
+  /** Not said is no. */
+  readonly toFailure?: boolean;
+  /** Not said is none. */
+  readonly note?: string | null;
+}
+
+export interface SetInput extends SetChange {
   readonly exerciseId: number;
-  readonly reps: number;
-  readonly weightKg: number;
   /** The app's name for it: the same key twice in a workout is the same set. */
   readonly key?: string;
 }
 
+/** A set as the last time shows it. */
+export interface PastSet {
+  readonly reps: number | null;
+  readonly weightKg: number | null;
+  readonly toFailure: boolean;
+  readonly note: string | null;
+}
+
 export interface WorkoutSet extends SetInput {
+  readonly toFailure: boolean;
+  readonly note: string | null;
   readonly id: number;
   readonly exerciseName: string;
   readonly createdAt: string;
@@ -41,11 +59,11 @@ export interface PreviousNote {
 export interface PreviousSets {
   readonly workoutId: number;
   readonly startedAt: string;
-  readonly sets: { readonly reps: number; readonly weightKg: number }[];
+  readonly sets: PastSet[];
   /** What was written about the exercise that time. */
   readonly note: string | null;
   /** The sets of the time before that, to say whether the last time went better. */
-  readonly before: { readonly reps: number; readonly weightKg: number }[];
+  readonly before: PastSet[];
 }
 
 /** The plan a workout follows, its name copied so the history keeps it. */
@@ -97,7 +115,7 @@ export interface WorkoutsRepository {
    * name copied at start (a free workout matches free workouts), or null.
    */
   previousNote(userId: number, workoutId: number): Promise<PreviousNote | null>;
-  updateSet(userId: number, setId: number, change: { reps: number; weightKg: number }): Promise<WorkoutSet | undefined>;
+  updateSet(userId: number, setId: number, change: SetChange): Promise<WorkoutSet | undefined>;
   deleteSet(userId: number, setId: number): Promise<boolean>;
 }
 
@@ -122,6 +140,8 @@ const setColumns = {
   exerciseName: exercises.name,
   reps: workoutSets.reps,
   weightKg: workoutSets.weightKg,
+  toFailure: workoutSets.toFailure,
+  note: workoutSets.note,
   createdAt: workoutSets.createdAt,
 };
 
@@ -209,7 +229,10 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
 
     async previous(userId, workoutId) {
       // Raw rows: Drizzle leaves timestamps as Postgres writes them ("2026-09-03 17:00:00+00").
-      const { rows } = await db.execute<{ exercise_id: number; workout_id: number; started_at: string; rank: number; reps: number; weight_kg: number; note: string | null }>(sql`
+      const { rows } = await db.execute<{
+        exercise_id: number; workout_id: number; started_at: string; rank: number;
+        reps: number | null; weight_kg: number | null; to_failure: boolean; set_note: string | null; note: string | null;
+      }>(sql`
         with done as (
           select s.exercise_id, w.id as workout_id, w.started_at,
                  row_number() over (partition by s.exercise_id order by w.id desc) as rank
@@ -221,7 +244,7 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
             and w.id < (select id from workouts where id = ${workoutId} and user_id = ${userId})
           group by s.exercise_id, w.id, w.started_at
         )
-        select d.exercise_id, d.workout_id, d.started_at, d.rank::int as rank, s.reps, s.weight_kg, n.note
+        select d.exercise_id, d.workout_id, d.started_at, d.rank::int as rank, s.reps, s.weight_kg, s.to_failure, s.note as set_note, n.note
         from done d
         join workout_sets s on s.workout_id = d.workout_id and s.exercise_id = d.exercise_id
         left join workout_exercise_notes n on n.workout_id = d.workout_id and n.exercise_id = d.exercise_id
@@ -230,7 +253,7 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
       // The last time first (rank 1), then the time before it (rank 2) goes under it.
       const previous = new Map<number, PreviousSets>();
       for (const row of rows) {
-        const set = { reps: row.reps, weightKg: row.weight_kg };
+        const set = { reps: row.reps, weightKg: row.weight_kg, toFailure: row.to_failure, note: row.set_note };
         const entry = previous.get(row.exercise_id);
         // ordered by rank: the last time (rank 1) is always there before the time before it
         if (row.rank === 2) entry!.before.push(set);

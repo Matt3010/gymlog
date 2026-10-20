@@ -1,5 +1,5 @@
 import { formatKg, formatRest, parseKg } from './format';
-import type { DoneSet, PlanExercise, PreviousSets, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types';
+import type { PlanExercise, PreviousSets, SetInput, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types';
 
 /**
  * Un esercizio della pagina di un allenamento: cosa chiede la scheda, le
@@ -12,6 +12,8 @@ export interface Block {
   target: PlanExercise | null;
   sets: WorkoutSet[];
   previous: PreviousSets | null;
+  /** Senza pesi: il peso si scrive solo come zavorra. */
+  bodyweight: boolean;
 }
 
 /**
@@ -26,7 +28,9 @@ export function blocksOf(detail: WorkoutDetail, added: { id: number; name: strin
   const blocks = new Map<number, Block>();
   const open = (exerciseId: number, name: string, target: PlanExercise | null) => {
     if (blocks.has(exerciseId)) return;
-    blocks.set(exerciseId, { exerciseId, name, target, sets: [], previous: detail.previous[String(exerciseId)] ?? null });
+    blocks.set(exerciseId, {
+      exerciseId, name, target, sets: [], previous: detail.previous[String(exerciseId)] ?? null, bodyweight: detail.bodyweight.includes(exerciseId),
+    });
   };
 
   for (const exercise of detail.plan) open(exercise.exerciseId, exercise.exerciseName, exercise);
@@ -75,11 +79,17 @@ export const inProgress = (workouts: WorkoutSummary[]): WorkoutSummary | undefin
  * la virgola o col punto. Quello che il server rifiuterebbe si dice qui, con
  * le parole di chi sta scrivendo.
  */
-export function readSet(reps: string, kg: string): { reps: number; weightKg: number } | { error: string } {
+export function readSet(reps: string, kg: string, toFailure = false, note = ''): SetInput | { error: string } {
+  // a cedimento le ripetizioni si possono non contare: vuote, la serie è «MAX»
+  const counted = reps.trim() !== '' || !toFailure;
   const repsValue = /^\d+$/.test(reps.trim()) ? Number(reps.trim()) : NaN;
-  if (!(repsValue >= 1 && repsValue <= 100)) return { error: 'Le ripetizioni vanno da 1 a 100.' };
-  const weightKg = parseKg(kg);
-  if (weightKg === null || weightKg > 1000) return { error: 'Il peso va da 0 a 1000 kg, con la virgola se serve.' };
-  if (Math.round(weightKg * 100) / 100 !== weightKg) return { error: 'Il peso ha al più due decimali.' };
-  return { reps: repsValue, weightKg };
+  if (counted && !(repsValue >= 1 && repsValue <= 100)) {
+    return { error: 'Le ripetizioni vanno da 1 a 100. A cedimento, senza contarle, segna MAX e lasciale vuote.' };
+  }
+  // senza chili è una serie senza peso
+  const weightKg = kg.trim() === '' ? null : parseKg(kg);
+  if (kg.trim() !== '' && (weightKg === null || weightKg > 1000)) return { error: 'Il peso va da 0 a 1000 kg, con la virgola se serve.' };
+  if (weightKg !== null && Math.round(weightKg * 100) / 100 !== weightKg) return { error: 'Il peso ha al più due decimali.' };
+  if (note.trim().length > 100) return { error: 'La nota della serie è troppo lunga: al più 100 caratteri.' };
+  return { reps: counted ? repsValue : null, weightKg, toFailure, note: note.trim() === '' ? null : note.trim() };
 }

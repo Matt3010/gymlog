@@ -7,6 +7,7 @@
   import { ui } from '../../lib/ui.svelte';
   import Alert from '../Alert.svelte';
   import SaveStatus from '../SaveStatus.svelte';
+  import Switch from '../Switch.svelte';
   import TextField from '../TextField.svelte';
 
   /**
@@ -34,6 +35,8 @@
   let muscleGroup = $state(exercise.muscleGroup ?? '');
   // svelte-ignore state_referenced_locally
   let notes = $state(exercise.notes ?? '');
+  // svelte-ignore state_referenced_locally
+  let bodyweight = $state(exercise.bodyweight);
   let error = $state('');
   let working = $state(false);
 
@@ -48,7 +51,7 @@
       return;
     }
     error = '';
-    saver.change({ name: name.trim(), muscleGroup: orNull(muscleGroup), notes: orNull(notes) });
+    saver.change({ name: name.trim(), muscleGroup: orNull(muscleGroup), notes: orNull(notes), bodyweight });
     void saver.flush();
   }
 
@@ -103,6 +106,15 @@
     <span class="eyebrow">Note</span>
     <TextField kind="multiline" bind:value={notes} maxlength={1000} placeholder="Presa, sedile, come si esegue" onchange={changed} />
   </label>
+  <Switch
+    checked={bodyweight}
+    onchange={(value) => {
+      bodyweight = value;
+      changed();
+    }}
+    label="Corpo libero"
+    hint="Senza pesi, come trazioni e piegamenti: le serie contano le ripetizioni, i chili solo come zavorra."
+  />
 </div>
 
 {#if error}<Alert message={error} />{/if}

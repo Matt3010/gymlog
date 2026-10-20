@@ -2,7 +2,7 @@ import { ConflictError, found, foundIf } from "../../errors";
 import type { Executor } from "../../lib";
 import { InputError } from "../../validators";
 import {
-  createWorkoutsRepository, type PreviousNote, type PreviousSets, type SetInput, type Workout, type WorkoutChange, type WorkoutSet, type WorkoutStart,
+  createWorkoutsRepository, type PreviousNote, type PreviousSets, type SetChange, type SetInput, type Workout, type WorkoutChange, type WorkoutSet, type WorkoutStart,
   type WorkoutSummary,
 } from "../../repositories";
 
@@ -24,7 +24,7 @@ export interface WorkoutsService {
   exerciseNotes(workoutId: number): Promise<Record<string, string>>;
   /** The note of the last earlier workout of the same plan. */
   previousNote(userId: number, workoutId: number): Promise<PreviousNote | null>;
-  updateSet(userId: number, setId: number, change: { reps: number; weightKg: number }): Promise<WorkoutSet>;
+  updateSet(userId: number, setId: number, change: SetChange): Promise<WorkoutSet>;
   deleteSet(userId: number, setId: number): Promise<void>;
 }
 
@@ -66,7 +66,9 @@ export function createWorkoutsService(db: Executor): WorkoutsService {
       const set = await workouts.addSet(workoutId, input);
       // a key already used: the same set sent again, unless it says something else
       // a set just made has the numbers it was given: only one already there under the key can differ
-      if (set.exerciseId !== input.exerciseId || set.reps !== input.reps || set.weightKg !== input.weightKg) {
+      const same = set.exerciseId === input.exerciseId && set.reps === input.reps && set.weightKg === input.weightKg
+        && set.toFailure === (input.toFailure ?? false) && set.note === (input.note ?? null);
+      if (!same) {
         throw new ConflictError("Questa serie è già segnata con altri numeri. Ricarica la pagina.");
       }
       return set;

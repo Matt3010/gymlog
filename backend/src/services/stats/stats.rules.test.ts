@@ -39,7 +39,25 @@ describe("the stats of some sets", () => {
   });
 
   it("are all zero without sets", () => {
-    expect(setStats([])).toEqual({ sets: 0, reps: 0, volume: 0, avgWeight: 0, maxWeight: 0, bestE1rm: 0 });
+    expect(setStats([])).toEqual({ sets: 0, reps: 0, maxReps: 0, volume: 0, avgWeight: 0, maxWeight: 0, bestE1rm: 0 });
+  });
+
+  it("keep the most reps in one set", () => {
+    expect(setStats([{ reps: 10, weightKg: 50 }, { reps: 12, weightKg: 40 }, { reps: 8, weightKg: 55 }]).maxReps).toBe(12);
+  });
+
+  it("count without weight only what a set without weight says: the set and its reps", () => {
+    expect(setStats([{ reps: 8, weightKg: null }, { reps: 5, weightKg: null }])).toEqual({
+      sets: 2, reps: 13, maxReps: 8, volume: 0, avgWeight: 0, maxWeight: 0, bestE1rm: 0,
+    });
+    // next to sets with a weight, it changes neither their average nor their best
+    expect(setStats([{ reps: 10, weightKg: 50 }, { reps: 12, weightKg: null }])).toMatchObject({ avgWeight: 50, maxWeight: 50, volume: 500, reps: 22 });
+  });
+
+  it("count a set to failure without reps as a set, with its weight, but no reps", () => {
+    expect(setStats([{ reps: null, weightKg: 10 }, { reps: 8, weightKg: 12 }])).toEqual({
+      sets: 2, reps: 8, maxReps: 8, volume: 96, avgWeight: 11, maxWeight: 12, bestE1rm: 15.2,
+    });
   });
 });
 
@@ -53,13 +71,13 @@ describe("an exercise's history", () => {
     const { sessions } = exerciseStats(legPress);
     expect(sessions.map((session) => session.workoutId)).toEqual([5, 2]);
     expect(sessions[1]).toEqual({
-      workoutId: 2, startedAt: "2026-09-10T18:00:00.000Z", sets: 2, reps: 20, volume: 2200, avgWeight: 110, maxWeight: 120, bestE1rm: 160,
+      workoutId: 2, startedAt: "2026-09-10T18:00:00.000Z", sets: 2, reps: 20, maxReps: 10, volume: 2200, avgWeight: 110, maxWeight: 120, bestE1rm: 160,
     });
   });
 
   it("sums up every set of every session", () => {
     expect(exerciseStats(legPress).overall).toEqual({
-      sessions: 2, sets: 3, reps: 28, volume: 3240, avgWeight: 116.67, maxWeight: 130, bestE1rm: 164.67,
+      sessions: 2, sets: 3, reps: 28, maxReps: 10, volume: 3240, avgWeight: 116.67, maxWeight: 130, bestE1rm: 164.67,
     });
   });
 
@@ -71,7 +89,7 @@ describe("an exercise's history", () => {
 
   it("is empty with no sessions", () => {
     expect(exerciseStats([])).toEqual({
-      sessions: [], overall: { sessions: 0, sets: 0, reps: 0, volume: 0, avgWeight: 0, maxWeight: 0, bestE1rm: 0 },
+      sessions: [], overall: { sessions: 0, sets: 0, reps: 0, maxReps: 0, volume: 0, avgWeight: 0, maxWeight: 0, bestE1rm: 0 },
     });
   });
 });
@@ -86,8 +104,8 @@ describe("the summary of each exercise", () => {
 
   it("gives sessions, average and heaviest weight, and the last time, the most recently done first", () => {
     expect(exerciseSummaries(sets)).toEqual([
-      { exerciseId: 2, name: "Panca", sessions: 1, avgWeight: 50, maxWeight: 50, lastAt: "2026-09-20T18:00:00.000Z" },
-      { exerciseId: 1, name: "Squat", sessions: 2, avgWeight: 90, maxWeight: 100, lastAt: "2026-09-01T12:00:00.000Z" },
+      { exerciseId: 2, name: "Panca", sessions: 1, avgWeight: 50, maxWeight: 50, maxReps: 10, lastAt: "2026-09-20T18:00:00.000Z" },
+      { exerciseId: 1, name: "Squat", sessions: 2, avgWeight: 90, maxWeight: 100, maxReps: 5, lastAt: "2026-09-01T12:00:00.000Z" },
     ]);
   });
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { workoutsApi } from '../../lib/endpoints';
-  import { formatClock, formatDay, formatDuration, formatKg, formatRest } from '../../lib/format';
+  import { formatClock, formatDay, formatDuration, formatKg, formatSet } from '../../lib/format';
   import { nav } from '../../lib/nav.svelte';
   import { HISTORY_PATH, HOME_PATH } from '../../lib/routing';
   import { current } from '../../lib/current.svelte';
@@ -22,6 +22,7 @@
   import SaveStatus from '../SaveStatus.svelte';
   import Loader from '../Loader.svelte';
   import Stepper from '../Stepper.svelte';
+  import Switch from '../Switch.svelte';
   import TextField from '../TextField.svelte';
   import ExercisePicker from '../exercises/ExercisePicker.svelte';
   import NoteField from './NoteField.svelte';
@@ -45,6 +46,15 @@
   let active = $state<number | null>(null);
   let reps = $state('');
   let kg = $state('');
+  /** A cedimento: le ripetizioni si possono lasciare vuote. */
+  let toFailure = $state(false);
+  /** Una parola sulla serie: «SX», «con riposo». */
+  let setNote = $state('');
+  /**
+   * Il peso si scrive: sempre, se l'esercizio è con i pesi (vuoto è senza);
+   * a corpo libero solo chiedendolo, come zavorra.
+   */
+  let weighted = $state(true);
 
   /*
    * Il riscaldamento: una linguetta sua nell'esercizio aperto, prima delle
@@ -96,7 +106,11 @@
     const proposed = prefill(block);
     reps = proposed.reps === null ? '' : String(proposed.reps);
     kg = proposed.weightKg === null ? '' : String(proposed.weightKg).replace('.', ',');
-    tab = block.sets.length === 0 && warmupFor(proposed.weightKg ?? 0).length > 0 ? 'warmup' : 'sets';
+    toFailure = false;
+    setNote = '';
+    weighted = !block.bodyweight || proposed.weightKg !== null;
+    // a corpo libero non c'è un peso a cui scaldarsi
+    tab = !block.bodyweight && block.sets.length === 0 && warmupFor(proposed.weightKg ?? 0).length > 0 ? 'warmup' : 'sets';
     error = '';
   }
 
@@ -105,7 +119,7 @@
   let cooling = $state(false);
 
   async function addSet(block: Block): Promise<void> {
-    const typed = readSet(reps, kg);
+    const typed = readSet(reps, weighted ? kg : '', toFailure, setNote);
     if ('error' in typed) {
       error = typed.error;
       return;
@@ -121,6 +135,9 @@
       // la prossima serie si propone da capo: quello che chiede la scheda per lei
       const now = blocksOf(detail!, added).find((one) => one.exerciseId === block.exerciseId);
       if (now) reps = String(prefill(now).reps ?? reps);
+      // MAX e la nota sono di quella serie: la prossima riparte senza
+      toFailure = false;
+      setNote = '';
       if (block.target?.restSeconds) rest.start(block.target.restSeconds);
     } catch (failure) {
       error = (failure as Error).message;
@@ -135,6 +152,7 @@
   }
 
   function pick(exercise: Exercise): void {
+    if (exercise.bodyweight && detail && !detail.bodyweight.includes(exercise.id)) detail.bodyweight.push(exercise.id);
     if (!blocks.some((block) => block.exerciseId === exercise.id)) added = [...added, { id: exercise.id, name: exercise.name }];
     const block = blocksOf(detail!, added).find((one) => one.exerciseId === exercise.id);
     if (block) open(block);
@@ -270,7 +288,7 @@
                 <span class="eyebrow" id="past-{block.exerciseId}">L’ultima volta · {formatDay(block.previous.startedAt)}</span>
                 <ol class="past" aria-labelledby="past-{block.exerciseId}">
                   {#each block.previous.sets as set, index (index)}
-                    <li><span class="nr">{index + 1}</span> {set.reps} × {formatKg(set.weightKg)} <Trend trend={trendOf(set, block.previous.before[index])} against="before" /></li>
+                    <li><span class="nr">{index + 1}</span> {formatSet(set)}{#if set.note}<span class="set-note">{set.note}</span>{/if} <Trend trend={trendOf(set, block.previous.before[index])} against="before" /></li>
                   {/each}
                 </ol>
               </div>
@@ -282,7 +300,7 @@
                   <li>
                     <button type="button" class="set" onclick={() => editSet(done, index + 1)}>
                       <span class="nr">{index + 1}</span>
-                      <span class="what">{done.reps} × {formatKg(done.weightKg)}</span>
+                      <span class="what">{formatSet(done)}{#if done.note}<span class="set-note">{done.note}</span>{/if}</span>
                       <Trend trend={trendOf(done, block.previous?.sets[index])} />
                       <Icon name="edit" />
                     </button>
@@ -308,8 +326,22 @@
             <div class="add">
               <div class="steppers">
                 <Stepper label="Ripetizioni" step={1} min={1} bind:value={reps} />
-                <Stepper label="Peso" unit="kg" step={2.5} decimals bind:value={kg} />
+                {#if weighted}
+                  <Stepper label={block.bodyweight ? 'Zavorra' : 'Peso'} unit="kg" step={2.5} decimals bind:value={kg} />
+                {/if}
               </div>
+              {#if !weighted}
+                <span class="ballast">
+                  <Button look="ghost" size="sm" onclick={() => (weighted = true)}><Icon name="plus" /> Zavorra</Button>
+                </span>
+              {/if}
+              <Switch
+                checked={toFailure}
+                onchange={(value) => (toFailure = value)}
+                label="MAX"
+                hint="A cedimento. Se non le hai contate, lascia vuote le ripetizioni."
+              />
+              <TextField bind:value={setNote} label="Nota della serie" placeholder="Nota della serie: SX, con riposo…" maxlength={100} />
               {#if error}<Alert message={error} />{/if}
               <Button look="primary" extra="log" disabled={working || cooling} onclick={() => void addSet(block)}>
                 <Icon name="check" /> Segna la serie {block.sets.length + 1}
@@ -494,6 +526,19 @@
   }
 
   .set .what { flex: 1; font-weight: 560; }
+
+  /* la nota di una serie le sta accanto, più piccola: «SX» */
+  .set-note {
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 99px;
+    background: var(--sunken-hover);
+    font-size: 11.5px;
+    font-weight: 560;
+    color: var(--ink-2);
+  }
+
+  .ballast { display: block; }
 
   .set :global(.ico) { width: 14px; height: 14px; color: var(--ink-3); }
 

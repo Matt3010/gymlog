@@ -42,7 +42,11 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
   se ne vuole, tutte insieme.
 - **Allenamenti:** parti da una scheda o da un allenamento libero. Per ogni
   esercizio vedi cosa chiede la scheda e cosa hai fatto l'ultima volta; registri ogni
-  serie (ripetizioni × kg), con il recupero che parte da solo. Il nome della scheda
+  serie (ripetizioni × kg), con il recupero che parte da solo. Una serie può essere
+  **MAX** (a cedimento: le ripetizioni, se non le hai contate, restano vuote), senza
+  peso, e avere una nota sua ("SX", "con riposo"). Gli esercizi **a corpo libero**
+  (trazioni) non chiedono i chili, che si aggiungono solo come zavorra, e nelle
+  statistiche contano le ripetizioni. Il nome della scheda
   resta nello Storico (una sezione sua, nella barra in basso) anche se poi la cancelli.
 - **Statistiche:** nell'elenco degli esercizi, accanto a ognuno, peso medio, massimo,
   sessioni e l'ultima volta; aprendolo, sessione per sessione: serie, ripetizioni,

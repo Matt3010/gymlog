@@ -14,7 +14,7 @@ describe.skipIf(SERVER === undefined)("the exercises repository", () => {
   it("creates an exercise and finds it", async () => {
     const user = await newUser();
     const created = await repo().create(user.id, squat);
-    expect(created).toEqual({ id: expect.any(Number), ...squat });
+    expect(created).toEqual({ id: expect.any(Number), ...squat, bodyweight: false });
     expect(await repo().find(user.id, created.id)).toEqual(created);
   });
 
@@ -36,7 +36,7 @@ describe.skipIf(SERVER === undefined)("the exercises repository", () => {
   it("updates an exercise of the user only", async () => {
     const [user, other] = [await newUser(), await newUser()];
     const created = await repo().create(user.id, squat);
-    const changed = { name: "Squat frontale", muscleGroup: null, notes: null };
+    const changed = { name: "Squat frontale", muscleGroup: null, notes: null, bodyweight: true };
     expect(await repo().update(other.id, created.id, changed)).toBeUndefined();
     expect(await repo().find(user.id, created.id)).toEqual(created);
     expect(await repo().update(user.id, created.id, changed)).toEqual({ id: created.id, ...changed });

@@ -7,8 +7,8 @@ export interface StatSet {
   readonly exerciseName: string;
   readonly workoutId: number;
   readonly startedAt: string;
-  readonly reps: number;
-  readonly weightKg: number;
+  readonly reps: number | null;
+  readonly weightKg: number | null;
 }
 
 /** What the statistics are made from: every set done. */

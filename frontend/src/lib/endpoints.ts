@@ -1,6 +1,6 @@
 import { api } from './client';
 import type {
-  Exercise, ExerciseInput, ExerciseOverview, ExerciseStats, Plan, PlanInput, UserUsage, WorkoutDetail, WorkoutSet, WorkoutSummary,
+  Exercise, ExerciseInput, ExerciseOverview, ExerciseStats, Plan, PlanInput, SetInput, UserUsage, WorkoutDetail, WorkoutSet, WorkoutSummary,
 } from './types';
 
 /* Ogni chiamata dell'API, con i suoi tipi: le pagine chiamano queste, non indirizzi scritti a mano. */
@@ -26,9 +26,9 @@ export const workoutsApi = {
   get: (id: number) => api.get<WorkoutDetail>(`/workouts/${id}`),
   update: (id: number, change: { notes?: string | null; finished?: boolean }) => api.patch<WorkoutDetail>(`/workouts/${id}`, change),
   remove: (id: number) => api.delete<{ ok: true }>(`/workouts/${id}`),
-  addSet: (workoutId: number, set: { exerciseId: number; reps: number; weightKg: number }) =>
+  addSet: (workoutId: number, set: SetInput & { exerciseId: number }) =>
     api.post<WorkoutSet>(`/workouts/${workoutId}/sets`, set),
-  updateSet: (id: number, set: { reps: number; weightKg: number }) => api.patch<WorkoutSet>(`/sets/${id}`, set),
+  updateSet: (id: number, set: SetInput) => api.patch<WorkoutSet>(`/sets/${id}`, set),
   /** Vuota o `null` la toglie. */
   saveNote: (workoutId: number, exerciseId: number, note: string | null) =>
     api.put<{ exerciseId: number; note: string | null }>(`/workouts/${workoutId}/exercises/${exerciseId}/note`, { note }),

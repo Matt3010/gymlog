@@ -7,9 +7,9 @@ import { type Call, fakeApi, silentApi } from '../../test/fake-api';
 import Host from '../../test/Host.svelte';
 import ExercisesPage from './ExercisesPage.svelte';
 
-const SQUAT: Exercise = { id: 1, name: 'Squat', muscleGroup: 'Gambe', notes: null };
-const SQUAT_STATS = { exerciseId: 1, name: 'Squat', sessions: 6, avgWeight: 81.25, maxWeight: 100, lastAt: '2026-09-18T17:00:00.000Z' };
-const PANCA: Exercise = { id: 2, name: 'Panca piana', muscleGroup: null, notes: 'presa media' };
+const SQUAT: Exercise = { id: 1, name: 'Squat', muscleGroup: 'Gambe', notes: null, bodyweight: false };
+const SQUAT_STATS = { exerciseId: 1, name: 'Squat', sessions: 6, avgWeight: 81.25, maxWeight: 100, maxReps: 8, lastAt: '2026-09-18T17:00:00.000Z' };
+const PANCA: Exercise = { id: 2, name: 'Panca piana', muscleGroup: null, notes: 'presa media', bodyweight: false };
 
 /** The names in the list, top to bottom. */
 const names = () => [...document.querySelectorAll('.row .name')].map((node) => node.textContent);
@@ -90,9 +90,28 @@ describe('the exercises', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
+  it('are marked done without weights with a switch, saved at once', async () => {
+    const api = fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [PANCA, SQUAT])
+      .on('PATCH /exercises/1', { ...SQUAT, bodyweight: true });
+    render(Host, { page: ExercisesPage });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Modifica Squat' }));
+    const toggle = sheet().getByRole('switch', { name: 'Corpo libero' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await user.click(toggle);
+    await vi.waitFor(() => expect(api.changes()).toEqual([{ route: 'PATCH /exercises/1', body: { name: 'Squat', muscleGroup: 'Gambe', notes: null, bodyweight: true } }]));
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('done only without weights say the most reps in a set, not 0 kg', async () => {
+    fakeApi().on('GET /stats/exercises', [{ ...SQUAT_STATS, avgWeight: 0, maxWeight: 0, maxReps: 12 }]).on('GET /exercises', [SQUAT]);
+    render(Host, { page: ExercisesPage });
+    expect(await screen.findByText(/^max 12 rip\. · 6 sessioni/)).toBeInTheDocument();
+  });
+
   it('are corrected from their row', async () => {
     const api = fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [PANCA, SQUAT])
-      .on('PATCH /exercises/2', { id: 2, name: 'Panca inclinata', muscleGroup: 'Petto', notes: 'presa media' });
+      .on('PATCH /exercises/2', { id: 2, name: 'Panca inclinata', muscleGroup: 'Petto', notes: 'presa media', bodyweight: false });
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Modifica Panca piana' }));
@@ -104,11 +123,11 @@ describe('the exercises', () => {
     // each field is saved when you leave it, with what the others say now
     await user.tab();
     await vi.waitFor(() => expect(api.changes()).toHaveLength(1));
-    expect(api.changes()[0]).toEqual({ route: 'PATCH /exercises/2', body: { name: 'Panca inclinata', muscleGroup: null, notes: 'presa media' } });
+    expect(api.changes()[0]).toEqual({ route: 'PATCH /exercises/2', body: { name: 'Panca inclinata', muscleGroup: null, notes: 'presa media', bodyweight: false } });
     await user.type(sheet().getByPlaceholderText('Petto'), 'Petto');
     await user.tab();
     await vi.waitFor(() => expect(api.changes()).toHaveLength(2));
-    expect(api.changes()[1]).toEqual({ route: 'PATCH /exercises/2', body: { name: 'Panca inclinata', muscleGroup: 'Petto', notes: 'presa media' } });
+    expect(api.changes()[1]).toEqual({ route: 'PATCH /exercises/2', body: { name: 'Panca inclinata', muscleGroup: 'Petto', notes: 'presa media', bodyweight: false } });
     expect(sheet().getByRole('status', { name: 'Salvataggio' })).toHaveTextContent('Salvata');
     expect(sheet().queryByRole('button', { name: 'Salva' })).not.toBeInTheDocument();
     expect(names()).toEqual(['Panca inclinata', 'Squat']);
@@ -152,7 +171,7 @@ describe('the exercises', () => {
   });
 
   it('are searched by name or group as you type', async () => {
-    fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [PANCA, SQUAT, { id: 3, name: 'Affondi', muscleGroup: 'Gambe', notes: null }]);
+    fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [PANCA, SQUAT, { id: 3, name: 'Affondi', muscleGroup: 'Gambe', notes: null, bodyweight: false }]);
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();
     await screen.findByRole('button', { name: 'Modifica Squat' });
@@ -183,7 +202,7 @@ describe('the exercises', () => {
   });
 
   it('are created with «Crea», or Enter, in their place, and the field empties', async () => {
-    const api = fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [{ id: 3, name: 'Curl', muscleGroup: 'Bicipiti', notes: null }, SQUAT])
+    const api = fakeApi().on('GET /stats/exercises', []).on('GET /exercises', [{ id: 3, name: 'Curl', muscleGroup: 'Bicipiti', notes: null, bodyweight: false }, SQUAT])
       .on('POST /exercises', (call: Call) => ({ id: 9, name: (call.body as { name: string }).name, muscleGroup: null, notes: null }));
     render(Host, { page: ExercisesPage });
     const user = userEvent.setup();

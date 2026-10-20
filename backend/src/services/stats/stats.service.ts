@@ -1,6 +1,6 @@
 import type { Executor } from "../../lib";
 import { createStatsRepository, type StatSet } from "../../repositories";
-import { type ExerciseHistory, exerciseStats, type ExerciseSummary, exerciseSummaries, type SessionSets } from "./stats.rules";
+import { type DoneSet, type ExerciseHistory, exerciseStats, type ExerciseSummary, exerciseSummaries, type SessionSets } from "./stats.rules";
 
 export interface StatsService {
   /** Each exercise done, at a glance. */
@@ -11,7 +11,7 @@ export interface StatsService {
 
 /** Each workout's sets, in the order the workouts started. */
 function bySession(sets: readonly StatSet[]): SessionSets[] {
-  const sessions = new Map<number, { workoutId: number; startedAt: string; sets: { reps: number; weightKg: number }[] }>();
+  const sessions = new Map<number, { workoutId: number; startedAt: string; sets: DoneSet[] }>();
   for (const set of sets) {
     const session = sessions.get(set.workoutId) ?? { workoutId: set.workoutId, startedAt: set.startedAt, sets: [] };
     session.sets.push({ reps: set.reps, weightKg: set.weightKg });

@@ -17,8 +17,9 @@ Tutto sotto `/api`, JSON. nginx serve il frontend e passa `/api` al backend.
 ```ts
 interface User { id: number; username: string }
 
-interface Exercise { id: number; name: string; muscleGroup: string | null; notes: string | null }
-interface ExerciseInput { name: string; muscleGroup: string | null; notes: string | null }
+// bodyweight: a corpo libero (trazioni): le serie contano le ripetizioni, i chili solo come zavorra
+interface Exercise { id: number; name: string; muscleGroup: string | null; notes: string | null; bodyweight: boolean }
+interface ExerciseInput { name: string; muscleGroup: string | null; notes: string | null; bodyweight?: boolean }   // non detto è false
 
 interface PlanExercise {
   id: number; exerciseId: number; exerciseName: string; position: number;
@@ -39,8 +40,12 @@ interface Workout {
   startedAt: string; finishedAt: string | null; notes: string | null;
 }
 interface WorkoutSummary extends Workout { exercises: number; sets: number; volume: number }
-interface WorkoutSet { id: number; exerciseId: number; exerciseName: string; reps: number; weightKg: number; createdAt: string }
-interface PreviousSets { workoutId: number; startedAt: string; sets: { reps: number; weightKg: number }[]; note: string | null; before: { reps: number; weightKg: number }[] }
+// Una serie: reps null solo se toFailure (MAX, a cedimento, senza contarle); weightKg null è senza peso;
+// note è una parola sulla serie sola ("SX", "con riposo"), fino a 100 caratteri.
+interface SetInput { reps: number | null; weightKg: number | null; toFailure?: boolean; note?: string | null }
+interface PastSet { reps: number | null; weightKg: number | null; toFailure: boolean; note: string | null }
+interface WorkoutSet extends PastSet { id: number; exerciseId: number; exerciseName: string; createdAt: string }
+interface PreviousSets { workoutId: number; startedAt: string; sets: PastSet[]; note: string | null; before: PastSet[] }
 interface WorkoutDetail extends Workout {
   plan: PlanExercise[];                        // gli esercizi della scheda ([] se libero, o se la scheda non c'è più)
   sets: WorkoutSet[];                          // in ordine di inserimento
@@ -49,11 +54,14 @@ interface WorkoutDetail extends Workout {
   previousNote: { workoutId: number; startedAt: string; note: string } | null;
                                                // la nota generale dell'ultimo allenamento della stessa scheda
                                                // (per nome di scheda; un allenamento libero guarda quelli liberi)
+  bodyweight: number[];                        // gli id degli esercizi dell'utente a corpo libero
 }
 
-// Statistiche di un gruppo di serie (una sessione, o tutte)
+// Statistiche di un gruppo di serie (una sessione, o tutte). Ogni numero conta le serie che lo dicono:
+// i pesi quelle con il peso, le ripetizioni quelle con le ripetizioni, volume e 1RM quelle con tutti e due.
 interface SetStats {
   sets: number; reps: number;
+  maxReps: number;           // le ripetizioni della serie migliore: quello che conta a corpo libero
   volume: number;            // somma di reps × kg
   avgWeight: number;         // media dei kg delle serie
   maxWeight: number;
@@ -66,7 +74,7 @@ interface ExerciseStats {
   sessions: ExerciseSession[];                 // dalla più recente
 }
 // Un esercizio a colpo d'occhio, per l'elenco degli esercizi (solo quelli con almeno una serie)
-interface ExerciseSummary { exerciseId: number; name: string; sessions: number; avgWeight: number; maxWeight: number; lastAt: string }
+interface ExerciseSummary { exerciseId: number; name: string; sessions: number; avgWeight: number; maxWeight: number; maxReps: number; lastAt: string }
 ```
 
 ## Endpoint
@@ -95,9 +103,9 @@ interface ExerciseSummary { exerciseId: number; name: string; sessions: number; 
 | GET | /api/workouts/:id | – | `WorkoutDetail` |
 | PATCH | /api/workouts/:id | `{ notes?: string \| null, finished?: boolean }` | `WorkoutDetail`; `finished: false` dà 409 se un altro è in corso |
 | DELETE | /api/workouts/:id | – | `{ ok: true }` |
-| POST | /api/workouts/:id/sets | `{ exerciseId, reps, weightKg, key? }` (`key`, fino a 64 caratteri: la stessa due volte nello stesso allenamento dà la serie già segnata, non una nuova; con altri numeri 409. Al più 200 serie per allenamento) | `WorkoutSet` |
+| POST | /api/workouts/:id/sets | `SetInput & { exerciseId, key? }` (`key`, fino a 64 caratteri: la stessa due volte nello stesso allenamento dà la serie già segnata, non una nuova; con altri numeri 409. Al più 200 serie per allenamento) | `WorkoutSet` |
 | PUT | /api/workouts/:id/exercises/:exerciseId/note | `{ note: string \| null }` (vuota o null la toglie, fino a 1000 caratteri) | `{ exerciseId, note }` |
-| PATCH | /api/sets/:id | `{ reps, weightKg }` | `WorkoutSet` |
+| PATCH | /api/sets/:id | `SetInput` (la serie intera: quello che manca torna vuoto) | `WorkoutSet` |
 | DELETE | /api/sets/:id | – | `{ ok: true }` |
 | GET | /api/stats/exercises | – | `ExerciseSummary[]` (dal più recente) |
 | GET | /api/stats/exercises/:id | – | `ExerciseStats` |

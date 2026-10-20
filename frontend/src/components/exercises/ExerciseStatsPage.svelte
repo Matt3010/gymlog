@@ -41,7 +41,9 @@
     statsApi.exercise(id).then((result) => (stats = result), (failure: Error) => (error = failure.message));
   });
 
+  /* senza un chilo in nessuna sessione contano le ripetizioni: i numeri dei pesi sarebbero tutti zero */
   const bodyweight = $derived(stats !== null && stats.sessions.every((session) => session.maxWeight === 0));
+  const columns = $derived(bodyweight ? [COLUMNS[0]!, COLUMNS[1]!, COLUMNS[2]!, { label: 'Max', align: 'end', width: 'fit' } as Column, COLUMNS[7]!] : COLUMNS);
 
   /** Il ritorno in cima alla pagina: un oggetto qui e non nel markup, che Stryker non sa leggere. */
   const back = { href: EXERCISES_PATH, label: 'Esercizi' };
@@ -60,12 +62,19 @@
     {:else}
       <PageCard>
         <dl class="tiles">
-          <div><dt class="eyebrow">Massimo</dt><dd>{formatKg(stats.overall.maxWeight)}</dd></div>
-          <div><dt class="eyebrow">Media</dt><dd>{formatKg(stats.overall.avgWeight)}</dd></div>
-          <div><dt class="eyebrow">1RM stimato</dt><dd>{formatKg(stats.overall.bestE1rm)}</dd></div>
-          <div><dt class="eyebrow">Sessioni</dt><dd>{stats.overall.sessions}</dd></div>
-          <div><dt class="eyebrow">Serie</dt><dd>{stats.overall.sets}</dd></div>
-          <div><dt class="eyebrow">Volume</dt><dd>{formatKg(stats.overall.volume)}</dd></div>
+          {#if bodyweight}
+            <div><dt class="eyebrow">Max rip.</dt><dd>{stats.overall.maxReps}</dd></div>
+            <div><dt class="eyebrow">Ripetizioni</dt><dd>{stats.overall.reps}</dd></div>
+            <div><dt class="eyebrow">Sessioni</dt><dd>{stats.overall.sessions}</dd></div>
+            <div><dt class="eyebrow">Serie</dt><dd>{stats.overall.sets}</dd></div>
+          {:else}
+            <div><dt class="eyebrow">Massimo</dt><dd>{formatKg(stats.overall.maxWeight)}</dd></div>
+            <div><dt class="eyebrow">Media</dt><dd>{formatKg(stats.overall.avgWeight)}</dd></div>
+            <div><dt class="eyebrow">1RM stimato</dt><dd>{formatKg(stats.overall.bestE1rm)}</dd></div>
+            <div><dt class="eyebrow">Sessioni</dt><dd>{stats.overall.sessions}</dd></div>
+            <div><dt class="eyebrow">Serie</dt><dd>{stats.overall.sets}</dd></div>
+            <div><dt class="eyebrow">Volume</dt><dd>{formatKg(stats.overall.volume)}</dd></div>
+          {/if}
         </dl>
       </PageCard>
 
@@ -81,7 +90,7 @@
         <span class="eyebrow">Sessione per sessione</span>
         <!-- senza peso (trazioni) il massimale è sempre zero: la freccia guarda le ripetizioni -->
         {@const measure = (one: { reps: number; bestE1rm: number }) => (bodyweight ? one.reps : one.bestE1rm)}
-        <Table fitta columns={COLUMNS} rows={stats.sessions.map((session, index) => {
+        <Table fitta {columns} rows={stats.sessions.map((session, index) => {
           const before = stats!.sessions[index + 1];
           return { ...session, id: String(session.workoutId), now: measure(session), before: before && measure(before) };
         })} label="Le sessioni di {stats.exercise.name}">
@@ -90,15 +99,19 @@
             <!-- i numeri a destra, come le loro intestazioni: uno più corto finisce lo stesso sotto di lei -->
             <td class="end">{session.sets}</td>
             <td class="end">{session.reps}</td>
-            <td class="end">{formatNumber(session.volume)}</td>
-            <td class="end">{formatNumber(session.avgWeight)}</td>
-            <td class="end">{formatNumber(session.maxWeight)}</td>
-            <td class="end">{formatNumber(session.bestE1rm)}</td>
+            {#if bodyweight}
+              <td class="end">{session.maxReps}</td>
+            {:else}
+              <td class="end">{formatNumber(session.volume)}</td>
+              <td class="end">{formatNumber(session.avgWeight)}</td>
+              <td class="end">{formatNumber(session.maxWeight)}</td>
+              <td class="end">{formatNumber(session.bestE1rm)}</td>
+            {/if}
             <!-- la freccia dice se il massimale stimato è salito dalla sessione prima -->
             <td class="trend-cell"><Trend trend={trendOf(session.now, session.before)} against="before" /></td>
           {/snippet}
         </Table>
-        <p class="unit">Pesi e volume in kg.</p>
+        {#if !bodyweight}<p class="unit">Pesi e volume in kg.</p>{/if}
       </PageCard>
     {/if}
   {/if}

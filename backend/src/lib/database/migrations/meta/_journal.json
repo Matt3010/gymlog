@@ -71,6 +71,13 @@
       "when": 1792480218965,
       "tag": "0009_single_workout_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792485175946,
+      "tag": "0010_set_details",
+      "breakpoints": true
     }
   ]
 }

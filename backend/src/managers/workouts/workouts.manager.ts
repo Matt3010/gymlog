@@ -13,6 +13,8 @@ export interface WorkoutDetail extends Workout {
   readonly exerciseNotes: Record<string, string>;
   /** The note of the last earlier workout of the same plan. */
   readonly previousNote: PreviousNote | null;
+  /** The ids of the user's exercises done without weights: their sets ask for no weight. */
+  readonly bodyweight: number[];
 }
 
 /** Workouts together with plans and exercises; each method one transaction. */
@@ -37,6 +39,7 @@ async function detail(tx: Executor, userId: number, workout: Workout): Promise<W
     previous: await workouts.previous(userId, workout.id),
     exerciseNotes: await workouts.exerciseNotes(workout.id),
     previousNote: await workouts.previousNote(userId, workout.id),
+    bodyweight: (await createExercisesService(tx).list(userId)).filter((exercise) => exercise.bodyweight).map((exercise) => exercise.id),
   };
 }
 

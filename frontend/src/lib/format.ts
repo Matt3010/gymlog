@@ -9,6 +9,18 @@ export const formatKg = (kg: number): string => `${number().format(kg)} kg`;
 export const formatNumber = (value: number): string => number().format(value);
 
 /**
+ * Una serie come la si dice: «8 × 60 kg»; senza peso «4 rip.»; a cedimento
+ * con «MAX», al posto delle ripetizioni se non si sono contate («MAX × 10 kg»)
+ * o dopo («12 rip. MAX»). La nota della serie si mostra a parte.
+ */
+export function formatSet({ reps, weightKg, toFailure }: { reps: number | null; weightKg: number | null; toFailure: boolean }): string {
+  const what = weightKg === null
+    ? (reps === null ? 'MAX' : `${reps} rip.`)
+    : `${reps ?? 'MAX'} × ${formatKg(weightKg)}`;
+  return toFailure && reps !== null ? `${what} MAX` : what;
+}
+
+/**
  * Un peso scritto da chi si allena: con la virgola o col punto, come viene.
  * Mentre si scrive «22,» vale 22: il separatore in fondo aspetta i decimali,
  * e un numero a metà non è un errore. Quello che non è un numero — due

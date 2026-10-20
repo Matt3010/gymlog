@@ -15,10 +15,10 @@ async function apply(client: pg.Client, file: string): Promise<void> {
 }
 
 /**
- * Plans with days becoming plans that are one workout each: the data written
- * before the change, in a database of its own migrated up to it, then over it.
+ * A database of its own migrated up to `before` (that one left out), for the
+ * data written then; dropped after. The client is connected before the tests.
  */
-describe.skipIf(SERVER === undefined)("the migration to one workout per plan", () => {
+function databaseBefore(before: string): pg.Client {
   const name = `gymlog_test_${Math.random().toString(36).slice(2, 10)}`;
   const client = new pg.Client({ connectionString: `${SERVER}/${name}` });
 
@@ -37,7 +37,7 @@ describe.skipIf(SERVER === undefined)("the migration to one workout per plan", (
     await onRoot(`create database ${name}`);
     await client.connect();
     for (const file of readdirSync(MIGRATIONS).filter((one) => one.endsWith(".sql")).sort()) {
-      if (file >= "0009") break;
+      if (file >= before) break;
       await apply(client, file);
     }
   }, 60_000);
@@ -47,6 +47,13 @@ describe.skipIf(SERVER === undefined)("the migration to one workout per plan", (
     await client.end();
     await onRoot(`drop database if exists ${name} with (force)`);
   });
+
+  return client;
+}
+
+/** Plans with days becoming plans that are one workout each. */
+describe.skipIf(SERVER === undefined)("the migration to one workout per plan", () => {
+  const client = databaseBefore("0009");
 
   it("makes a plan of every day, keeping its exercises and the workouts that followed it", async () => {
     await client.query(`
@@ -93,5 +100,38 @@ describe.skipIf(SERVER === undefined)("the migration to one workout per plan", (
     await client.query("delete from plans where id = $1", [a]);
     expect((await client.query("select count(*)::int as n from plan_exercises where plan_id = $1", [a])).rows[0].n).toBe(0);
     expect((await client.query("select plan_id, plan_name from workouts where id = 100")).rows[0]).toEqual({ plan_id: null, plan_name: "Forza · A" });
+  });
+});
+
+/** Sets without weight, to failure, with a note of their own. */
+describe.skipIf(SERVER === undefined)("the migration to the details of a set", () => {
+  const client = databaseBefore("0010");
+
+  it("says no weight with none instead of 0 kg, and marks as bodyweight what was only ever done that way", async () => {
+    await client.query(`
+      insert into users (id, username, password_hash) values (1, 'anna', 'x');
+      insert into exercises (id, user_id, name) values (1, 1, 'Trazioni'), (2, 1, 'Panca'), (3, 1, 'Dip'), (4, 1, 'Mai fatto');
+      insert into workouts (id, user_id) values (1, 1);
+      insert into workout_sets (workout_id, exercise_id, reps, weight_kg) values
+        (1, 1, 5, 0), (1, 1, 4, 0), (1, 2, 8, 60), (1, 3, 10, 0), (1, 3, 6, 10);
+    `);
+    await apply(client, "0010_set_details.sql");
+
+    const { rows: sets } = await client.query("select exercise_id, reps, weight_kg, to_failure, note from workout_sets order by id");
+    expect(sets).toEqual([
+      { exercise_id: 1, reps: 5, weight_kg: null, to_failure: false, note: null },
+      { exercise_id: 1, reps: 4, weight_kg: null, to_failure: false, note: null },
+      { exercise_id: 2, reps: 8, weight_kg: 60, to_failure: false, note: null },
+      { exercise_id: 3, reps: 10, weight_kg: null, to_failure: false, note: null },
+      { exercise_id: 3, reps: 6, weight_kg: 10, to_failure: false, note: null },
+    ]);
+    // dips were done with a weight once: not bodyweight only; one never done stays as it was
+    const { rows: exercises } = await client.query("select name, bodyweight from exercises order by id");
+    expect(exercises).toEqual([
+      { name: "Trazioni", bodyweight: true }, { name: "Panca", bodyweight: false }, { name: "Dip", bodyweight: false }, { name: "Mai fatto", bodyweight: false },
+    ]);
+    // reps may be missing only to failure
+    await expect(client.query("insert into workout_sets (workout_id, exercise_id, reps, weight_kg) values (1, 2, null, 10)")).rejects.toThrow(/workout_sets_reps_or_failure/);
+    await client.query("insert into workout_sets (workout_id, exercise_id, reps, weight_kg, to_failure) values (1, 2, null, 10, true)");
   });
 });

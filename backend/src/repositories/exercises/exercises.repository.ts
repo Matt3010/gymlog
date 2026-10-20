@@ -5,10 +5,13 @@ export interface ExerciseInput {
   readonly name: string;
   readonly muscleGroup: string | null;
   readonly notes: string | null;
+  /** Done without weights; not said is no. */
+  readonly bodyweight?: boolean;
 }
 
 export interface Exercise extends ExerciseInput {
   readonly id: number;
+  readonly bodyweight: boolean;
 }
 
 /** Each user's exercises. Every call is scoped to a user: another's id finds nothing. */
@@ -24,7 +27,7 @@ export interface ExercisesRepository {
   ownsAll(userId: number, ids: readonly number[]): Promise<boolean>;
 }
 
-const exercise = { id: exercises.id, name: exercises.name, muscleGroup: exercises.muscleGroup, notes: exercises.notes };
+const exercise = { id: exercises.id, name: exercises.name, muscleGroup: exercises.muscleGroup, notes: exercises.notes, bodyweight: exercises.bodyweight };
 
 export function createExercisesRepository(db: Executor): ExercisesRepository {
   const mine = (userId: number, id: number) => and(eq(exercises.userId, userId), eq(exercises.id, id));

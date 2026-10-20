@@ -1,13 +1,16 @@
 import type { StatSet } from "../../repositories";
 
+/** No reps: to failure, not counted; no weight: done without one. */
 export interface DoneSet {
-  readonly reps: number;
-  readonly weightKg: number;
+  readonly reps: number | null;
+  readonly weightKg: number | null;
 }
 
 export interface SetStats {
   readonly sets: number;
   readonly reps: number;
+  /** The most reps in one set: what counts without weights. */
+  readonly maxReps: number;
   readonly volume: number;
   readonly avgWeight: number;
   readonly maxWeight: number;
@@ -34,18 +37,27 @@ export function estimatedMax(weightKg: number, reps: number): number {
   return reps === 1 ? weightKg : round(weightKg * (1 + reps / 30));
 }
 
-/** Sets, reps, volume (reps × kg), the average and heaviest weight of the sets, the best estimated max. */
+/**
+ * Sets, reps, volume (reps × kg), the average and heaviest weight of the sets,
+ * the best estimated max. Each number counts the sets that say what it needs:
+ * a set without weight has no weight to average, one to failure without reps
+ * no reps to add up.
+ */
 export function setStats(sets: readonly DoneSet[]): SetStats {
   const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
-  const weights = sets.map((set) => set.weightKg);
+  // a loop and not Math.max(...): spread over a hundred thousand sets runs out of stack
+  const most = (values: number[]) => values.reduce((best, value) => Math.max(best, value), 0);
+  const reps = sets.flatMap((set) => (set.reps === null ? [] : [set.reps]));
+  const weights = sets.flatMap((set) => (set.weightKg === null ? [] : [set.weightKg]));
+  const both = sets.flatMap((set) => (set.reps === null || set.weightKg === null ? [] : [{ reps: set.reps, weightKg: set.weightKg }]));
   return {
     sets: sets.length,
-    reps: sum(sets.map((set) => set.reps)),
-    volume: round(sum(sets.map((set) => set.reps * set.weightKg))),
-    avgWeight: sets.length === 0 ? 0 : round(sum(weights) / sets.length),
-    // a loop and not Math.max(...): spread over a hundred thousand sets runs out of stack
-    maxWeight: weights.reduce((best, weight) => Math.max(best, weight), 0),
-    bestE1rm: sets.reduce((best, set) => Math.max(best, estimatedMax(set.weightKg, set.reps)), 0),
+    reps: sum(reps),
+    maxReps: most(reps),
+    volume: round(sum(both.map((set) => set.reps * set.weightKg))),
+    avgWeight: weights.length === 0 ? 0 : round(sum(weights) / weights.length),
+    maxWeight: most(weights),
+    bestE1rm: most(both.map((set) => estimatedMax(set.weightKg, set.reps))),
   };
 }
 
@@ -67,6 +79,7 @@ export interface ExerciseSummary {
   readonly sessions: number;
   readonly avgWeight: number;
   readonly maxWeight: number;
+  readonly maxReps: number;
   readonly lastAt: string;
 }
 
@@ -93,6 +106,7 @@ export function exerciseSummaries(sets: readonly StatSet[]): ExerciseSummary[] {
         sessions: new Set(done.map((set) => set.workoutId)).size,
         avgWeight: stats.avgWeight,
         maxWeight: stats.maxWeight,
+        maxReps: stats.maxReps,
         // The sets come oldest first: the last one is the latest.
         lastAt: done.at(-1)!.startedAt,
       };

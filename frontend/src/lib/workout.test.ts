@@ -8,12 +8,12 @@ const target = (exerciseId: number, exerciseName: string, extra: Partial<PlanExe
 
 let nextSet = 1;
 const set = (exerciseId: number, exerciseName: string, reps: number, weightKg: number): WorkoutSet => ({
-  id: nextSet++, exerciseId, exerciseName, reps, weightKg, createdAt: '2026-10-01T17:00:00.000Z',
+  id: nextSet++, exerciseId, exerciseName, reps, weightKg, toFailure: false, note: null, createdAt: '2026-10-01T17:00:00.000Z',
 });
 
 const detail = (extra: Partial<WorkoutDetail> = {}): WorkoutDetail => ({
   id: 1, planId: 5, planName: 'Forza · A', startedAt: '2026-10-01T17:00:00.000Z', finishedAt: null, notes: null,
-  plan: [], sets: [], previous: {}, exerciseNotes: {}, previousNote: null, ...extra,
+  plan: [], sets: [], previous: {}, exerciseNotes: {}, previousNote: null, bodyweight: [], ...extra,
 });
 
 describe('the blocks of a workout', () => {
@@ -21,11 +21,11 @@ describe('the blocks of a workout', () => {
     const squat = target(1, 'Squat');
     const bench = target(2, 'Panca', { reps: ['10', '10', '8', '6'] });
     const done = [set(1, 'Squat', 8, 100), set(2, 'Panca', 10, 60), set(1, 'Squat', 8, 102.5)];
-    const previous = { '1': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 97.5 }], note: null, before: [] } };
+    const previous = { '1': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 97.5, toFailure: false, note: null }], note: null, before: [] } };
     const blocks = blocksOf(detail({ plan: [squat, bench], sets: done, previous }));
     expect(blocks).toEqual([
-      { exerciseId: 1, name: 'Squat', target: squat, sets: [done[0], done[2]], previous: previous['1'] },
-      { exerciseId: 2, name: 'Panca', target: bench, sets: [done[1]], previous: null },
+      { exerciseId: 1, name: 'Squat', target: squat, sets: [done[0], done[2]], previous: previous['1'], bodyweight: false },
+      { exerciseId: 2, name: 'Panca', target: bench, sets: [done[1]], previous: null, bodyweight: false },
     ]);
   });
 
@@ -51,7 +51,7 @@ describe('the blocks of a workout', () => {
   });
 
   it('carry the last time for exercises outside the plan too', () => {
-    const previous = { '3': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 12, weightKg: 14 }], note: null, before: [] } };
+    const previous = { '3': { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 12, weightKg: 14, toFailure: false, note: null }], note: null, before: [] } };
     const blocks = blocksOf(detail({ sets: [set(3, 'Curl', 12, 15)], previous }));
     expect(blocks[0]!.previous).toEqual(previous['3']);
   });
@@ -71,8 +71,8 @@ describe('the reps a plan asks for', () => {
 });
 
 describe('the next set, proposed', () => {
-  const block = { exerciseId: 1, name: 'Squat', target: target(1, 'Squat', { reps: ['12', '10', '8-9', 'max'] }), sets: [] as WorkoutSet[], previous: null };
-  const previous = { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 95 }, { reps: 6, weightKg: 100 }], note: null, before: [] };
+  const block = { exerciseId: 1, name: 'Squat', target: target(1, 'Squat', { reps: ['12', '10', '8-9', 'max'] }), sets: [] as WorkoutSet[], previous: null, bodyweight: false };
+  const previous = { workoutId: 9, startedAt: '2026-09-28T17:00:00.000Z', sets: [{ reps: 8, weightKg: 95, toFailure: false, note: null }, { reps: 6, weightKg: 100, toFailure: false, note: null }], note: null, before: [] };
 
   it('takes the reps the plan asks for that set, and the weight of the last set', () => {
     expect(prefill(block)).toEqual({ reps: 12, weightKg: null });
@@ -128,17 +128,42 @@ describe('the workout in progress', () => {
 });
 
 describe('a set as typed', () => {
+  const plain = { toFailure: false, note: null };
+
   it('is reps and kilos, with a comma or a dot', () => {
-    expect(readSet('8', '62,5')).toEqual({ reps: 8, weightKg: 62.5 });
-    expect(readSet(' 1 ', '0')).toEqual({ reps: 1, weightKg: 0 });
-    expect(readSet('100', '1000')).toEqual({ reps: 100, weightKg: 1000 });
+    expect(readSet('8', '62,5')).toEqual({ reps: 8, weightKg: 62.5, ...plain });
+    expect(readSet(' 1 ', '0')).toEqual({ reps: 1, weightKg: 0, ...plain });
+    expect(readSet('100', '1000')).toEqual({ reps: 100, weightKg: 1000, ...plain });
   });
+
+  it('without kilos is a set without weight', () => {
+    expect(readSet('8', '')).toEqual({ reps: 8, weightKg: null, ...plain });
+    expect(readSet('8', '  ')).toEqual({ reps: 8, weightKg: null, ...plain });
+  });
+
+  it('to failure may leave out the reps, and keeps them when written', () => {
+    expect(readSet('', '10', true)).toEqual({ reps: null, weightKg: 10, toFailure: true, note: null });
+    expect(readSet('12', '10', true)).toEqual({ reps: 12, weightKg: 10, toFailure: true, note: null });
+    expect(readSet('', '', true)).toEqual({ reps: null, weightKg: null, toFailure: true, note: null });
+  });
+
+  it('carries its note trimmed, blank as none, up to 100 characters', () => {
+    expect(readSet('3', '10', false, ' SX ')).toMatchObject({ note: 'SX' });
+    expect(readSet('3', '10', false, '  ')).toMatchObject({ note: null });
+    expect(readSet('3', '10', false, 'x'.repeat(101))).toEqual({ error: 'La nota della serie è troppo lunga: al più 100 caratteri.' });
+  });
+
+  const REPS = 'Le ripetizioni vanno da 1 a 100. A cedimento, senza contarle, segna MAX e lasciale vuote.';
 
   it.each([['0', '10'], ['101', '10'], ['7,5', '10'], ['', '10'], ['otto', '10']])('refuses reps %j', (reps, kg) => {
-    expect(readSet(reps, kg)).toEqual({ error: 'Le ripetizioni vanno da 1 a 100.' });
+    expect(readSet(reps, kg)).toEqual({ error: REPS });
   });
 
-  it.each([['8', ''], ['8', '1000,5'], ['8', '-2'], ['8', 'tanti']])('refuses kilos %j', (reps, kg) => {
+  it('refuses wrong reps to failure too, when written', () => {
+    expect(readSet('0', '10', true)).toEqual({ error: REPS });
+  });
+
+  it.each([['8', '1000,5'], ['8', '-2'], ['8', 'tanti']])('refuses kilos %j', (reps, kg) => {
     expect(readSet(reps, kg)).toEqual({ error: 'Il peso va da 0 a 1000 kg, con la virgola se serve.' });
   });
 

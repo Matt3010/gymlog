@@ -8,11 +8,11 @@ import ExerciseStatsPage from './ExerciseStatsPage.svelte';
 const tile = (name: string) => screen.getByText(name, { selector: 'dt' }).nextElementSibling?.textContent;
 
 const SQUAT: ExerciseStats = {
-  exercise: { id: 1, name: 'Squat', muscleGroup: null, notes: null },
-  overall: { sessions: 2, sets: 3, reps: 21, volume: 2050, avgWeight: 96.67, maxWeight: 110, bestE1rm: 121 },
+  exercise: { id: 1, name: 'Squat', muscleGroup: null, notes: null, bodyweight: false },
+  overall: { sessions: 2, sets: 3, reps: 21, maxReps: 10, volume: 2050, avgWeight: 96.67, maxWeight: 110, bestE1rm: 121 },
   sessions: [
-    { workoutId: 8, startedAt: '2026-09-20T17:00:00.000Z', sets: 1, reps: 3, volume: 330, avgWeight: 110, maxWeight: 110, bestE1rm: 121 },
-    { workoutId: 5, startedAt: '2026-09-18T17:00:00.000Z', sets: 2, reps: 18, volume: 1720, avgWeight: 90, maxWeight: 95, bestE1rm: 116.67 },
+    { workoutId: 8, startedAt: '2026-09-20T17:00:00.000Z', sets: 1, reps: 3, maxReps: 3, volume: 330, avgWeight: 110, maxWeight: 110, bestE1rm: 121 },
+    { workoutId: 5, startedAt: '2026-09-18T17:00:00.000Z', sets: 2, reps: 18, maxReps: 10, volume: 1720, avgWeight: 90, maxWeight: 95, bestE1rm: 116.67 },
   ],
 };
 
@@ -35,11 +35,11 @@ describe('the stats of an exercise', () => {
 
   it('for an exercise without weight (pull-ups) draws and compares the reps, not a flat 0 kg', async () => {
     const session = (workoutId: number, day: number, reps: number) => ({
-      workoutId, startedAt: `2026-09-${day}T17:00:00.000Z`, sets: 3, reps, volume: 0, avgWeight: 0, maxWeight: 0, bestE1rm: 0,
+      workoutId, startedAt: `2026-09-${day}T17:00:00.000Z`, sets: 3, reps, maxReps: Math.ceil(reps / 3), volume: 0, avgWeight: 0, maxWeight: 0, bestE1rm: 0,
     });
     fakeApi().on('GET /stats/exercises/1', {
-      exercise: { id: 1, name: 'Trazioni', muscleGroup: null, notes: null },
-      overall: { sessions: 3, sets: 9, reps: 75, volume: 0, avgWeight: 0, maxWeight: 0, bestE1rm: 0 },
+      exercise: { id: 1, name: 'Trazioni', muscleGroup: null, notes: null, bodyweight: true },
+      overall: { sessions: 3, sets: 9, reps: 75, maxReps: 10, volume: 0, avgWeight: 0, maxWeight: 0, bestE1rm: 0 },
       sessions: [session(9, 20, 30), session(5, 18, 25), session(2, 15, 25)],
     });
     render(ExerciseStatsPage, { id: 1 });

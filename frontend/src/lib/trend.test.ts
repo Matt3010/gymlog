@@ -52,4 +52,15 @@ describe('the trend of a set against one before', () => {
     expect(trendOf({ reps: 8, weightKg: 0 }, { reps: 8, weightKg: 60 })).toBe('down');
     expect(trendOf({ reps: 8, weightKg: 60 }, { reps: 8, weightKg: 0 })).toBe('up');
   });
+
+  it('compares sets without weight by their reps, a missing weight as 0 kg against one with it', () => {
+    expect(trendOf({ reps: 9, weightKg: null }, { reps: 8, weightKg: null })).toBe('up');
+    expect(trendOf({ reps: 8, weightKg: null }, { reps: 8, weightKg: 0 })).toBe('same');
+    expect(trendOf({ reps: 8, weightKg: 10 }, { reps: 8, weightKg: null })).toBe('up');
+  });
+
+  it('says nothing for a set to failure without its reps', () => {
+    expect(trendOf({ reps: null, weightKg: 10 }, { reps: 8, weightKg: 10 })).toBeUndefined();
+    expect(trendOf({ reps: 8, weightKg: 10 }, { reps: null, weightKg: 10 })).toBeUndefined();
+  });
 });

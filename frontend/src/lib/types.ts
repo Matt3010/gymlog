@@ -30,12 +30,16 @@ export interface Exercise {
   name: string;
   muscleGroup: string | null;
   notes: string | null;
+  /** Senza pesi (trazioni, piegamenti): le serie contano le ripetizioni, i chili solo come zavorra. */
+  bodyweight: boolean;
 }
 
 export interface ExerciseInput {
   name: string;
   muscleGroup: string | null;
   notes: string | null;
+  /** Non detto è no. */
+  bodyweight?: boolean;
 }
 
 export interface PlanExercise {
@@ -88,19 +92,25 @@ export interface WorkoutSummary extends Workout {
   volume: number;
 }
 
-export interface WorkoutSet {
+/**
+ * Una serie come si scrive: le ripetizioni (nessuna solo a cedimento, «MAX»),
+ * i chili (nessuno senza peso), se era a cedimento, e una nota sua: «SX».
+ */
+export interface SetInput {
+  reps: number | null;
+  weightKg: number | null;
+  toFailure: boolean;
+  note: string | null;
+}
+
+export interface WorkoutSet extends SetInput {
   id: number;
   exerciseId: number;
   exerciseName: string;
-  reps: number;
-  weightKg: number;
   createdAt: string;
 }
 
-export interface DoneSet {
-  reps: number;
-  weightKg: number;
-}
+export type DoneSet = SetInput;
 
 export interface PreviousSets {
   workoutId: number;
@@ -122,11 +132,15 @@ export interface WorkoutDetail extends Workout {
   exerciseNotes: Record<string, string>;
   /** La nota dell'ultimo allenamento della stessa scheda (o libero, se libero). */
   previousNote: { workoutId: number; startedAt: string; note: string } | null;
+  /** Gli id degli esercizi senza pesi: le loro serie non chiedono i chili. */
+  bodyweight: number[];
 }
 
 export interface SetStats {
   sets: number;
   reps: number;
+  /** Le ripetizioni della serie migliore: quello che conta senza pesi. */
+  maxReps: number;
   volume: number;
   avgWeight: number;
   maxWeight: number;
@@ -151,5 +165,6 @@ export interface ExerciseOverview {
   sessions: number;
   avgWeight: number;
   maxWeight: number;
+  maxReps: number;
   lastAt: string;
 }
