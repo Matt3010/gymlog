@@ -14,7 +14,6 @@
   import PageShell from '../PageShell.svelte';
   import Loader from '../Loader.svelte';
   import SaveStatus from '../SaveStatus.svelte';
-  import Tabs from '../Tabs.svelte';
   import TextField from '../TextField.svelte';
   import { ui } from '../../lib/ui.svelte';
   import ExercisePicker from '../exercises/ExercisePicker.svelte';
@@ -24,17 +23,13 @@
    * ripetizioni e recupero. Una scheda è un allenamento.
    *
    * Una scheda nuova si crea su richiesta: nome, note e «Crea la scheda».
-   * Creata, la pagina diventa la sua e si apre sugli esercizi: il nome e le
-   * note sono già scritti, e stanno in «Dettagli» invece di ripetersi sopra. Da lì si salva da sé mentre la
-   * scrivi, tutta insieme (`Autosave`): nessun tasto «Salva». Quello che il
+   * Creata, la pagina diventa la sua: in cima il nome e le note, da
+   * cambiare lì, poi gli esercizi. Da lì si salva da sé mentre la scrivi, tutta insieme (`Autosave`): nessun tasto «Salva». Quello che il
    * server rifiuterebbe si dice prima, e non parte.
    */
   let { id }: { id: number | null } = $props();
 
   let draft = $state<Draft | null>(null);
-  /** Quale parte di una scheda salvata si vede: di solito si torna per gli esercizi. */
-  let part = $state<'esercizi' | 'dettagli'>('esercizi');
-  const PARTS = [{ id: 'esercizi' as const, label: 'Esercizi' }, { id: 'dettagli' as const, label: 'Dettagli' }];
   let error = $state('');
   let working = $state(false);
   /** L'ultima versione mandata, o quella aperta: uguale, non si rimanda. */
@@ -184,9 +179,7 @@
   {:else if !draft && !error}
     <Loader />
   {:else if draft}
-    <div class="parts"><Tabs value={part} options={PARTS} onpick={(id) => (part = id)} label="Parti della scheda" /></div>
-
-    {#if part === 'dettagli'}
+    <!-- il nome si cambia qui, in cima: gli allenamenti fatti con la scheda lo prendono -->
     <PageCard>
       <label class="field">
         <span class="eyebrow">Nome</span>
@@ -197,7 +190,6 @@
         <TextField kind="multiline" bind:value={draft.notes} maxlength={1000} placeholder="Quante volte a settimana, cosa curare" />
       </label>
     </PageCard>
-    {:else}
 
     {#each draft.exercises as exercise, index (exercise.key)}
       <PageCard>
@@ -254,7 +246,6 @@
         <Icon name="plus" /> Aggiungi esercizio
       </Button>
     </span>
-    {/if}
 
     {#if problem}<Alert message={problem} />{/if}
     {#if saver.status === 'error'}<Alert message={saver.error} />{/if}
@@ -268,9 +259,6 @@
 
 <style>
   .create { display: block; }
-
-  /* le linguette stanno nella colonna della pagina: lo spazio sotto lo dà lei, come fra le card */
-  .parts :global(.tabs.pill) { margin-bottom: 0; }
 
   @media (min-width: 601px) { .create { justify-self: end; } }
 

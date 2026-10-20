@@ -42,11 +42,8 @@ const status = () => screen.getByRole('status', { name: 'Salvataggio' });
 const confirmTake = async (user: ReturnType<typeof userEvent.setup>) =>
   user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Togli' }));
 const pause = () => new Promise((resolve) => setTimeout(resolve, 800));
-/** Opens the tab with the plan's own details, once it is loaded; gives back its name field. */
-async function details(): Promise<HTMLElement> {
-  await userEvent.setup().click(await screen.findByRole('tab', { name: 'Dettagli' }));
-  return screen.getByPlaceholderText(NAME);
-}
+/** The plan's name field, at the top of the page, once it is loaded. */
+const details = (): Promise<HTMLElement> => screen.findByPlaceholderText(NAME);
 
 describe('the plans', () => {
   it('are listed by name, each saying what is in it', async () => {
@@ -150,7 +147,7 @@ describe('a plan being written', () => {
     const last = within(screen.getByRole('dialog', { name: 'Aggiungi alla scheda' }));
     await user.type(last.getByPlaceholderText('Nuovo esercizio'), 'Rematore');
     await user.click(last.getByRole('button', { name: 'Crea e aggiungi' }));
-    await user.type(screen.getAllByLabelText('Note')[2]!, 'lento');
+    await user.type(screen.getAllByLabelText('Note')[3]!, 'lento');
 
     await settled(() => expect(planChanges(api).at(-1)?.body).toMatchObject({ exercises: [{}, {}, { notes: 'lento' }] }));
     expect(planChanges(api).every((change) => change.route === 'PUT /plans/9')).toBe(true);
@@ -307,25 +304,29 @@ describe('a saved plan', () => {
     expect(await screen.findByRole('heading', { name: 'Forza' })).toBeInTheDocument();
     expect(setReps()).toEqual(['5', '5', '5', '5', '3', '8', '8', '8', '8', '8', '8']);
     expect(screen.getAllByLabelText('Recupero (s)').map((input) => (input as HTMLInputElement).value)).toEqual(['180', '90', '90']);
-    expect(screen.getAllByLabelText('Note').map((input) => (input as HTMLInputElement).value)).toEqual(['', '', 'lento']);
+    // the plan's notes first, then each exercise's
+    expect(screen.getAllByLabelText('Note').map((input) => (input as HTMLInputElement).value)).toEqual(['3 volte', '', '', 'lento']);
     expect(await details()).toHaveValue('Forza');
-    expect(screen.getByLabelText('Note')).toHaveValue('3 volte');
   });
 
-  it('opens on its exercises; its own details sit in a tab of their own, not above them', async () => {
+  it('shows its name and notes at the top, above the exercises, with no tabs to look behind', async () => {
     fakeApi().on('GET /plans/5', FORZA);
     render(Host, { page: PlanEditorPage, params: { id: 5 } });
-    await screen.findByRole('heading', { name: 'Forza' });
-    expect(screen.getByRole('tab', { name: 'Esercizi' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.queryByPlaceholderText(NAME)).not.toBeInTheDocument();
-    expect(screen.getAllByLabelText('Recupero (s)')).toHaveLength(3);
-    await details();
-    expect(screen.getByRole('tab', { name: 'Dettagli' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Recupero (s)')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Aggiungi esercizio' })).not.toBeInTheDocument();
-    await userEvent.setup().click(screen.getByRole('tab', { name: 'Esercizi' }));
-    expect(screen.getAllByLabelText('Recupero (s)')).toHaveLength(3);
+    const name = await details();
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    const first = screen.getAllByLabelText('Recupero (s)')[0]!;
+    expect(name.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('is renamed from the top of the page, and the title follows', async () => {
+    const api = fakeApi().on('GET /plans/5', FORZA).on('PUT /plans/5', (call: Call) => ({ ...FORZA, ...(call.body as object) }));
+    render(Host, { page: PlanEditorPage, params: { id: 5 } });
+    const user = userEvent.setup();
+    const name = await details();
+    await user.clear(name);
+    await user.type(name, 'Gambe');
+    expect(screen.getByRole('heading', { name: 'Gambe' })).toBeInTheDocument();
+    await settled(() => expect(planChanges(api).at(-1)?.body).toMatchObject({ name: 'Gambe' }));
   });
 
   it('adds sets inside the exercise card with a primary button; exercises, outside the cards, with a secondary one', async () => {

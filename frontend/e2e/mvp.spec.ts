@@ -343,9 +343,8 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   // the browser logs the refused save: that one was asked for
   errors.splice(0, errors.length, ...errors.filter((error) => !error.includes('503')));
 
-  // A change made just before leaving is not lost; the name sits in «Dettagli», not above the exercises.
-  await expect(page.getByPlaceholder('Spinta, Gambe, Total body')).toHaveCount(0);
-  await page.getByRole('tab', { name: 'Dettagli' }).click();
+  // A change made just before leaving is not lost; the name sits at the top, above the exercises.
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.getByPlaceholder('Spinta, Gambe, Total body').fill('Forza!');
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Schede' }).click();
   await expect(page.getByRole('link', { name: /^Forza!/ })).toBeVisible();
