@@ -29,7 +29,7 @@ describe.skipIf(SERVER === undefined)("the admin repository", () => {
     const busy = await users.create(`b${Math.random().toString(36).slice(2)}`, "x");
     const squat = await createExercisesRepository(handle.db).create(busy.id, { name: "Squat", muscleGroup: null, notes: null });
     await createExercisesRepository(handle.db).create(busy.id, { name: "Panca", muscleGroup: null, notes: null });
-    await createPlansRepository(handle.db).create(busy.id, { name: "P", notes: null, startsOn: "2026-10-05", endsOn: null, archived: false, days: [] });
+    await createPlansRepository(handle.db).create(busy.id, { name: "P", notes: null, exercises: [] });
     const workouts = createWorkoutsRepository(handle.db);
     const old = await workouts.create(busy.id, null, daysAgo(40));
     await workouts.addSet(old.id, { exerciseId: squat.id, reps: 5, weightKg: 100 });

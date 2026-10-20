@@ -1,8 +1,8 @@
 import { expect, type Locator, type Page, type Route, test } from '@playwright/test';
 
 /*
- * The MVP as someone uses it at the gym, on a phone: exercises, a plan with
- * two days, a workout logged set by set, the next one showing the last time,
+ * The MVP as someone uses it at the gym, on a phone: exercises, a plan, a
+ * workout logged set by set, the next one showing the last time,
  * and the numbers in the stats. Along the way, what a fake DOM cannot see:
  * the page's last buttons clear of the tab bar, and a message never on top
  * of them.
@@ -46,7 +46,7 @@ const expectToastClearOf = (page: Page, ...buttons: Locator[]) => expectUncovere
 
 /** One level of card: whatever sits in a card as a row has no background, border or shadow of its own. */
 async function expectFlatRows(page: Page): Promise<void> {
-  const nested = await page.locator('.card .row, .card .day').evaluateAll((rows) =>
+  const nested = await page.locator('.card .row, .card .plan').evaluateAll((rows) =>
     rows
       .map((row) => {
         const style = getComputedStyle(row);
@@ -130,13 +130,13 @@ async function expectAligned(page: Page): Promise<void> {
       const left = card.getBoundingClientRect().left + parseFloat(getComputedStyle(card).paddingLeft) + parseFloat(getComputedStyle(card).borderLeftWidth);
       const inside = [
         ...[...card.children].filter((child) => getComputedStyle(child).position !== 'absolute'),
-        ...card.querySelectorAll('.row, .row .go, .row .open, .row .open > *, button.day, .empty, .empty > *'),
+        ...card.querySelectorAll('.row, .row .go, .row .open, .row .open > *, button.plan, .empty, .empty > *'),
       ];
       // where the content starts: a block's padding counts, a button's or a field's is its own
       const start = (element: Element) => {
         const box = element.getBoundingClientRect().left;
         // an exercise's head is a whole-width row whose light bleeds past the text: its text start counts
-        if (element.matches('button:not(.head):not(.day), input, textarea, .btn, .tabs')) return box;
+        if (element.matches('button:not(.head):not(.plan), input, textarea, .btn, .tabs')) return box;
         const style = getComputedStyle(element);
         return box + parseFloat(style.paddingLeft) + parseFloat(style.borderLeftWidth);
       };
@@ -271,10 +271,10 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expectPrimaryOnlyInCards(page);
   await expectNoZoomOnFocus(page);
 
-  // A plan: day A with Squat 3 × 8-10 and Panca, day B with Panca.
+  // A plan: Squat 3 × 8-10 and Panca.
   await page.getByRole('link', { name: 'Schede' }).click();
   await page.getByRole('link', { name: 'Scrivi una scheda' }).click();
-  await page.getByPlaceholder('Forza, autunno').fill('Forza');
+  await page.getByPlaceholder('Spinta, Gambe, Total body').fill('Forza');
   // a new plan is created on request; then it becomes the editor, which saves itself
   await expect(page.getByRole('button', { name: 'Aggiungi esercizio' })).toHaveCount(0);
   await expectFullWidth(page.getByRole('button', { name: 'Crea la scheda' }));
@@ -285,26 +285,22 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   for (const n of [1, 2, 3]) await page.getByLabel(`Serie ${n}, ripetizioni`).first().fill('8-10');
   await page.getByRole('button', { name: 'Aggiungi esercizio' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Panca piana' }).click();
-  await page.getByRole('button', { name: 'Aggiungi allenamento' }).click();
-  await page.getByRole('button', { name: 'Aggiungi esercizio' }).nth(1).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Panca piana' }).click();
   await expectNoZoomOnFocus(page);
-  // «Aggiungi esercizio» stands under its day's cards, outside any card: no line needed.
+  // «Aggiungi esercizio» stands under the exercises' cards, outside any card: no line needed.
   for (const add of await page.locator('.add').all()) expect(await add.evaluate((el) => el.closest('section.card') === null)).toBe(true);
-  for (const name of ['Aggiungi esercizio', 'Aggiungi allenamento', 'Aggiungi una serie a Squat']) await expectFullWidth(page.getByRole('button', { name }).first());
+  for (const name of ['Aggiungi esercizio', 'Aggiungi una serie a Squat']) await expectFullWidth(page.getByRole('button', { name }).first());
   // Room in the editor: "Recupero" stands apart from "+ Serie", and each exercise from the one before.
   const addSet = await page.getByRole('button', { name: 'Aggiungi una serie a Squat' }).boundingBox();
   const restLabel = await page.getByText('Recupero (s)').first().boundingBox();
   expect(restLabel!.y - (addSet!.y + addSet!.height)).toBeGreaterThanOrEqual(20);
-  // Each exercise of a plan is a card of its own, next to (not inside) its day's card.
+  // Each exercise of a plan is a card of its own, next to (not inside) another.
   const cards = await page.evaluate(() => {
     const cardOf = (text: string) => [...document.querySelectorAll('.exercise-name')].find((one) => one.textContent === text)!.closest('section.card')!;
     const squat = cardOf('Squat');
     const panca = cardOf('Panca piana');
-    const day = document.querySelector('.day-name')!.closest('section.card')!;
     return {
-      separate: squat !== panca && squat !== day && panca !== day,
-      nested: [squat, panca, day].some((card) => card.parentElement!.closest('section.card') !== null),
+      separate: squat !== panca,
+      nested: [squat, panca].some((card) => card.parentElement!.closest('section.card') !== null),
     };
   });
   expect(cards).toEqual({ separate: true, nested: false });
@@ -321,7 +317,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
 
   // At the end of the editor its buttons are clear of the tab bar.
   await scrollToEnd(page);
-  await expectClearOfTabBar(page, page.getByRole('button', { name: 'Aggiungi allenamento' }));
+  await expectClearOfTabBar(page, page.getByRole('button', { name: 'Aggiungi esercizio' }));
 
   // A message far below what is being written does not pull the page away from it.
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -337,21 +333,20 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   const failSaves = (route: Route) => (route.request().method() === 'PUT' ? route.fulfill({ status: 503, json: { error: 'Il server non si raggiunge adesso. Riprova fra poco.' } }) : route.continue());
   await page.route('**/api/plans/*', failSaves);
   await scrollToEnd(page);
-  await page.getByRole('button', { name: 'Aggiungi allenamento' }).click();
+  await page.getByLabel('Recupero (s)').last().fill('75');
   await expect(page.getByRole('alert')).toBeVisible({ timeout: 5000 });
   await page.waitForTimeout(600);
   await expectClearOfTabBar(page, page.getByRole('alert'));
   await page.unroute('**/api/plans/*', failSaves);
-  await page.getByRole('button', { name: 'Togli l’allenamento' }).last().click();
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Togli' }).click();
+  await page.getByLabel('Recupero (s)').last().fill('90');
   await expect(page.getByRole('alert')).toHaveCount(0, { timeout: 5000 });
   // the browser logs the refused save: that one was asked for
   errors.splice(0, errors.length, ...errors.filter((error) => !error.includes('503')));
 
-  // A change made just before leaving is not lost; the name sits in «Dettagli», not above the workouts.
-  await expect(page.getByPlaceholder('Forza, autunno')).toHaveCount(0);
+  // A change made just before leaving is not lost; the name sits in «Dettagli», not above the exercises.
+  await expect(page.getByPlaceholder('Spinta, Gambe, Total body')).toHaveCount(0);
   await page.getByRole('tab', { name: 'Dettagli' }).click();
-  await page.getByPlaceholder('Forza, autunno').fill('Forza!');
+  await page.getByPlaceholder('Spinta, Gambe, Total body').fill('Forza!');
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Schede' }).click();
   await expect(page.getByRole('link', { name: /^Forza!/ })).toBeVisible();
   // The last row of a list has no line under it: there is nothing below to part it from.
@@ -365,10 +360,10 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Allenati' })).toBeVisible();
   await expectFlatRows(page);
 
-  // The workout of day A: the first set needs its weight, the second repeats it plus 2,5.
-  await expectRoundPress(page.locator('button.day').first());
-  await page.getByRole('button', { name: /^Allenamento A / }).click();
-  await expect(page.getByRole('heading', { name: 'Forza! · A' })).toBeVisible();
+  // The workout of the plan: the first set needs its weight, the second repeats it plus 2,5.
+  await expectRoundPress(page.locator('button.plan').first());
+  await page.getByRole('button', { name: /^Forza! / }).click();
+  await expect(page.getByRole('heading', { name: 'Forza!' })).toBeVisible();
   await expect(page.getByLabel('Ripetizioni', { exact: true })).toHaveValue('8');
   await expect(page.getByLabel('Peso', { exact: true })).toHaveValue('');
   await page.getByLabel('Peso', { exact: true }).fill('60');
@@ -412,7 +407,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   // The rest is the same bar on every page, and it survives the app reloading (an iPhone does that in the background).
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Schede' }).click();
   await expect(rest).toContainText(/Recupero 1:/);
-  await expect(page.getByRole('link', { name: /^In corso/ })).toContainText('Forza! · A');
+  await expect(page.getByRole('link', { name: /^In corso/ })).toContainText('Forza!');
   await page.reload();
   await expect(rest).toContainText(/Recupero 1:/);
   // pressed, the whole banner lights up: the link fills it, edge to edge
@@ -434,7 +429,7 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   });
   expect(looks).toEqual({ background: true, text: 'rgb(255, 255, 255)' });
   await page.getByRole('link', { name: /^In corso/ }).click();
-  await expect(page.getByRole('heading', { name: 'Forza! · A' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Forza!' })).toBeVisible();
   await expect(rest).toBeVisible();
 
   await page.getByRole('button', { name: 'Termina' }).click();
@@ -449,10 +444,10 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   // the message keeps its room at the bottom while it shows
   expect(await page.locator('.page').first().evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))).toBeGreaterThanOrEqual(64 + 14 + 84);
 
-  // Leaving the page takes its message away. The next workout of day A shows the last time, and starts from its weight.
+  // Leaving the page takes its message away. The next workout of the plan shows the last time, and starts from its weight.
   await page.getByRole('link', { name: 'Allenati' }).first().click();
   await expect(page.locator('#toast')).toBeHidden();
-  await page.getByRole('button', { name: /^Allenamento A / }).click();
+  await page.getByRole('button', { name: /^Forza! / }).click();
   // Squat not started yet: the warm-up comes first, ramped up to last time's weight.
   await expect(page.getByRole('tab', { name: 'Riscaldamento' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('list', { name: 'Riscaldamento verso 60 kg' }).getByRole('listitem')).toHaveText(['1 8 × 22,5 kg', '2 5 × 35 kg', '3 3 × 47,5 kg']);
@@ -535,13 +530,13 @@ test('from the first exercise to the stats of a lift', async ({ page }) => {
   page.on('request', (request) => request.url().includes('/api/workouts?limit=20') && asked.push(request.url()));
   // «In corso» sits above the tabs on every page, clear of them and of the page's last button; a tap resumes.
   const now = page.getByRole('link', { name: /^In corso/ });
-  await expect(now).toContainText('Forza! · A');
+  await expect(now).toContainText('Forza!');
   await expectClearOfTabBar(page, now);
   await scrollToEnd(page);
   await expectUncovered(page, now, page.getByRole('button', { name: 'Allenamento libero' }));
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Schede' }).click();
   await now.click();
-  await expect(page.getByRole('heading', { name: 'Forza! · A' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Forza!' })).toBeVisible();
   // on its own page it steps aside
   await expect(now).toHaveCount(0);
   await page.getByRole('navigation', { name: 'Sezioni' }).getByRole('link', { name: 'Storico' }).click();

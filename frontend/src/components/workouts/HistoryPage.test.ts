@@ -7,7 +7,7 @@ import HistoryPage from './HistoryPage.svelte';
 
 function workout(id: number): WorkoutSummary {
   return {
-    id, planDayId: null, planName: 'Forza', dayName: 'A', startedAt: '2026-09-20T17:00:00.000Z', finishedAt: '2026-09-20T18:00:00.000Z',
+    id, planId: null, planName: 'Forza · A', startedAt: '2026-09-20T17:00:00.000Z', finishedAt: '2026-09-20T18:00:00.000Z',
     notes: null, exercises: 2, sets: 4, volume: 1520.5,
   };
 }
@@ -17,7 +17,7 @@ const links = () => screen.queryAllByRole('link').map((link) => link.getAttribut
 
 describe('the history', () => {
   it('lists the workouts with their numbers, each opening its page', async () => {
-    fakeApi().on('GET /workouts?limit=20&offset=0', [workout(3), { ...workout(2), finishedAt: null, planName: null, dayName: null, sets: 1, volume: 0 }]);
+    fakeApi().on('GET /workouts?limit=20&offset=0', [workout(3), { ...workout(2), finishedAt: null, planName: null, sets: 1, volume: 0 }]);
     render(HistoryPage);
     expect(await screen.findByRole('link', { name: 'dom 20 set Forza · A 4 serie · 1520,5 kg' })).toHaveAttribute('href', '/workouts/3');
     expect(screen.getByRole('link', { name: 'dom 20 set Allenamento libero · in corso 1 serie · 0 kg' })).toHaveAttribute('href', '/workouts/2');

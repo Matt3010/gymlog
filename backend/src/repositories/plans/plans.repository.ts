@@ -1,5 +1,5 @@
-import { and, asc, desc, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
-import { type Executor, exercises, planDays, planExercises, plans } from "../../lib";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { type Executor, exercises, planExercises, plans } from "../../lib";
 
 export interface PlanExerciseInput {
   readonly exerciseId: number;
@@ -12,12 +12,7 @@ export interface PlanExerciseInput {
 export interface PlanInput {
   readonly name: string;
   readonly notes: string | null;
-  /** The days it is followed, as a calendar writes them; no end while it is still in use. */
-  readonly startsOn: string;
-  readonly endsOn: string | null;
-  readonly archived: boolean;
-  /** A day already saved carries its id: it is changed in place, so workouts stay linked to it. */
-  readonly days: readonly { readonly id?: number | undefined; readonly name: string; readonly exercises: readonly PlanExerciseInput[] }[];
+  readonly exercises: readonly PlanExerciseInput[];
 }
 
 export interface PlanExercise extends PlanExerciseInput {
@@ -26,69 +21,38 @@ export interface PlanExercise extends PlanExerciseInput {
   readonly position: number;
 }
 
-export interface PlanDay {
-  readonly id: number;
-  readonly name: string;
-  readonly position: number;
-  readonly exercises: PlanExercise[];
-}
-
 export interface Plan {
   readonly id: number;
   readonly name: string;
   readonly notes: string | null;
-  readonly startsOn: string;
-  readonly endsOn: string | null;
-  readonly archived: boolean;
-  readonly days: PlanDay[];
-}
-
-/** A day of a plan, with the plan's name: what a workout follows. */
-export interface PlanDayDetail {
-  readonly planName: string;
-  readonly day: PlanDay;
+  readonly exercises: PlanExercise[];
 }
 
 /**
- * Plans with their days and exercises, saved whole. Every call is scoped to
- * a user. The exercise ids must be checked as the user's before saving.
+ * Plans with their exercises, saved whole. Every call is scoped to a user.
+ * The exercise ids must be checked as the user's before saving.
  */
 export interface PlansRepository {
-  /** Active plans first, then by name. */
+  /** By name. */
   list(userId: number): Promise<Plan[]>;
   find(userId: number, id: number): Promise<Plan | undefined>;
   create(userId: number, input: PlanInput): Promise<Plan>;
-  /** Replaces the plan's days and exercises. Undefined when the user has no such plan. */
+  /** Replaces the plan's exercises. Undefined when the user has no such plan. */
   replace(userId: number, id: number, input: PlanInput): Promise<Plan | undefined>;
   delete(userId: number, id: number): Promise<boolean>;
-  findDay(userId: number, dayId: number): Promise<PlanDayDetail | undefined>;
-  /**
-   * The plans in use (not archived) that started before that day end the day
-   * before at the latest; archived only once that day has come (in Italy):
-   * until then they are still the ones in use.
-   */
-  closeBefore(userId: number, day: string): Promise<void>;
 }
 
-const plan = { id: plans.id, name: plans.name, notes: plans.notes, startsOn: plans.startsOn, endsOn: plans.endsOn, archived: plans.archived };
+const plan = { id: plans.id, name: plans.name, notes: plans.notes };
 
-const fields = ({ name, notes, startsOn, endsOn, archived }: PlanInput) => ({ name, notes, startsOn, endsOn, archived });
-
-/** The days of these plans, each with its exercises, in order. */
-async function daysOf(db: Executor, planIds: readonly number[]): Promise<Map<number, PlanDay[]>> {
-  const byPlan = new Map<number, PlanDay[]>(planIds.map((id) => [id, []]));
-  // Stryker disable next-line ConditionalExpression: no plans find no days either; this only saves a query
+/** The exercises of these plans, in order. */
+async function exercisesOf(db: Executor, planIds: readonly number[]): Promise<Map<number, PlanExercise[]>> {
+  const byPlan = new Map<number, PlanExercise[]>(planIds.map((id) => [id, []]));
+  // Stryker disable next-line ConditionalExpression: no plans find no exercises either; this only saves a query
   if (planIds.length === 0) return byPlan;
-  const days = await db
-    .select({ id: planDays.id, planId: planDays.planId, name: planDays.name, position: planDays.position })
-    .from(planDays)
-    .where(inArray(planDays.planId, [...planIds]))
-    .orderBy(asc(planDays.position));
-  // Stryker disable next-line ConditionalExpression,ArrayDeclaration: no days have no exercises either; this only saves a query
-  const rows = days.length === 0 ? [] : await db
+  const rows = await db
     .select({
       id: planExercises.id,
-      dayId: planExercises.planDayId,
+      planId: planExercises.planId,
       exerciseId: planExercises.exerciseId,
       exerciseName: exercises.name,
       position: planExercises.position,
@@ -98,98 +62,58 @@ async function daysOf(db: Executor, planIds: readonly number[]): Promise<Map<num
     })
     .from(planExercises)
     .innerJoin(exercises, eq(exercises.id, planExercises.exerciseId))
-    .where(inArray(planExercises.planDayId, days.map((day) => day.id)))
+    .where(inArray(planExercises.planId, [...planIds]))
     .orderBy(asc(planExercises.position));
-
-  for (const { planId, ...day } of days) {
-    byPlan.get(planId)!.push({ ...day, exercises: rows.filter((row) => row.dayId === day.id).map(({ dayId: _, ...row }) => row) });
-  }
+  for (const { planId, ...row } of rows) byPlan.get(planId)!.push(row);
   return byPlan;
 }
 
-/** Writes the days in order: one with an id is changed in place, the others are new. */
-async function writeDays(db: Executor, planId: number, input: PlanInput): Promise<void> {
-  for (const [position, day] of input.days.entries()) {
-    let dayId = day.id;
-    if (dayId === undefined) {
-      const [row] = await db.insert(planDays).values({ planId, name: day.name, position }).returning({ id: planDays.id });
-      dayId = row!.id;
-    } else {
-      const kept = await db.update(planDays).set({ name: day.name, position })
-        .where(and(eq(planDays.id, dayId), eq(planDays.planId, planId))).returning({ id: planDays.id });
-      // only a day of this very plan is rewritten: never another plan's, whoever sent its id
-      if (kept.length === 0) throw new Error(`plan day ${dayId} is not one of plan ${planId}'s`);
-      await db.delete(planExercises).where(eq(planExercises.planDayId, dayId));
-    }
-    if (day.exercises.length === 0) continue;
-    await db.insert(planExercises).values(day.exercises.map((exercise, index) => ({ ...exercise, planDayId: dayId, position: index })));
-  }
+async function writeExercises(db: Executor, planId: number, input: PlanInput): Promise<void> {
+  if (input.exercises.length === 0) return;
+  await db.insert(planExercises).values(input.exercises.map((exercise, index) => ({ ...exercise, planId, position: index })));
 }
 
 export function createPlansRepository(db: Executor): PlansRepository {
   const mine = (userId: number, id: number) => and(eq(plans.userId, userId), eq(plans.id, id));
 
-  async function load(executor: Executor, userId: number, id: number): Promise<Plan | undefined> {
-    const [row] = await executor.select(plan).from(plans).where(mine(userId, id));
+  async function load(userId: number, id: number): Promise<Plan | undefined> {
+    const [row] = await db.select(plan).from(plans).where(mine(userId, id));
     if (row === undefined) return undefined;
-    return { ...row, days: (await daysOf(executor, [row.id])).get(row.id)! };
+    return { ...row, exercises: (await exercisesOf(db, [row.id])).get(row.id)! };
   }
 
   return {
     async list(userId) {
       const rows = await db.select(plan).from(plans).where(eq(plans.userId, userId))
-        .orderBy(asc(plans.archived), desc(plans.startsOn), asc(sql`lower(${plans.name})`));
-      const days = await daysOf(db, rows.map((row) => row.id));
-      return rows.map((row) => ({ ...row, days: days.get(row.id)! }));
+        .orderBy(asc(sql`lower(${plans.name})`), asc(plans.id));
+      const byPlan = await exercisesOf(db, rows.map((row) => row.id));
+      return rows.map((row) => ({ ...row, exercises: byPlan.get(row.id)! }));
     },
 
     find(userId, id) {
-      return load(db, userId, id);
+      return load(userId, id);
     },
 
     async create(userId, input) {
-      const [row] = await db.insert(plans).values({ userId, ...fields(input) }).returning({ id: plans.id });
-      await writeDays(db, row!.id, input);
-      return (await load(db, userId, row!.id))!;
+      const [row] = await db.insert(plans).values({ userId, name: input.name, notes: input.notes }).returning({ id: plans.id });
+      await writeExercises(db, row!.id, input);
+      return (await load(userId, row!.id))!;
     },
 
     async replace(userId, id, input) {
-      const [row] = await db.update(plans).set(fields(input))
+      const [row] = await db.update(plans).set({ name: input.name, notes: input.notes })
         .where(mine(userId, id)).returning({ id: plans.id });
       if (row === undefined) return undefined;
-      // Days left out go with their exercises; workouts that followed them keep their sets and names, without a plan.
-      const kept = input.days.flatMap((day) => (day.id === undefined ? [] : [day.id]));
-      await db.delete(planDays).where(and(eq(planDays.planId, id), notInArray(planDays.id, kept)));
-      await writeDays(db, id, input);
-      // Workouts show the names as they are now: the plan's, and their day's.
-      await db.execute(sql`
-        update workouts w set plan_name = ${input.name}, day_name = d.name
-        from plan_days d
-        where w.plan_day_id = d.id and d.plan_id = ${id} and w.user_id = ${userId}`);
-      return load(db, userId, id);
+      await db.delete(planExercises).where(eq(planExercises.planId, id));
+      await writeExercises(db, id, input);
+      // Workouts show the plan's name as it is now.
+      await db.execute(sql`update workouts set plan_name = ${input.name} where plan_id = ${id} and user_id = ${userId}`);
+      return load(userId, id);
     },
 
     async delete(userId, id) {
       const deleted = await db.delete(plans).where(mine(userId, id)).returning({ id: plans.id });
       return deleted.length > 0;
-    },
-
-    async findDay(userId, dayId) {
-      const [row] = await db
-        .select({ planId: plans.id, planName: plans.name })
-        .from(planDays)
-        .innerJoin(plans, eq(plans.id, planDays.planId))
-        .where(and(eq(planDays.id, dayId), eq(plans.userId, userId)));
-      if (row === undefined) return undefined;
-      const day = (await daysOf(db, [row.planId])).get(row.planId)!.find((candidate) => candidate.id === dayId)!;
-      return { planName: row.planName, day };
-    },
-
-    async closeBefore(userId, day) {
-      await db.update(plans).set({
-        endsOn: sql`least(coalesce(${plans.endsOn}, ${day}::date - 1), ${day}::date - 1)`,
-        archived: sql`${day}::date <= (now() at time zone 'Europe/Rome')::date`,
-      }).where(and(eq(plans.userId, userId), eq(plans.archived, false), lt(plans.startsOn, day)));
     },
   };
 }

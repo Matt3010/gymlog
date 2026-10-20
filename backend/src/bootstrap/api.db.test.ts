@@ -387,7 +387,7 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect(await call("POST", "/api/exercises", { name: "squat" })).toMatchObject({ status: 409, body: { error: "Esiste già un esercizio con questo nome." } });
       const bench = (await call("POST", "/api/exercises", { name: "Panca" })).body;
       expect(await call("PATCH", `/api/exercises/${bench.id}`, { name: "SQUAT" })).toMatchObject({ status: 409, body: { error: "Esiste già un esercizio con questo nome." } });
-      await call("POST", "/api/plans", { name: "P", startsOn: "2026-10-05", days: [{ name: "A", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5"] }] }] });
+      await call("POST", "/api/plans", { name: "P", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5"] }] });
       expect(await call("DELETE", `/api/exercises/${squat.id}`))
         .toMatchObject({ status: 409, body: { error: "Non si può eliminare: è usato in una scheda o in un allenamento." } });
     });
@@ -406,18 +406,17 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       const { call } = await signedIn();
       const squat = (await call("POST", "/api/exercises", { name: "Squat" })).body;
       const plan = (await call("POST", "/api/plans", {
-        name: "Forza", notes: null, startsOn: "2026-10-05", endsOn: null, archived: false,
-        days: [{ name: "A", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5", "5", "5"], restSeconds: 180, notes: null }] }],
+        name: "Forza", notes: null,
+        exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5", "5", "5"], restSeconds: 180, notes: null }],
       })).body;
-      expect(plan).toMatchObject({ id: expect.any(Number), name: "Forza", days: [{ name: "A", exercises: [{ exerciseName: "Squat" }] }] });
+      expect(plan).toMatchObject({ id: expect.any(Number), name: "Forza", exercises: [{ exerciseName: "Squat" }] });
       expect((await call("GET", `/api/plans/${plan.id}`)).body).toEqual(plan);
       expect((await call("GET", "/api/plans")).body).toEqual([plan]);
       const renamed = (await call("PUT", `/api/plans/${plan.id}`, { ...plan, name: "Forza 2" })).body;
       expect(renamed).toMatchObject({ id: plan.id, name: "Forza 2" });
 
-      const dayId = renamed.days[0].id;
-      const workout = (await call("POST", "/api/workouts", { planDayId: dayId })).body;
-      expect(workout).toMatchObject({ planDayId: dayId, planName: "Forza 2", dayName: "A", plan: renamed.days[0].exercises, sets: [], previous: {}, exerciseNotes: {} });
+      const workout = (await call("POST", "/api/workouts", { planId: plan.id })).body;
+      expect(workout).toMatchObject({ planId: plan.id, planName: "Forza 2", plan: renamed.exercises, sets: [], previous: {}, exerciseNotes: {} });
       expect(await call("PUT", `/api/workouts/${workout.id}/exercises/${squat.id}/note`, { note: " ginocchio ok " }))
         .toMatchObject({ status: 200, body: { exerciseId: squat.id, note: "ginocchio ok" } });
 
@@ -434,19 +433,18 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       const list = (await call("GET", "/api/workouts")).body;
       expect(list).toEqual([expect.objectContaining({ id: workout.id, sets: 1, exercises: 1, volume: 512.5 })]);
 
-      const next = (await call("POST", "/api/workouts", { planDayId: null })).body;
+      const next = (await call("POST", "/api/workouts", { planId: null })).body;
       // one in progress at a time: another is refused with the reason, until this one is ended
-      expect(await call("POST", "/api/workouts", { planDayId: dayId }))
+      expect(await call("POST", "/api/workouts", { planId: plan.id }))
         .toMatchObject({ status: 409, body: { error: "Hai già un allenamento in corso: terminalo prima di iniziarne un altro." } });
       await call("PATCH", `/api/workouts/${next.id}`, { finished: true });
-      const again = (await call("POST", "/api/workouts", { planDayId: dayId })).body;
-      // Renaming the plan and the day, the day kept by its id: the workout follows, targets included.
+      const again = (await call("POST", "/api/workouts", { planId: plan.id })).body;
+      // Renaming the plan and changing its sets: the workout follows, targets included.
       const renamedAgain = (await call("PUT", `/api/plans/${plan.id}`, {
-        ...renamed, name: "Forza 3", days: [{ ...renamed.days[0], name: "Gambe" }],
+        ...renamed, name: "Forza 3", exercises: [{ ...renamed.exercises[0], reps: ["3", "3", "3"] }],
       })).body;
-      expect(renamedAgain.days[0].id).toBe(dayId);
-      expect((await call("GET", `/api/workouts/${again.id}`)).body).toMatchObject({ planName: "Forza 3", dayName: "Gambe", plan: renamedAgain.days[0].exercises });
-      expect((await call("GET", "/api/workouts")).body[0]).toMatchObject({ id: again.id, planName: "Forza 3", dayName: "Gambe" });
+      expect((await call("GET", `/api/workouts/${again.id}`)).body).toMatchObject({ planName: "Forza 3", plan: renamedAgain.exercises });
+      expect((await call("GET", "/api/workouts")).body[0]).toMatchObject({ id: again.id, planName: "Forza 3" });
       expect(again.previousNote).toEqual({ workoutId: workout.id, startedAt: workout.startedAt, note: "bene" });
       expect(await call("DELETE", `/api/workouts/${again.id}`)).toMatchObject({ status: 200 });
       expect(next.previous).toEqual({ [squat.id]: { workoutId: workout.id, startedAt: workout.startedAt, sets: [{ reps: 5, weightKg: 102.5 }], note: "ginocchio ok", before: [] } });
@@ -461,7 +459,7 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect(await call("DELETE", `/api/workouts/${next.id}`)).toMatchObject({ status: 200 });
       expect((await call("GET", `/api/workouts/${next.id}`)).status).toBe(404);
       expect(await call("DELETE", `/api/plans/${plan.id}`)).toMatchObject({ status: 200 });
-      expect((await call("GET", `/api/workouts/${workout.id}`)).body).toMatchObject({ planDayId: null, planName: "Forza 3", dayName: "Gambe", plan: [] });
+      expect((await call("GET", `/api/workouts/${workout.id}`)).body).toMatchObject({ planId: null, planName: "Forza 3", plan: [] });
     });
 
     it("page the workouts, within bounds", async () => {
@@ -478,27 +476,25 @@ describe.skipIf(SERVER === undefined)("the API", () => {
       expect((await call("GET", "/api/workouts?limit=x")).body).toHaveLength(3);
     });
 
-    it("never write into another user's plan day, not even through a new plan", async () => {
+    it("never write into another user's plan", async () => {
       const anna = await signedIn();
       const mallory = await signedIn();
       const squat = (await anna.call("POST", "/api/exercises", { name: "Squat" })).body;
-      const plan = (await anna.call("POST", "/api/plans", { name: "P", startsOn: "2026-10-05", days: [{ name: "A", exercises: [{ exerciseId: squat.id, reps: ["5"] }] }] })).body;
-      const theirs = (await mallory.call("POST", "/api/exercises", { name: "Spam" })).body;
-      const attack = { name: "x", startsOn: "2026-10-05", archived: true, days: [{ id: plan.days[0].id, name: "x", exercises: [{ exerciseId: theirs.id, reps: ["1"] }] }] };
-      expect(await mallory.call("POST", "/api/plans", attack))
-        .toMatchObject({ status: 400, body: { error: "Uno degli allenamenti della scheda non esiste più. Ricarica la pagina." } });
+      const plan = (await anna.call("POST", "/api/plans", { name: "P", exercises: [{ exerciseId: squat.id, reps: ["5"] }] })).body;
+      expect((await mallory.call("PUT", `/api/plans/${plan.id}`, { name: "x", exercises: [] })).status).toBe(404);
+      expect((await mallory.call("DELETE", `/api/plans/${plan.id}`)).status).toBe(404);
       expect((await anna.call("GET", `/api/plans/${plan.id}`)).body).toEqual(plan);
     });
 
-    it("refuse another user's exercise or plan day with a message", async () => {
+    it("refuse another user's exercise or plan with a message", async () => {
       const mine = await signedIn();
       const theirs = await signedIn();
       const squat = (await theirs.call("POST", "/api/exercises", { name: "Squat" })).body;
-      const plan = (await theirs.call("POST", "/api/plans", { name: "P", startsOn: "2026-10-05", days: [{ name: "A", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5"] }] }] })).body;
-      expect(await mine.call("POST", "/api/plans", { name: "P", startsOn: "2026-10-05", days: [{ name: "A", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5"] }] }] }))
+      const plan = (await theirs.call("POST", "/api/plans", { name: "P", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5"] }] })).body;
+      expect(await mine.call("POST", "/api/plans", { name: "P", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5"] }] }))
         .toMatchObject({ status: 400, body: { error: "Uno degli esercizi non esiste più. Ricarica la pagina." } });
-      expect(await mine.call("POST", "/api/workouts", { planDayId: plan.days[0].id }))
-        .toMatchObject({ status: 400, body: { error: "L’allenamento della scheda non esiste più. Ricarica la pagina." } });
+      expect(await mine.call("POST", "/api/workouts", { planId: plan.id }))
+        .toMatchObject({ status: 400, body: { error: "La scheda non esiste più. Ricarica la pagina." } });
       expect((await mine.call("GET", `/api/plans/${plan.id}`)).status).toBe(404);
       expect((await mine.call("GET", `/api/stats/exercises/${squat.id}`)).status).toBe(404);
     });

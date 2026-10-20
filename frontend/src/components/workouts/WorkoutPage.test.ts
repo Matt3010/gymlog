@@ -19,7 +19,7 @@ const set = (id: number, exerciseId: number, exerciseName: string, reps: number,
 
 /** Forza · A in progress: Squat with one set done and a last time, Panca still to do. */
 const DETAIL: WorkoutDetail = {
-  id: 7, planDayId: 11, planName: 'Forza', dayName: 'A',
+  id: 7, planId: 11, planName: 'Forza · A',
   startedAt: '2026-10-01T17:00:00.000Z', finishedAt: null, notes: null,
   plan: [target(1, 1, 'Squat', ['10', '8-10', '6'], 90), target(2, 2, 'Panca piana', ['10', '10', '10'], null)],
   sets: [set(100, 1, 'Squat', 8, 60)],
@@ -429,7 +429,7 @@ describe('a workout in progress', () => {
 
 describe('a workout already finished', () => {
   it('shows its sets without the form to add more', async () => {
-    server({ ...DETAIL, finishedAt: '2026-10-01T18:00:00.000Z', planName: null, dayName: null, plan: [] });
+    server({ ...DETAIL, finishedAt: '2026-10-01T18:00:00.000Z', planName: null, plan: [] });
     render(Host, { page: WorkoutPage, params: { id: 7 } });
     expect(await screen.findByRole('heading', { name: 'Allenamento libero' })).toBeInTheDocument();
     expect(doneSets()).toEqual(['8 × 60 kg']);

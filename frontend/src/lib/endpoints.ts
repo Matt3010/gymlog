@@ -22,7 +22,7 @@ export const plansApi = {
 
 export const workoutsApi = {
   list: (limit: number, offset = 0) => api.get<WorkoutSummary[]>(`/workouts?limit=${limit}&offset=${offset}`),
-  start: (planDayId: number | null) => api.post<WorkoutDetail>('/workouts', { planDayId }),
+  start: (planId: number | null) => api.post<WorkoutDetail>('/workouts', { planId }),
   get: (id: number) => api.get<WorkoutDetail>(`/workouts/${id}`),
   update: (id: number, change: { notes?: string | null; finished?: boolean }) => api.patch<WorkoutDetail>(`/workouts/${id}`, change),
   remove: (id: number) => api.delete<{ ok: true }>(`/workouts/${id}`),

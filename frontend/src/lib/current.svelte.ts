@@ -35,7 +35,7 @@ class Current {
       if (asked !== this.#version) return;
       this.workout = open === undefined ? null : {
         id: open.id,
-        title: open.dayName ? `${open.planName} · ${open.dayName}` : 'Allenamento libero',
+        title: open.planName ?? 'Allenamento libero',
         startedAt: open.startedAt,
         sets: open.sets,
       };

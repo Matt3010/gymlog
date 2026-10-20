@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/svelte';
+import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { current } from '../../lib/current.svelte';
@@ -11,92 +11,45 @@ import HomePage from './HomePage.svelte';
 
 const RECENT = 'GET /workouts?limit=6&offset=0';
 
-const day = (id: number, name: string, exercises: number) => ({
-  id, name, position: 0,
+const plan = (id: number, name: string, exercises: number): Plan => ({
+  id, name, notes: null,
   exercises: Array.from({ length: exercises }, (_, i) => ({
     id: id * 10 + i, exerciseId: i + 1, exerciseName: `E${i}`, position: i, reps: ['8', '8', '8'], restSeconds: 90, notes: null,
   })),
 });
 
-const FORZA: Plan = { id: 1, name: 'Forza', notes: null, startsOn: '2026-10-05', endsOn: null, archived: false, days: [day(11, 'A', 2), day(12, 'B', 1)] };
-const SPINTA: Plan = { id: 3, name: 'Spinta', notes: null, startsOn: '2026-10-05', endsOn: null, archived: false, days: [day(31, 'Push', 1), day(32, 'Vuoto', 0)] };
-const VECCHIA: Plan = { id: 2, name: 'Vecchia', notes: null, startsOn: '2026-10-05', endsOn: null, archived: true, days: [day(21, 'Unico', 1)] };
+const SPINTA = plan(1, 'Spinta', 2);
+const TIRATA = plan(3, 'Tirata', 1);
+const VUOTA = plan(2, 'Vuota', 0);
 
 function workout(id: number, change: Partial<WorkoutSummary> = {}): WorkoutSummary {
   return {
-    id, planDayId: 11, planName: 'Forza', dayName: 'A', startedAt: '2026-09-20T17:00:00.000Z', finishedAt: '2026-09-20T18:00:00.000Z',
+    id, planId: 1, planName: 'Spinta', startedAt: '2026-09-20T17:00:00.000Z', finishedAt: '2026-09-20T18:00:00.000Z',
     notes: null, exercises: 2, sets: 6, volume: 2400, ...change,
   };
 }
 
 const started = (id: number): WorkoutDetail => ({
-  id, planDayId: null, planName: null, dayName: null, startedAt: new Date().toISOString(), finishedAt: null, notes: null, plan: [], sets: [], previous: {}, exerciseNotes: {}, previousNote: null,
+  id, planId: null, planName: null, startedAt: new Date().toISOString(), finishedAt: null, notes: null, plan: [], sets: [], previous: {}, exerciseNotes: {}, previousNote: null,
 });
 
 describe('home', () => {
-  const days = () => [...document.querySelectorAll('button.day')].map((b) => b.textContent?.replace(/\s+/g, ' ').trim());
+  const plans = () => [...document.querySelectorAll('button.plan')].map((b) => b.textContent?.replace(/\s+/g, ' ').trim());
 
-  it('shows one plan at a time, chosen from a dropdown, its days saying what is in them', async () => {
-    fakeApi().on('GET /plans', [FORZA, SPINTA, VECCHIA]).on(RECENT, []);
+  it('shows every plan, each saying what is in it', async () => {
+    fakeApi().on('GET /plans', [SPINTA, TIRATA, VUOTA]).on(RECENT, []);
     render(HomePage);
-    const user = userEvent.setup();
-    const pick = await screen.findByRole('button', { name: 'Scheda' });
-    expect(pick).toHaveTextContent('Forza');
-    expect(days()).toEqual(['Allenamento A E0, E1', 'Allenamento B E0']);
-    expect(pick).toHaveAttribute('aria-expanded', 'false');
-    await user.click(pick);
-    expect(pick).toHaveAttribute('aria-expanded', 'true');
-    // the list drops right under the field, a menu and not a sheet from the bottom
-    const menu = document.querySelector<HTMLElement>('[data-pop]')!;
-    expect(menu).toHaveClass('is-drop');
-    expect(within(menu).getAllByRole('button').map((one) => [one.textContent?.trim(), one.classList.contains('is-on')]))
-      .toEqual([['Forza', true], ['Spinta', false]]);
-    await user.click(within(menu).getByRole('button', { name: 'Spinta' }));
-    expect(pick).toHaveTextContent('Spinta');
-    expect(pick).toHaveAttribute('aria-expanded', 'false');
-    expect(document.querySelector('[data-pop]')).toBeNull();
-    expect(days()).toEqual(['Push E0', 'Vuoto Nessun esercizio']);
-  });
-
-  it('opens on the plan chosen last time', async () => {
-    localStorage.setItem('gymlog.home.plan', '3');
-    fakeApi().on('GET /plans', [FORZA, SPINTA]).on(RECENT, []);
-    render(HomePage);
-    expect(await screen.findByRole('button', { name: 'Scheda' })).toHaveTextContent('Spinta');
-    expect(days()).toEqual(['Push E0', 'Vuoto Nessun esercizio']);
-  });
-
-  it('falls back to the first plan when the one remembered is gone', async () => {
-    localStorage.setItem('gymlog.home.plan', '99');
-    fakeApi().on('GET /plans', [FORZA, SPINTA]).on(RECENT, []);
-    render(HomePage);
-    expect(await screen.findByRole('button', { name: 'Scheda' })).toHaveTextContent('Forza');
-  });
-
-  it('remembers the plan chosen', async () => {
-    fakeApi().on('GET /plans', [FORZA, SPINTA]).on(RECENT, []);
-    render(HomePage);
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Scheda' }));
-    await user.click(screen.getByRole('button', { name: 'Spinta' }));
-    expect(localStorage.getItem('gymlog.home.plan')).toBe('3');
-  });
-
-  it('needs no dropdown with a single plan: its name is enough', async () => {
-    fakeApi().on('GET /plans', [FORZA, VECCHIA]).on(RECENT, []);
-    render(HomePage);
-    expect(await screen.findByRole('heading', { name: 'Forza' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Scheda' })).not.toBeInTheDocument();
-    expect(days()).toEqual(['Allenamento A E0, E1', 'Allenamento B E0']);
+    expect(await screen.findByText('Inizia un allenamento')).toBeInTheDocument();
+    expect(plans()).toEqual(['Spinta E0, E1', 'Tirata E0', 'Vuota Nessun esercizio']);
   });
 
   it('lets no other workout start while one is in progress: it says so, and where to end it', async () => {
-    fakeApi().on('GET /plans', [FORZA]).on(RECENT, []);
-    current.set({ id: 9, title: 'Forza · A', startedAt: '2026-10-01T17:00:00.000Z', sets: 2 });
+    fakeApi().on('GET /plans', [SPINTA, TIRATA]).on(RECENT, []);
+    current.set({ id: 9, title: 'Spinta', startedAt: '2026-10-01T17:00:00.000Z', sets: 2 });
     render(HomePage);
-    await screen.findByRole('heading', { name: 'Forza' });
+    await screen.findByRole('button', { name: 'Spinta E0, E1' });
     expect(screen.getByText('Hai un allenamento in corso: terminalo per iniziarne un altro.')).toBeInTheDocument();
-    for (const day of screen.getAllByRole('button', { name: /^Allenamento/ })) expect(day).toBeDisabled();
+    for (const one of document.querySelectorAll('button.plan')) expect(one).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Allenamento libero' })).toBeDisabled();
     // ended elsewhere: free again
     current.set(null);
@@ -104,48 +57,48 @@ describe('home', () => {
     expect(screen.queryByText(/terminalo per iniziarne un altro/)).not.toBeInTheDocument();
   });
 
-  it('starts a workout from a day and opens it', async () => {
-    const api = fakeApi().on('GET /plans', [FORZA]).on(RECENT, []).on('POST /workouts', started(40));
+  it('starts a workout from a plan and opens it', async () => {
+    const api = fakeApi().on('GET /plans', [SPINTA, TIRATA]).on(RECENT, []).on('POST /workouts', started(40));
     render(HomePage);
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Allenamento B E0' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts', body: { planDayId: 12 } }]);
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Tirata E0' }));
+    expect(api.changes()).toEqual([{ route: 'POST /workouts', body: { planId: 3 } }]);
     expect(nav.path).toBe('/workouts/40');
   });
 
   it('starts a free workout', async () => {
-    const api = fakeApi().on('GET /plans', [FORZA]).on(RECENT, []).on('POST /workouts', started(41));
+    const api = fakeApi().on('GET /plans', [SPINTA]).on(RECENT, []).on('POST /workouts', started(41));
     render(HomePage);
     // secondary, outside the plans' cards: a way out, not the first choice
     const free = await screen.findByRole('button', { name: 'Allenamento libero' });
     expect(free).toHaveClass('ghost');
     expect(free.closest('.card')).toBeNull();
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Allenamento libero' }));
-    expect(api.changes()).toEqual([{ route: 'POST /workouts', body: { planDayId: null } }]);
+    expect(api.changes()).toEqual([{ route: 'POST /workouts', body: { planId: null } }]);
     expect(nav.path).toBe('/workouts/41');
   });
 
   it('says why a workout did not start, and stays', async () => {
-    fakeApi().on('GET /plans', [FORZA]).on(RECENT, [])
-      .on('POST /workouts', { status: 400, body: { error: 'L’allenamento della scheda non esiste più. Ricarica la pagina.' } });
+    fakeApi().on('GET /plans', [SPINTA]).on(RECENT, [])
+      .on('POST /workouts', { status: 400, body: { error: 'La scheda non esiste più. Ricarica la pagina.' } });
     render(HomePage);
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Allenamento A E0, E1' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('L’allenamento della scheda non esiste più. Ricarica la pagina.');
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Spinta E0, E1' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('La scheda non esiste più. Ricarica la pagina.');
     expect(nav.path).toBe('/');
-    expect(screen.getByRole('button', { name: 'Allenamento A E0, E1' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Spinta E0, E1' })).toBeEnabled();
   });
 
   it('leaves the workout in progress to the bar above the tabs, seen from every page', async () => {
-    fakeApi().on('GET /plans', [FORZA]).on(RECENT, [workout(9, { finishedAt: null, sets: 1 })]);
+    fakeApi().on('GET /plans', [SPINTA]).on(RECENT, [workout(9, { finishedAt: null, sets: 1 })]);
     render(HomePage);
-    await screen.findByRole('heading', { name: 'Forza' });
+    await screen.findByRole('button', { name: 'Spinta E0, E1' });
     expect(screen.queryByText('In corso')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Riprendi' })).not.toBeInTheDocument();
   });
 
   it('leaves the workouts done to the history, its own section', async () => {
-    fakeApi().on('GET /plans', [FORZA]).on(RECENT, [workout(8), workout(7)]);
+    fakeApi().on('GET /plans', [SPINTA]).on(RECENT, [workout(8), workout(7)]);
     render(HomePage);
-    await screen.findByRole('heading', { name: 'Forza' });
+    await screen.findByRole('button', { name: 'Spinta E0, E1' });
     expect(screen.queryByText('Gli ultimi')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Tutto lo storico' })).not.toBeInTheDocument();
   });
@@ -170,9 +123,9 @@ describe('home', () => {
   });
 
   it('offers to install the app when the browser can, and installs it on request', async () => {
-    fakeApi().on('GET /plans', [FORZA]).on(RECENT, []);
+    fakeApi().on('GET /plans', [SPINTA]).on(RECENT, []);
     render(HomePage);
-    await screen.findByText('Forza');
+    await screen.findByText('Spinta');
     expect(screen.queryByRole('button', { name: 'Installa' })).not.toBeInTheDocument();
     const prompt = vi.fn(async () => undefined);
     const offer = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), { prompt, userChoice: Promise.resolve({ outcome: 'accepted' }) });
@@ -184,9 +137,9 @@ describe('home', () => {
   });
 
   it('stops offering it after «Non ora»', async () => {
-    fakeApi().on('GET /plans', [FORZA]).on(RECENT, []);
+    fakeApi().on('GET /plans', [SPINTA]).on(RECENT, []);
     render(HomePage);
-    await screen.findByText('Forza');
+    await screen.findByText('Spinta');
     window.dispatchEvent(Object.assign(new Event('beforeinstallprompt', { cancelable: true }), { prompt: vi.fn(), userChoice: Promise.resolve({}) }));
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Non ora' }));
     expect(screen.queryByRole('button', { name: 'Installa' })).not.toBeInTheDocument();

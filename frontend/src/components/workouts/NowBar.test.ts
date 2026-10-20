@@ -11,7 +11,7 @@ import NowBar from './NowBar.svelte';
 const RECENT = 'GET /workouts?limit=6&offset=0';
 
 const workout = (id: number, change: Partial<WorkoutSummary> = {}): WorkoutSummary => ({
-  id, planDayId: 11, planName: 'Ciao', dayName: 'A', startedAt: new Date(Date.now() - 24 * 60_000).toISOString(),
+  id, planId: 11, planName: 'Ciao · A', startedAt: new Date(Date.now() - 24 * 60_000).toISOString(),
   finishedAt: null, notes: null, exercises: 1, sets: 3, volume: 375, ...change,
 });
 
@@ -28,7 +28,7 @@ describe('the workout in progress, on every page', () => {
   });
 
   it('names a free workout as such, and says one set in the singular', async () => {
-    fakeApi().on(RECENT, [workout(9, { planName: null, dayName: null, sets: 1 })]);
+    fakeApi().on(RECENT, [workout(9, { planName: null, sets: 1 })]);
     render(NowBar);
     expect(await screen.findByRole('link', { name: /^In corso/ })).toHaveTextContent(/Allenamento libero\s*1 serie/);
   });

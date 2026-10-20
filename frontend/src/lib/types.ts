@@ -52,22 +52,11 @@ export interface PlanExercise {
   notes: string | null;
 }
 
-export interface PlanDay {
-  id: number;
-  name: string;
-  position: number;
-  exercises: PlanExercise[];
-}
-
 export interface Plan {
   id: number;
   name: string;
   notes: string | null;
-  /** Da quando a quando si segue, come le scrive un calendario; senza fine finché è in uso. */
-  startsOn: string;
-  endsOn: string | null;
-  archived: boolean;
-  days: PlanDay[];
+  exercises: PlanExercise[];
 }
 
 export interface PlanExerciseInput {
@@ -80,19 +69,14 @@ export interface PlanExerciseInput {
 export interface PlanInput {
   name: string;
   notes: string | null;
-  startsOn: string;
-  endsOn: string | null;
-  archived: boolean;
-  /** Un giorno già salvato porta il suo id: il server lo cambia, e gli allenamenti restano collegati. */
-  days: { id?: number; name: string; exercises: PlanExerciseInput[] }[];
+  exercises: PlanExerciseInput[];
 }
 
 export interface Workout {
   id: number;
-  planDayId: number | null;
-  /** Copiati all'inizio: restano anche se la scheda cambia o sparisce. */
+  planId: number | null;
+  /** Copiato all'inizio: resta anche se la scheda sparisce. */
   planName: string | null;
-  dayName: string | null;
   startedAt: string;
   finishedAt: string | null;
   notes: string | null;
@@ -129,14 +113,14 @@ export interface PreviousSets {
 }
 
 export interface WorkoutDetail extends Workout {
-  /** Gli esercizi del giorno della scheda; vuoto se libero, o se il giorno non c'è più. */
+  /** Gli esercizi della scheda; vuoto se libero, o se la scheda non c'è più. */
   plan: PlanExercise[];
   sets: WorkoutSet[];
   /** Per exerciseId: l'ultima sessione precedente con quell'esercizio. */
   previous: Record<string, PreviousSets>;
   /** La nota di ogni esercizio in questo allenamento, per id. */
   exerciseNotes: Record<string, string>;
-  /** La nota dell'ultimo allenamento dello stesso giorno della scheda (o libero, se libero). */
+  /** La nota dell'ultimo allenamento della stessa scheda (o libero, se libero). */
   previousNote: { workoutId: number; startedAt: string; note: string } | null;
 }
 

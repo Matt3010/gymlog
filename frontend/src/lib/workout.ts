@@ -8,7 +8,7 @@ import type { DoneSet, PlanExercise, PreviousSets, WorkoutDetail, WorkoutSet, Wo
 export interface Block {
   exerciseId: number;
   name: string;
-  /** Cosa chiede il giorno della scheda; `null` per un esercizio fuori scheda. */
+  /** Cosa chiede la scheda; `null` per un esercizio fuori scheda. */
   target: PlanExercise | null;
   sets: WorkoutSet[];
   previous: PreviousSets | null;
@@ -17,7 +17,7 @@ export interface Block {
 /**
  * La pagina di un allenamento, esercizio per esercizio.
  *
- * Prima quelli del giorno della scheda, nel loro ordine, anche senza serie:
+ * Prima quelli della scheda, nel loro ordine, anche senza serie:
  * sono la lista di quello che resta da fare. Poi quelli fatti fuori scheda,
  * nell'ordine in cui sono comparsi, e in fondo quelli appena aggiunti che
  * non hanno ancora una serie. Un esercizio compare una volta sola.

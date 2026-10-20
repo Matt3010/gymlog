@@ -1,9 +1,9 @@
 import type { SetInput, WorkoutChange } from "../../repositories";
 import { type Body, bool, id, InputError, number, object, optionalText } from "../common";
 
-export function parseWorkoutStart(value: unknown): { planDayId: number | null } {
+export function parseWorkoutStart(value: unknown): { planId: number | null } {
   const body = object(value);
-  return { planDayId: body.planDayId === undefined || body.planDayId === null ? null : id(body, "planDayId") };
+  return { planId: body.planId === undefined || body.planId === null ? null : id(body, "planId") };
 }
 
 /** Only what is given changes. */

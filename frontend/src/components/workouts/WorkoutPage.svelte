@@ -65,7 +65,7 @@
 
   const blocks = $derived(detail ? blocksOf(detail, added) : []);
   const finished = $derived(detail?.finishedAt != null);
-  const title = $derived(detail ? (detail.dayName ? `${detail.planName} · ${detail.dayName}` : 'Allenamento libero') : 'Allenamento');
+  const title = $derived(detail ? (detail.planName ?? 'Allenamento libero') : 'Allenamento');
 
   /* La barra «In corso» sa da qui quello che succede, subito: una serie
      segnata, l'allenamento terminato o riaperto. Uno già terminato, aperto

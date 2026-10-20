@@ -22,7 +22,7 @@ export interface WorkoutsService {
   setExerciseNote(workoutId: number, exerciseId: number, note: string | null): Promise<void>;
   /** By exercise id. */
   exerciseNotes(workoutId: number): Promise<Record<string, string>>;
-  /** The note of the last earlier workout of the same plan day. */
+  /** The note of the last earlier workout of the same plan. */
   previousNote(userId: number, workoutId: number): Promise<PreviousNote | null>;
   updateSet(userId: number, setId: number, change: { reps: number; weightKg: number }): Promise<WorkoutSet>;
   deleteSet(userId: number, setId: number): Promise<void>;

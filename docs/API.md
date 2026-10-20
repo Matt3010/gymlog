@@ -26,32 +26,29 @@ interface PlanExercise {
   restSeconds: number | null;
   notes: string | null;
 }
-interface PlanDay { id: number; name: string; position: number; exercises: PlanExercise[] }
-// startsOn/endsOn come le scrive un calendario ("2026-10-05"); endsOn null finché è in uso.
-interface Plan { id: number; name: string; notes: string | null; startsOn: string; endsOn: string | null; archived: boolean; days: PlanDay[] }
-// Una scheda si salva tutta insieme: giorni ed esercizi vengono sostituiti.
-// Creandone una in uso (non archiviata, non già finita), quelle in uso iniziate prima finiscono
-// il giorno prima; si archiviano quando la nuova è cominciata.
+// Una scheda è un allenamento: i suoi esercizi in ordine.
+interface Plan { id: number; name: string; notes: string | null; exercises: PlanExercise[] }
+// Una scheda si salva tutta insieme: gli esercizi vengono sostituiti.
 interface PlanInput {
-  name: string; notes: string | null; startsOn: string; endsOn?: string | null; archived: boolean;
-  days: { name: string; exercises: { exerciseId: number; reps: string[]; restSeconds: number | null; notes: string | null }[] }[];
+  name: string; notes: string | null;
+  exercises: { exerciseId: number; reps: string[]; restSeconds: number | null; notes: string | null }[];
 }
 
 interface Workout {
-  id: number; planDayId: number | null; planName: string | null; dayName: string | null;
+  id: number; planId: number | null; planName: string | null;   // il nome della scheda, copiato all'inizio
   startedAt: string; finishedAt: string | null; notes: string | null;
 }
 interface WorkoutSummary extends Workout { exercises: number; sets: number; volume: number }
 interface WorkoutSet { id: number; exerciseId: number; exerciseName: string; reps: number; weightKg: number; createdAt: string }
 interface PreviousSets { workoutId: number; startedAt: string; sets: { reps: number; weightKg: number }[]; note: string | null; before: { reps: number; weightKg: number }[] }
 interface WorkoutDetail extends Workout {
-  plan: PlanExercise[];                        // gli esercizi del giorno della scheda ([] se libero)
+  plan: PlanExercise[];                        // gli esercizi della scheda ([] se libero, o se la scheda non c'è più)
   sets: WorkoutSet[];                          // in ordine di inserimento
   previous: Record<string, PreviousSets>;      // per exerciseId: l'ultima sessione precedente con quell'esercizio, con la sua nota; in before le serie della volta prima ancora ([] se non c'è)
   exerciseNotes: Record<string, string>;       // per exerciseId: la nota scritta su quell'esercizio in questo allenamento
   previousNote: { workoutId: number; startedAt: string; note: string } | null;
-                                               // la nota generale dell'ultimo allenamento dello stesso giorno della scheda
-                                               // (per nome di scheda e giorno; un allenamento libero guarda quelli liberi)
+                                               // la nota generale dell'ultimo allenamento della stessa scheda
+                                               // (per nome di scheda; un allenamento libero guarda quelli liberi)
 }
 
 // Statistiche di un gruppo di serie (una sessione, o tutte)
@@ -88,13 +85,13 @@ interface ExerciseSummary { exerciseId: number; name: string; sessions: number; 
 | POST | /api/exercises | `ExerciseInput` | `Exercise` |
 | PATCH | /api/exercises/:id | `ExerciseInput` | `Exercise` |
 | DELETE | /api/exercises/:id | – | `{ ok: true }` (409 se usato in schede o allenamenti) |
-| GET | /api/plans | – | `Plan[]` (attive prima, poi dalla più recente, poi per nome) |
+| GET | /api/plans | – | `Plan[]` (per nome) |
 | GET | /api/plans/:id | – | `Plan` |
 | POST | /api/plans | `PlanInput` | `Plan` |
-| PUT | /api/plans/:id | `PlanInput` | `Plan` |
+| PUT | /api/plans/:id | `PlanInput` | `Plan` (gli allenamenti fatti con questa scheda prendono il nome nuovo) |
 | DELETE | /api/plans/:id | – | `{ ok: true }` (gli allenamenti restano, senza scheda) |
 | GET | /api/workouts?limit=&offset= | – | `WorkoutSummary[]` (dal più recente) |
-| POST | /api/workouts | `{ planDayId: number \| null }` | `WorkoutDetail`; 409 se ce n'è già uno in corso (uno alla volta) |
+| POST | /api/workouts | `{ planId: number \| null }` | `WorkoutDetail`; 409 se ce n'è già uno in corso (uno alla volta) |
 | GET | /api/workouts/:id | – | `WorkoutDetail` |
 | PATCH | /api/workouts/:id | `{ notes?: string \| null, finished?: boolean }` | `WorkoutDetail`; `finished: false` dà 409 se un altro è in corso |
 | DELETE | /api/workouts/:id | – | `{ ok: true }` |
@@ -110,5 +107,5 @@ Utenti: nome di 3–30 caratteri fra lettere, numeri, `.` `_` `-`, salvato e cer
 password di almeno 10 caratteri.
 
 Limiti: nomi 1–100 caratteri, note fino a 1000, `reps` di una serie 1–100 (intero),
-`weightKg` 0–1000, serie previste 1–20 (ognuna 1–20 caratteri), `restSeconds` 0–3600, al più 14 giorni per scheda
-e 30 esercizi per giorno.
+`weightKg` 0–1000, serie previste 1–20 (ognuna 1–20 caratteri), `restSeconds` 0–3600, al più 30 esercizi
+per scheda.

@@ -3,9 +3,8 @@ import { type Executor, exercises, users, workoutExerciseNotes, workoutSets, wor
 
 export interface Workout {
   readonly id: number;
-  readonly planDayId: number | null;
+  readonly planId: number | null;
   readonly planName: string | null;
-  readonly dayName: string | null;
   readonly startedAt: string;
   readonly finishedAt: string | null;
   readonly notes: string | null;
@@ -49,11 +48,10 @@ export interface PreviousSets {
   readonly before: { readonly reps: number; readonly weightKg: number }[];
 }
 
-/** The plan day a workout follows, names copied so the history keeps them. */
+/** The plan a workout follows, its name copied so the history keeps it. */
 export interface WorkoutStart {
-  readonly planDayId: number;
+  readonly planId: number;
   readonly planName: string;
-  readonly dayName: string;
 }
 
 export interface WorkoutChange {
@@ -95,8 +93,8 @@ export interface WorkoutsRepository {
   /** By exercise id. */
   exerciseNotes(workoutId: number): Promise<Map<number, string>>;
   /**
-   * The note of the last earlier workout of the same plan day, matched by the
-   * names copied at start (a free workout matches free workouts), or null.
+   * The note of the last earlier workout of the same plan, matched by the
+   * name copied at start (a free workout matches free workouts), or null.
    */
   previousNote(userId: number, workoutId: number): Promise<PreviousNote | null>;
   updateSet(userId: number, setId: number, change: { reps: number; weightKg: number }): Promise<WorkoutSet | undefined>;
@@ -105,9 +103,8 @@ export interface WorkoutsRepository {
 
 const columns = {
   id: workouts.id,
-  planDayId: workouts.planDayId,
+  planId: workouts.planId,
   planName: workouts.planName,
-  dayName: workouts.dayName,
   startedAt: workouts.startedAt,
   finishedAt: workouts.finishedAt,
   notes: workouts.notes,
@@ -268,7 +265,6 @@ export function createWorkoutsRepository(db: Executor): WorkoutsRepository {
           and w.id < c.id
           and w.notes is not null
           and w.plan_name is not distinct from c.plan_name
-          and w.day_name is not distinct from c.day_name
         order by w.id desc
         limit 1`);
       const row = rows[0];

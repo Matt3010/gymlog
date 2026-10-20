@@ -64,6 +64,13 @@
       "when": 1791203178032,
       "tag": "0008_session_rotation",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792480218965,
+      "tag": "0009_single_workout_plans",
+      "breakpoints": true
     }
   ]
 }

@@ -7,10 +7,10 @@ Una PWA da usare dal telefono in palestra, installabile sulla schermata Home.
 ## Anteprima
 
 <p>
-  <img src="docs/screens/home.png" width="180" alt="Allenati: la scheda e i suoi allenamenti da cui partire">
+  <img src="docs/screens/home.png" width="180" alt="Allenati: le schede da cui partire">
   <img src="docs/screens/workout.png" width="180" alt="Un allenamento in corso, con l'ultima volta e il recupero">
   <img src="docs/screens/exercise-stats.png" width="180" alt="Le statistiche di un esercizio, con il grafico">
-  <img src="docs/screens/plan.png" width="180" alt="Una scheda: gli allenamenti A e B con serie e recupero">
+  <img src="docs/screens/plan.png" width="180" alt="Una scheda: i suoi esercizi con serie e recupero">
 </p>
 <p>
   <img src="docs/screens/history.png" width="180" alt="Lo storico degli allenamenti">
@@ -37,15 +37,13 @@ solo su `127.0.0.1:8091` e il tunnel lo pubblica in HTTPS (necessario per una PW
 ## Cosa fa
 
 - **Esercizi:** i tuoi, con gruppo muscolare e note.
-- **Schede:** con il periodo in cui si seguono (dal… al…) e più allenamenti (A, B, C…),
-  ognuno con gli esercizi in ordine, serie, ripetizioni ("8", "8-10", "max"), recupero e
-  note. Creando una scheda nuova, quella in uso finisce il giorno prima e si archivia (quando la
-  nuova comincia; una scheda già finita o archiviata non chiude niente).
-- **Allenamenti:** parti da un giorno della scheda o da un allenamento libero. Per ogni
+- **Schede:** ogni scheda è un allenamento ("Parte alta", "Gambe"…): gli esercizi in
+  ordine, serie, ripetizioni ("8", "8-10", "max"), recupero e note. Se ne tengono quante
+  se ne vuole, tutte insieme.
+- **Allenamenti:** parti da una scheda o da un allenamento libero. Per ogni
   esercizio vedi cosa chiede la scheda e cosa hai fatto l'ultima volta; registri ogni
-  serie (ripetizioni × kg), con il recupero che parte da solo. I nomi della scheda e
-  del giorno restano nello Storico (una sezione sua, nella barra in basso) anche se poi
-  cambi o cancelli la scheda.
+  serie (ripetizioni × kg), con il recupero che parte da solo. Il nome della scheda
+  resta nello Storico (una sezione sua, nella barra in basso) anche se poi la cancelli.
 - **Statistiche:** nell'elenco degli esercizi, accanto a ognuno, peso medio, massimo,
   sessioni e l'ultima volta; aprendolo, sessione per sessione: serie, ripetizioni,
   volume (ripetizioni × kg), peso medio delle serie, peso massimo e massimale stimato

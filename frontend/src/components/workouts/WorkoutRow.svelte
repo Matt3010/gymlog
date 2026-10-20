@@ -7,7 +7,7 @@
   /** Un allenamento in un elenco: quando, cosa, quanto. Lo stesso in home e nello storico. */
   let { workout }: { workout: WorkoutSummary } = $props();
 
-  const what = $derived(workout.dayName ? `${workout.planName} · ${workout.dayName}` : 'Allenamento libero');
+  const what = $derived(workout.planName ?? 'Allenamento libero');
 </script>
 
 <li>

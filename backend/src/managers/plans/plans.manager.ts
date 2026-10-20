@@ -8,7 +8,7 @@ export interface PlansManager {
   replace(userId: number, id: number, input: PlanInput): Promise<Plan>;
 }
 
-const exercisesOf = (input: PlanInput) => input.days.flatMap((day) => day.exercises.map((exercise) => exercise.exerciseId));
+const exercisesOf = (input: PlanInput) => input.exercises.map((exercise) => exercise.exerciseId);
 
 export function createPlansManager(db: Database): PlansManager {
   return {

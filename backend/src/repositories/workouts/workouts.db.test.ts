@@ -17,18 +17,17 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     const squat = await exercises.create(user.id, { name: "Squat", muscleGroup: null, notes: null });
     const bench = await exercises.create(user.id, { name: "Panca", muscleGroup: null, notes: null });
     const plan = await createPlansRepository(handle.db).create(user.id, {
-      name: "Forza", notes: null, startsOn: "2026-10-05", endsOn: null, archived: false,
-      days: [{ name: "A", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5", "5", "5"], restSeconds: 180, notes: null }] }],
+      name: "Forza", notes: null,
+      exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5", "5", "5"], restSeconds: 180, notes: null }],
     });
-    const day = plan.days[0]!;
-    return { user, squat, bench, plan, day, start: { planDayId: day.id, planName: plan.name, dayName: day.name } };
+    return { user, squat, bench, plan, start: { planId: plan.id, planName: plan.name } };
   }
 
   it("starts a free workout, now", async () => {
     const { user } = await setup();
     const workout = await repo().create(user.id, null);
     expect(workout).toEqual({
-      id: expect.any(Number), planDayId: null, planName: null, dayName: null,
+      id: expect.any(Number), planId: null, planName: null,
       startedAt: expect.stringMatching(ISO), finishedAt: null, notes: null,
     });
     // The database's clock: Docker's may differ from this machine's by a second or two.
@@ -37,17 +36,17 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     expect(await repo().find(user.id, workout.id)).toEqual(workout);
   });
 
-  it("starts a workout from a plan day, keeping the names", async () => {
+  it("starts a workout from a plan, keeping its name", async () => {
     const { user, start } = await setup();
     const workout = await repo().create(user.id, start, new Date("2026-09-01T17:00:00Z"));
     expect(workout).toMatchObject({ ...start, startedAt: "2026-09-01T17:00:00.000Z" });
   });
 
-  it("keeps the names when the plan goes", async () => {
+  it("keeps the name when the plan goes", async () => {
     const { user, plan, start } = await setup();
     const workout = await repo().create(user.id, start);
     await createPlansRepository(handle.db).delete(user.id, plan.id);
-    expect(await repo().find(user.id, workout.id)).toMatchObject({ planDayId: null, planName: "Forza", dayName: "A" });
+    expect(await repo().find(user.id, workout.id)).toMatchObject({ planId: null, planName: "Forza" });
   });
 
   it("logs sets in order, with the exercise's name", async () => {
@@ -112,7 +111,7 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     expect(await repo().find(user.id, workout.id)).toEqual(workout);
   });
 
-  it("finds the note of the last earlier workout of the same plan day, by its names", async () => {
+  it("finds the note of the last earlier workout of the same plan, by its name", async () => {
     const { user, start } = await setup();
     const other = await setup();
     const at = (day: number) => new Date(`2026-09-${String(day).padStart(2, "0")}T17:00:00Z`);
@@ -120,14 +119,14 @@ describe.skipIf(SERVER === undefined)("the workouts repository", () => {
     const last = await repo().create(user.id, start, at(3));
     const silent = await repo().create(user.id, start, at(4));
     const free = await repo().create(user.id, null, at(5));
-    const otherDay = await repo().create(user.id, { ...start, dayName: "B" }, at(6));
+    const otherPlan = await repo().create(user.id, { ...start, planName: "Tirata" }, at(6));
     const current = await repo().create(user.id, start, at(8));
     const later = await repo().create(user.id, start, at(9));
     const theirs = await repo().create(other.user.id, other.start, at(7));
     await repo().update(user.id, older.id, { notes: "vecchia" });
     await repo().update(user.id, last.id, { notes: "spalla ok, aumentare" });
     await repo().update(user.id, free.id, { notes: "libero" });
-    await repo().update(user.id, otherDay.id, { notes: "giorno B" });
+    await repo().update(user.id, otherPlan.id, { notes: "un'altra scheda" });
     await repo().update(user.id, later.id, { notes: "dopo" });
     await repo().update(other.user.id, theirs.id, { notes: "di un altro" });
     void silent;

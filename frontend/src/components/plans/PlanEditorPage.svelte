@@ -3,7 +3,7 @@
   import { Autosave } from '../../lib/autosave.svelte';
   import { plansApi } from '../../lib/endpoints';
   import { nav } from '../../lib/nav.svelte';
-  import { addDay, addSet, draftOf, learnDayIds, move, newKey, problemOf, removeSet, toInput, type Draft, type DraftDay } from '../../lib/plan-draft';
+  import { addSet, draftOf, move, newKey, problemOf, removeSet, toInput, type Draft } from '../../lib/plan-draft';
   import { planPath, PLANS_PATH } from '../../lib/routing';
   import { toast } from '../../lib/toast.svelte';
   import type { Exercise, PlanInput } from '../../lib/types';
@@ -14,36 +14,33 @@
   import PageShell from '../PageShell.svelte';
   import Loader from '../Loader.svelte';
   import SaveStatus from '../SaveStatus.svelte';
-  import Switch from '../Switch.svelte';
   import Tabs from '../Tabs.svelte';
   import TextField from '../TextField.svelte';
   import { ui } from '../../lib/ui.svelte';
   import ExercisePicker from '../exercises/ExercisePicker.svelte';
 
   /**
-   * Una scheda da scrivere: il nome, da quando a quando si segue, gli
-   * allenamenti (A, B…), e in ognuno gli esercizi in ordine con serie,
-   * ripetizioni e recupero.
+   * Una scheda da scrivere: il nome e gli esercizi in ordine, con serie,
+   * ripetizioni e recupero. Una scheda è un allenamento.
    *
-   * Una scheda nuova si crea su richiesta: nome, periodo, note e «Crea la scheda».
-   * Creata, la pagina diventa la sua e si apre sugli allenamenti: il nome,
-   * il periodo e le note sono già scritti, e stanno in «Dettagli» invece di
-   * ripetersi sopra. Da lì si salva da sé mentre la
+   * Una scheda nuova si crea su richiesta: nome, note e «Crea la scheda».
+   * Creata, la pagina diventa la sua e si apre sugli esercizi: il nome e le
+   * note sono già scritti, e stanno in «Dettagli» invece di ripetersi sopra. Da lì si salva da sé mentre la
    * scrivi, tutta insieme (`Autosave`): nessun tasto «Salva». Quello che il
    * server rifiuterebbe si dice prima, e non parte.
    */
   let { id }: { id: number | null } = $props();
 
   let draft = $state<Draft | null>(null);
-  /** Quale parte di una scheda salvata si vede: di solito si torna per gli allenamenti. */
-  let part = $state<'allenamenti' | 'dettagli'>('allenamenti');
-  const PARTS = [{ id: 'allenamenti' as const, label: 'Allenamenti' }, { id: 'dettagli' as const, label: 'Dettagli' }];
+  /** Quale parte di una scheda salvata si vede: di solito si torna per gli esercizi. */
+  let part = $state<'esercizi' | 'dettagli'>('esercizi');
+  const PARTS = [{ id: 'esercizi' as const, label: 'Esercizi' }, { id: 'dettagli' as const, label: 'Dettagli' }];
   let error = $state('');
   let working = $state(false);
   /** L'ultima versione mandata, o quella aperta: uguale, non si rimanda. */
   let sent = '';
 
-  /* una scheda nuova: il nome, il periodo e le note, finché non la si crea; gli allenamenti dopo */
+  /* una scheda nuova: il nome e le note, finché non la si crea; gli esercizi dopo */
   const fresh = $state(draftOf(null));
   /* senza nome non si crea, ma non c'è niente da dire: il tasto spento basta */
   const freshProblem = $derived(fresh.name.trim() === '' ? null : problemOf(fresh));
@@ -60,14 +57,9 @@
     }
   }
 
-  /** Quello che parte, con i giorni com'erano allora: la risposta dà l'id ai nuovi. */
-  interface Sending { json: string; days: DraftDay[] }
-  const saver = new Autosave<Sending>(async ({ json, days }) => {
-    const input = JSON.parse(json) as PlanInput;
-    const saved = await plansApi.save(id!, input);
-    learnDayIds(days, input, saved);
-    // Se nient'altro è cambiato intanto, gli id imparati non sono una modifica da rimandare.
-    if (sent === json && draft) sent = JSON.stringify(toInput(draft));
+  /** Quello che parte: la scheda intera, come la prende l'API. */
+  const saver = new Autosave<string>(async (json) => {
+    await plansApi.save(id!, JSON.parse(json) as PlanInput);
   });
   // lasciando la pagina parte quello che aspettava
   onDestroy(() => void saver.flush());
@@ -100,17 +92,17 @@
     const now = JSON.stringify(toInput(draft));
     if (now === sent || problem) return;
     sent = now;
-    saver.change({ json: now, days: [...draft.days] });
+    saver.change(now);
   });
 
-  /** Un esercizio da aggiungere a un allenamento, scelto in una finestra. */
-  function pickFor(day: DraftDay): void {
+  /** Un esercizio da aggiungere alla scheda, scelto in una finestra. */
+  function pick(): void {
     ui.openModal({
-      title: `Aggiungi all’allenamento ${day.name.trim() || 'senza nome'}`,
+      title: 'Aggiungi alla scheda',
       view: ExercisePicker,
       props: {
         onpick: (exercise: Exercise) =>
-          day.exercises.push({ key: newKey(), exerciseId: exercise.id, exerciseName: exercise.name, reps: ['10', '10', '10'], restSeconds: 90, notes: '' }),
+          draft?.exercises.push({ key: newKey(), exerciseId: exercise.id, exerciseName: exercise.name, reps: ['10', '10', '10'], restSeconds: 90, notes: '' }),
       },
     });
   }
@@ -126,8 +118,6 @@
   function askTake(anchor: HTMLElement, title: string, onYes: () => void, detail?: string): void {
     ui.askSure(anchor, { title, ...(detail === undefined ? {} : { detail }), verb: 'Togli', onYes });
   }
-
-  const dayName = (day: DraftDay): string => day.name.trim() || 'senza nome';
 
   function askRemove(anchor: HTMLElement): void {
     ui.askSure(anchor, {
@@ -157,20 +147,6 @@
   const back = { href: PLANS_PATH, label: 'Schede' };
 </script>
 
-<!-- da quando a quando: la fine si lascia vuota finché la scheda è in uso -->
-{#snippet period(target: Draft)}
-  <div class="period">
-    <label class="field">
-      <span class="eyebrow">Dal</span>
-      <input type="date" bind:value={target.startsOn} />
-    </label>
-    <label class="field">
-      <span class="eyebrow">Al</span>
-      <input type="date" bind:value={target.endsOn} min={target.startsOn} />
-    </label>
-  </div>
-{/snippet}
-
 <PageShell title={id === null ? 'Nuova scheda' : (draft?.name || 'Scheda')} {back}>
   {#snippet meta()}{#if id !== null}<SaveStatus {saver} />{/if}{/snippet}
   {#snippet tools()}
@@ -191,9 +167,8 @@
     <PageCard>
       <label class="field">
         <span class="eyebrow">Nome</span>
-        <TextField bind:value={fresh.name} placeholder="Forza, autunno" maxlength={100} />
+        <TextField bind:value={fresh.name} placeholder="Spinta, Gambe, Total body" maxlength={100} />
       </label>
-      {@render period(fresh)}
       <label class="field">
         <span class="eyebrow">Note</span>
         <TextField kind="multiline" bind:value={fresh.notes} maxlength={1000} placeholder="Quante volte a settimana, cosa curare" />
@@ -215,108 +190,70 @@
     <PageCard>
       <label class="field">
         <span class="eyebrow">Nome</span>
-        <TextField bind:value={draft.name} placeholder="Forza, autunno" maxlength={100} />
+        <TextField bind:value={draft.name} placeholder="Spinta, Gambe, Total body" maxlength={100} />
       </label>
-      {@render period(draft)}
       <label class="field">
         <span class="eyebrow">Note</span>
         <TextField kind="multiline" bind:value={draft.notes} maxlength={1000} placeholder="Quante volte a settimana, cosa curare" />
       </label>
-      <Switch
-        checked={draft.archived}
-        onchange={(value) => draft && (draft.archived = value)}
-        label="Archiviata"
-        hint="Non compare fra quelle da cui iniziare un allenamento."
-      />
     </PageCard>
     {:else}
 
-    {#each draft.days as day, dayIndex (day.key)}
-      <!-- un allenamento è un gruppo: la sua card, una card per esercizio, e il tasto per aggiungerne -->
-      <div class="day" role="group" aria-label="Allenamento {dayName(day)}">
+    {#each draft.exercises as exercise, index (exercise.key)}
       <PageCard>
-        <div class="day-head">
-          <label class="field day-name">
-            <span class="eyebrow">Allenamento</span>
-            <TextField bind:value={day.name} placeholder="A" maxlength={100} />
-          </label>
+      <div class="exercise">
+        <div class="exercise-head">
+          <span class="exercise-name">{exercise.exerciseName}</span>
           <span class="tools">
-            <Button look="icon" title="Sposta su" disabled={dayIndex === 0} onclick={() => draft && (draft.days = move(draft.days, dayIndex, -1))}>
+            <Button look="icon" size="sm" title="Sposta su" disabled={index === 0} onclick={() => draft && (draft.exercises = move(draft.exercises, index, -1))}>
               <Icon name="up" />
             </Button>
-            <Button look="icon" title="Sposta giù" disabled={dayIndex === draft.days.length - 1} onclick={() => draft && (draft.days = move(draft.days, dayIndex, 1))}>
+            <Button look="icon" size="sm" title="Sposta giù" disabled={index === draft.exercises.length - 1} onclick={() => draft && (draft.exercises = move(draft.exercises, index, 1))}>
               <Icon name="down" />
             </Button>
-            <Button look="icon" tone="danger" title="Togli l’allenamento" onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere l’allenamento «${dayName(day)}»?`, () => draft && (draft.days = draft.days.filter((one) => one !== day)), 'Con i suoi esercizi.')}>
-              <Icon name="trash" />
+            <Button look="icon" size="sm" tone="danger" title="Togli l’esercizio" onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere «${exercise.exerciseName}» dalla scheda?`, () => draft && (draft.exercises = draft.exercises.filter((one) => one !== exercise)))}>
+              <Icon name="close" />
             </Button>
           </span>
         </div>
-      </PageCard>
-
-        {#each day.exercises as exercise, index (exercise.key)}
-          <PageCard>
-          <div class="exercise">
-            <div class="exercise-head">
-              <span class="exercise-name">{exercise.exerciseName}</span>
-              <span class="tools">
-                <Button look="icon" size="sm" title="Sposta su" disabled={index === 0} onclick={() => (day.exercises = move(day.exercises, index, -1))}>
-                  <Icon name="up" />
-                </Button>
-                <Button look="icon" size="sm" title="Sposta giù" disabled={index === day.exercises.length - 1} onclick={() => (day.exercises = move(day.exercises, index, 1))}>
-                  <Icon name="down" />
-                </Button>
-                <Button look="icon" size="sm" tone="danger" title="Togli l’esercizio" onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere «${exercise.exerciseName}» dall’allenamento «${dayName(day)}»?`, () => (day.exercises = day.exercises.filter((one) => one !== exercise)))}>
-                  <Icon name="close" />
-                </Button>
-              </span>
-            </div>
-            <!-- le serie una per una, ognuna con le sue ripetizioni: «12, 10, 8» -->
-            <ol class="sets">
-              {#each exercise.reps as _, at (at)}
-                <li class="set">
-                  <span class="set-name">Serie {at + 1}</span>
-                  <TextField bind:value={exercise.reps[at]} label="Serie {at + 1}, ripetizioni" placeholder="8-10" maxlength={20} />
-                  <Button look="icon" size="sm" tone="danger" title="Togli la serie {at + 1}" aria-label="Togli la serie {at + 1}" disabled={exercise.reps.length === 1} onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere la serie ${at + 1} di «${exercise.exerciseName}»?`, () => removeSet(exercise, at))}>
-                    <Icon name="close" />
-                  </Button>
-                </li>
-              {/each}
-            </ol>
-            <span class="add-set">
-              <Button look="primary" disabled={exercise.reps.length >= 20} aria-label="Aggiungi una serie a {exercise.exerciseName}" onclick={() => addSet(exercise)}>
-                <Icon name="plus" /> Serie
+        <!-- le serie una per una, ognuna con le sue ripetizioni: «12, 10, 8» -->
+        <ol class="sets">
+          {#each exercise.reps as _, at (at)}
+            <li class="set">
+              <span class="set-name">Serie {at + 1}</span>
+              <TextField bind:value={exercise.reps[at]} label="Serie {at + 1}, ripetizioni" placeholder="8-10" maxlength={20} />
+              <Button look="icon" size="sm" tone="danger" title="Togli la serie {at + 1}" aria-label="Togli la serie {at + 1}" disabled={exercise.reps.length === 1} onclick={(event: MouseEvent) => askTake(event.currentTarget as HTMLElement, `Togliere la serie ${at + 1} di «${exercise.exerciseName}»?`, () => removeSet(exercise, at))}>
+                <Icon name="close" />
               </Button>
-            </span>
-            <div class="numbers">
-              <label class="field">
-                <span class="eyebrow">Recupero (s)</span>
-                <input
-                  type="text"
-                  inputmode="numeric"
-                  value={exercise.restSeconds === null ? '' : String(exercise.restSeconds)}
-                  oninput={(event) => (exercise.restSeconds = whole(event.currentTarget.value))}
-                />
-              </label>
-            </div>
-            <TextField bind:value={exercise.notes} placeholder="Note, per esempio il tempo o la presa" maxlength={1000} label="Note" />
-          </div>
-          </PageCard>
-        {/each}
-
-        <span class="add">
-          <Button look="ghost" onclick={() => pickFor(day)}>
-            <Icon name="plus" /> Aggiungi esercizio
+            </li>
+          {/each}
+        </ol>
+        <span class="add-set">
+          <Button look="primary" disabled={exercise.reps.length >= 20} aria-label="Aggiungi una serie a {exercise.exerciseName}" onclick={() => addSet(exercise)}>
+            <Icon name="plus" /> Serie
           </Button>
         </span>
+        <div class="numbers">
+          <label class="field">
+            <span class="eyebrow">Recupero (s)</span>
+            <input
+              type="text"
+              inputmode="numeric"
+              value={exercise.restSeconds === null ? '' : String(exercise.restSeconds)}
+              oninput={(event) => (exercise.restSeconds = whole(event.currentTarget.value))}
+            />
+          </label>
+        </div>
+        <TextField bind:value={exercise.notes} placeholder="Note, per esempio il tempo o la presa" maxlength={1000} label="Note" />
       </div>
+      </PageCard>
     {/each}
 
-    <div class="bottom">
-      <Button look="ghost" onclick={() => draft && addDay(draft)}>
-        <Icon name="plus" /> Aggiungi allenamento
+    <span class="add">
+      <Button look="ghost" onclick={pick}>
+        <Icon name="plus" /> Aggiungi esercizio
       </Button>
-    </div>
+    </span>
     {/if}
 
     {#if problem}<Alert message={problem} />{/if}
@@ -337,31 +274,7 @@
 
   @media (min-width: 601px) { .create { justify-self: end; } }
 
-  /* dal e al uno accanto all'altro: due date stanno anche sul telefono */
-  .period {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .period input { width: 100%; min-width: 0; }
-
-  /* il nome sopra, poi il campo e i tasti sulla stessa riga, centrati sul campo */
-  .day-head {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 6px 8px;
-  }
-
-  .day-name { display: contents; }
-
-  .day-name .eyebrow { grid-column: 1 / -1; }
-
   .tools { display: flex; align-items: center; gap: 2px; flex: none; }
-
-  /* un giorno: la sua card, le card degli esercizi e il tasto, con lo stesso spazio della pagina */
-  .day { display: grid; gap: 14px; }
 
   /* ogni esercizio è una card sua */
   .exercise { display: grid; gap: 8px; }
@@ -404,10 +317,6 @@
 
   .numbers input { text-align: center; font-variant-numeric: tabular-nums; }
 
-  .bottom { margin: 0; }
-
-
-
-  /* «Aggiungi esercizio» sta sotto le card del giorno, fuori da ogni card */
+  /* «Aggiungi esercizio» sta sotto le card degli esercizi, fuori da ogni card */
   .add { display: block; }
 </style>

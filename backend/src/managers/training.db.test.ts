@@ -30,8 +30,8 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
     const squat = await s.exercises.create(user.id, { name: "Squat", muscleGroup: "Gambe", notes: null });
     const bench = await s.exercises.create(user.id, { name: "Panca", muscleGroup: "Petto", notes: null });
     const input: PlanInput = {
-      name: "Forza", notes: null, startsOn: "2026-10-05", endsOn: null, archived: false,
-      days: [{ name: "A", exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5", "5", "5"], restSeconds: 180, notes: null }] }],
+      name: "Forza", notes: null,
+      exercises: [{ exerciseId: squat.id, reps: ["5", "5", "5", "5", "5"], restSeconds: 180, notes: null }],
     };
     return { user, squat, bench, input, ...s };
   }
@@ -72,33 +72,18 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const { user, bench, input, plans } = await setup();
       const plan = await plans.create(user.id, input);
       expect(await plans.get(user.id, plan.id)).toEqual(plan);
-      const replaced = await plans.replace(user.id, plan.id, { ...input, name: "Ipertrofia", days: [{ name: "B", exercises: [{ ...input.days[0]!.exercises[0]!, exerciseId: bench.id }] }] });
-      expect(replaced).toMatchObject({ name: "Ipertrofia", days: [{ name: "B", exercises: [{ exerciseName: "Panca" }] }] });
+      const replaced = await plans.replace(user.id, plan.id, { ...input, name: "Ipertrofia", exercises: [{ ...input.exercises[0]!, exerciseId: bench.id }] });
+      expect(replaced).toMatchObject({ name: "Ipertrofia", exercises: [{ exerciseName: "Panca" }] });
       expect(await plans.list(user.id)).toEqual([replaced]);
       await plans.delete(user.id, plan.id);
       await expect(plans.get(user.id, plan.id)).rejects.toThrow(NotFoundError);
     });
 
-    it("close, once created, the one in use that started before", async () => {
+    it("are many at once: a new one leaves the others as they were", async () => {
       const { user, input, plans } = await setup();
-      const summer = await plans.create(user.id, { ...input, name: "Estate", startsOn: "2026-06-01" });
-      const autumn = await plans.create(user.id, { ...input, name: "Autunno", startsOn: "2026-10-05" });
-      expect(await plans.list(user.id)).toEqual([autumn, { ...summer, endsOn: "2026-10-04", archived: true }]);
-      const winter = await plans.create(user.id, { ...input, name: "Inverno", startsOn: "2026-12-01", endsOn: "2026-12-31" });
-      expect((await plans.get(user.id, autumn.id)).endsOn).toBe("2026-11-30");
-      // saving one again closes nothing: only a new plan takes over
-      const reopened = await plans.replace(user.id, summer.id, { ...input, name: "Estate", startsOn: "2026-06-01" });
-      await plans.replace(user.id, winter.id, { ...input, name: "Inverno", startsOn: "2026-12-01" });
-      expect(await plans.get(user.id, summer.id)).toEqual(reopened);
-      expect(reopened).toMatchObject({ endsOn: null, archived: false });
-    });
-
-    it("close nothing when the new one is not the one in use: over already, or archived", async () => {
-      const { user, input, plans } = await setup();
-      const current = await plans.create(user.id, { ...input, name: "In uso", startsOn: "2026-03-01" });
-      await plans.create(user.id, { ...input, name: "Vecchia", startsOn: "2026-04-01", endsOn: "2026-05-01" });
-      await plans.create(user.id, { ...input, name: "Da parte", startsOn: "2026-06-01", archived: true });
-      expect(await plans.get(user.id, current.id)).toEqual(current);
+      const push = await plans.create(user.id, { ...input, name: "Spinta" });
+      const pull = await plans.create(user.id, { ...input, name: "Tirata" });
+      expect(await plans.list(user.id)).toEqual([push, pull]);
     });
 
     it("of another user are not found", async () => {
@@ -110,22 +95,11 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       await expect(plans.delete(other.user.id, plan.id)).rejects.toThrow(NotFoundError);
     });
 
-    it("refuse a day id that is not one of the plan's", async () => {
-      const { user, input, plans } = await setup();
-      const plan = await plans.create(user.id, input);
-      const other = await plans.create(user.id, input);
-      // One of its own days next to the other plan's: one stranger is enough to refuse.
-      const days = [{ ...input.days[0]!, id: plan.days[0]!.id }, { ...input.days[0]!, id: other.days[0]!.id }];
-      await expect(plans.replace(user.id, plan.id, { ...input, days }))
-        .rejects.toThrow(new InputError("Uno degli allenamenti della scheda non esiste più. Ricarica la pagina."));
-      expect(await plans.get(user.id, other.id)).toEqual(other);
-    });
-
     it("take only the user's own exercises", async () => {
       const { user, input, plans } = await setup();
       const other = await setup();
       const plan = await plans.create(user.id, input);
-      const theirs: PlanInput = { ...input, days: [{ name: "A", exercises: [{ ...input.days[0]!.exercises[0]!, exerciseId: other.squat.id }] }] };
+      const theirs: PlanInput = { ...input, exercises: [{ ...input.exercises[0]!, exerciseId: other.squat.id }] };
       await expect(plans.create(user.id, theirs)).rejects.toThrow(new InputError("Uno degli esercizi non esiste più. Ricarica la pagina."));
       await expect(plans.replace(user.id, plan.id, theirs)).rejects.toThrow(InputError);
       expect(await plans.list(user.id)).toEqual([plan]);
@@ -207,7 +181,7 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       await workoutsRepo.addSet(earlier.id, { exerciseId: squat.id, reps: 5, weightKg: 90 });
       await workoutsRepo.update(user.id, earlier.id, { finished: true });
       const workout = await workouts.start(user.id, null);
-      expect(workout).toMatchObject({ planDayId: null, planName: null, dayName: null, plan: [], sets: [] });
+      expect(workout).toMatchObject({ planId: null, planName: null, plan: [], sets: [] });
       expect(workout.previous).toEqual({
         [squat.id]: { workoutId: earlier.id, startedAt: "2026-09-01T17:00:00.000Z", sets: [{ reps: 5, weightKg: 90 }], note: null, before: [] },
       });
@@ -215,21 +189,20 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       expect(workout.previousNote).toBeNull();
     });
 
-    it("start from a plan day, with what it asks for", async () => {
+    it("start from a plan, with what it asks for", async () => {
       const { user, input, plans, workouts } = await setup();
       const plan = await plans.create(user.id, input);
-      const day = plan.days[0]!;
-      const workout = await workouts.start(user.id, day.id);
-      expect(workout).toMatchObject({ planDayId: day.id, planName: "Forza", dayName: "A", plan: day.exercises });
+      const workout = await workouts.start(user.id, plan.id);
+      expect(workout).toMatchObject({ planId: plan.id, planName: "Forza", plan: plan.exercises });
       expect(await workouts.get(user.id, workout.id)).toEqual(workout);
     });
 
-    it("do not start from another user's plan day", async () => {
+    it("do not start from another user's plan", async () => {
       const { workouts } = await setup();
       const other = await setup();
       const plan = await other.plans.create(other.user.id, other.input);
       const { user } = await setup();
-      await expect(workouts.start(user.id, plan.days[0]!.id)).rejects.toThrow(new InputError("L’allenamento della scheda non esiste più. Ricarica la pagina."));
+      await expect(workouts.start(user.id, plan.id)).rejects.toThrow(new InputError("La scheda non esiste più. Ricarica la pagina."));
     });
 
     it("keep a note for each exercise of the session", async () => {
@@ -283,7 +256,7 @@ describe.skipIf(SERVER === undefined)("the training services and managers", () =
       const finished = await workouts.update(user.id, workout.id, { finished: true, notes: "bene" });
       expect(finished).toMatchObject({ notes: "bene", finishedAt: expect.any(String), sets: [{ reps: 5 }] });
       expect(await workouts.list(user.id, 20, 0)).toEqual([
-        { id: workout.id, planDayId: null, planName: null, dayName: null, startedAt: workout.startedAt, finishedAt: finished.finishedAt, notes: "bene", exercises: 1, sets: 1, volume: 500 },
+        { id: workout.id, planId: null, planName: null, startedAt: workout.startedAt, finishedAt: finished.finishedAt, notes: "bene", exercises: 1, sets: 1, volume: 500 },
       ]);
       await workouts.delete(user.id, workout.id);
       await expect(workouts.get(user.id, workout.id)).rejects.toThrow(NotFoundError);

@@ -7,8 +7,8 @@
   import SearchPicker from '../SearchPicker.svelte';
 
   /**
-   * Scegli un esercizio, dentro a una finestra (`ui.openModal`): per un giorno
-   * della scheda, o per l'allenamento in corso.
+   * Scegli un esercizio, dentro a una finestra (`ui.openModal`): per una scheda,
+   * o per l'allenamento in corso.
    *
    * Quelli che hai si cercano scrivendo (`SearchPicker`); quello che non c'è
    * si crea da qui, scrivendone il nome nella riga in cima (`AddRow`), e

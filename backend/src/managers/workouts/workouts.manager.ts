@@ -3,21 +3,21 @@ import type { PlanExercise, PreviousNote, PreviousSets, SetInput, Workout, Worko
 import { createExercisesService, createPlansService, createWorkoutsService } from "../../services";
 import { InputError } from "../../validators";
 
-/** A workout as the app shows it: what the plan day asks for, the sets done, and the last time. */
+/** A workout as the app shows it: what the plan asks for, the sets done, and the last time. */
 export interface WorkoutDetail extends Workout {
-  /** Empty for a free workout, or once the plan day is gone. */
+  /** Empty for a free workout, or once the plan is gone. */
   readonly plan: PlanExercise[];
   readonly sets: WorkoutSet[];
   readonly previous: Record<string, PreviousSets>;
   /** By exercise id: what was written about it in this workout. */
   readonly exerciseNotes: Record<string, string>;
-  /** The note of the last earlier workout of the same plan day. */
+  /** The note of the last earlier workout of the same plan. */
   readonly previousNote: PreviousNote | null;
 }
 
 /** Workouts together with plans and exercises; each method one transaction. */
 export interface WorkoutsManager {
-  start(userId: number, planDayId: number | null): Promise<WorkoutDetail>;
+  start(userId: number, planId: number | null): Promise<WorkoutDetail>;
   get(userId: number, id: number): Promise<WorkoutDetail>;
   update(userId: number, id: number, change: WorkoutChange): Promise<WorkoutDetail>;
   /** Into the user's own workout, of the user's own exercise. */
@@ -28,11 +28,11 @@ export interface WorkoutsManager {
 
 async function detail(tx: Executor, userId: number, workout: Workout): Promise<WorkoutDetail> {
   const workouts = createWorkoutsService(tx);
-  // Stryker disable next-line ConditionalExpression: no plan day finds no day either; this only saves a query
-  const day = workout.planDayId === null ? undefined : await createPlansService(tx).findDay(userId, workout.planDayId);
+  // Stryker disable next-line ConditionalExpression: no plan id finds no plan either; this only saves a query
+  const plan = workout.planId === null ? undefined : await createPlansService(tx).find(userId, workout.planId);
   return {
     ...workout,
-    plan: day?.day.exercises ?? [],
+    plan: plan?.exercises ?? [],
     sets: await workouts.sets(workout.id),
     previous: await workouts.previous(userId, workout.id),
     exerciseNotes: await workouts.exerciseNotes(workout.id),
@@ -42,13 +42,13 @@ async function detail(tx: Executor, userId: number, workout: Workout): Promise<W
 
 export function createWorkoutsManager(db: Database): WorkoutsManager {
   return {
-    start(userId, planDayId) {
+    start(userId, planId) {
       return db.transaction(async (tx) => {
         const workouts = createWorkoutsService(tx);
-        if (planDayId === null) return detail(tx, userId, await workouts.start(userId, null));
-        const day = await createPlansService(tx).findDay(userId, planDayId);
-        if (day === undefined) throw new InputError("L’allenamento della scheda non esiste più. Ricarica la pagina.");
-        return detail(tx, userId, await workouts.start(userId, { planDayId, planName: day.planName, dayName: day.day.name }));
+        if (planId === null) return detail(tx, userId, await workouts.start(userId, null));
+        const plan = await createPlansService(tx).find(userId, planId);
+        if (plan === undefined) throw new InputError("La scheda non esiste più. Ricarica la pagina.");
+        return detail(tx, userId, await workouts.start(userId, { planId, planName: plan.name }));
       });
     },
 
